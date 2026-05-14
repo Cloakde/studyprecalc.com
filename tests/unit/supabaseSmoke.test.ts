@@ -43,6 +43,8 @@ describe('Supabase smoke helpers', () => {
       VITE_SUPABASE_ANON_KEY: ' anon-key ',
       SMOKE_ADMIN_EMAIL: ' admin@example.com ',
       SMOKE_ADMIN_PASSWORD: ' password ',
+      SMOKE_STUDENT_EMAIL: ' student@example.com ',
+      SMOKE_STUDENT_PASSWORD: ' student-password ',
       SMOKE_INVALID_INVITE_CODE: ' intentionally-missing ',
       SMOKE_WRITE: '1',
     });
@@ -57,7 +59,22 @@ describe('Supabase smoke helpers', () => {
         email: 'admin@example.com',
         password: 'password',
       },
+      studentCredentials: {
+        email: 'student@example.com',
+        password: 'student-password',
+      },
     });
+  });
+
+  it('only enables write smoke checks with the exact SMOKE_WRITE opt-in', () => {
+    const result = parseSupabaseSmokeEnv({
+      VITE_SUPABASE_URL: 'https://example.supabase.co',
+      VITE_SUPABASE_ANON_KEY: 'anon-key',
+      SMOKE_WRITE: 'true',
+    });
+
+    expect(result.issues).toEqual([]);
+    expect(result.config?.writeEnabled).toBe(false);
   });
 
   it('requires admin email and password together', () => {
@@ -76,17 +93,39 @@ describe('Supabase smoke helpers', () => {
     ]);
   });
 
+  it('requires student email and password together', () => {
+    const result = parseSupabaseSmokeEnv({
+      VITE_SUPABASE_URL: 'https://example.supabase.co',
+      VITE_SUPABASE_ANON_KEY: 'anon-key',
+      SMOKE_STUDENT_PASSWORD: 'student-password',
+    });
+
+    expect(result.config).toBeUndefined();
+    expect(result.issues).toEqual([
+      {
+        variable: 'SMOKE_STUDENT_EMAIL',
+        message: 'SMOKE_STUDENT_EMAIL and SMOKE_STUDENT_PASSWORD must be provided together.',
+      },
+    ]);
+  });
+
   it('formats smoke results for console output', () => {
     const results: SmokeResult[] = [
-      { name: 'env', status: 'pass', message: 'configured' },
-      { name: 'admin login', status: 'skip', message: 'not provided' },
-      { name: 'rpc', status: 'fail', message: 'missing' },
+      { name: 'question-images bucket', status: 'pass', message: 'configured' },
+      {
+        name: 'cloud image write path',
+        status: 'skip',
+        message: 'SMOKE_WRITE was not provided',
+      },
+      { name: 'media_records schema', status: 'fail', message: 'missing table' },
     ];
 
     expect(formatSmokeResults(results)).toBe(
-      ['[PASS] env: configured', '[SKIP] admin login: not provided', '[FAIL] rpc: missing'].join(
-        '\n',
-      ),
+      [
+        '[PASS] question-images bucket: configured',
+        '[SKIP] cloud image write path: SMOKE_WRITE was not provided',
+        '[FAIL] media_records schema: missing table',
+      ].join('\n'),
     );
   });
 

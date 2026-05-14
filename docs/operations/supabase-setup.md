@@ -2,8 +2,8 @@
 
 Use this runbook to prepare the production Supabase project for Study Precalc.
 
-For the ordered owner-facing M6 launch flow, start with
-[M6 Production Activation Checklist](production-activation.md).
+For the ordered owner-facing M8 launch flow, start with
+[M8 Production Activation Checklist](production-activation.md).
 
 ## Project Values
 
@@ -55,6 +55,9 @@ The script is intended to be rerunnable. It creates or updates:
 - A private Storage bucket named `question-images` with a 1 MB file limit and these MIME types:
   `image/png`, `image/jpeg`, `image/webp`, and `image/gif`.
 
+Evidence to keep: the SQL Editor success message plus the verification query results below. Do not
+paste the schema into other runbooks; refer back to `supabase/schema.sql`.
+
 ## Verify SQL Setup
 
 Run these checks in the Supabase SQL Editor after the schema completes.
@@ -96,6 +99,8 @@ order by schemaname, tablename, policyname;
 
 Expected result: policies for student-owned progress, admin-managed content, admin-managed invites,
 class access, media metadata, and `question-images` storage objects.
+
+Save these three query results with the activation evidence.
 
 ## Configure Auth
 
@@ -143,11 +148,14 @@ Local development:
 
 1. Set `.env` with `VITE_SUPABASE_URL` and the browser-safe `VITE_SUPABASE_ANON_KEY`.
 2. Run `npm run dev`, then sign in with a real Supabase admin account. The dev-only local admin uses
-   browser-local fallback and is not a cloud Storage upload test.
+   browser-local fallback and is not a cloud Storage upload test or production RLS check.
 3. If Supabase env vars are absent, uploaded images remain local browser references such as
    `local-image:<id>` and are not available across browsers or devices.
 4. Upload only PNG, JPEG, WebP, or GIF images under 1 MB.
 5. Save the question as a draft, then confirm the draft still renders for the admin after refresh.
+
+Evidence to keep: screenshot/checkpoint of the signed-in Supabase admin, the draft after refresh,
+and any failed upload message if the test intentionally checks an invalid file.
 
 Production:
 
@@ -160,6 +168,26 @@ Production:
 5. Save the draft and verify the image appears for the admin.
 6. Publish the question and verify the image appears for a signed-in student.
 7. Archive the question and verify the student can no longer read the question or its linked image.
+
+Evidence to keep: deployed app URL, admin screenshot/checkpoint after upload, student
+screenshot/checkpoint after publish, student screenshot/checkpoint after archive, and the media
+metadata SQL result from [Cloud Image Storage Smoke Test](#cloud-image-storage-smoke-test).
+
+Optional CLI write smoke after the admin and student smoke accounts exist:
+
+```sh
+SMOKE_WRITE=1 \
+SMOKE_ADMIN_EMAIL=owner@example.com \
+SMOKE_ADMIN_PASSWORD=replace-with-admin-password \
+SMOKE_STUDENT_EMAIL=student@example.com \
+SMOKE_STUDENT_PASSWORD=replace-with-student-password \
+npm run smoke:supabase
+```
+
+Expected result: `[PASS] cloud image write path`. The script uploads a tiny generated PNG, creates
+metadata and question-media rows, publishes a temporary question, creates fresh signed URLs for admin
+and student sessions, archives the temporary question, verifies student image access is denied after
+archive, and cleans up the rows and Storage object.
 
 ## Bootstrap The First Admin
 
@@ -193,6 +221,9 @@ Then:
 5. Confirm the email if Supabase email confirmation is enabled.
 6. Log in and confirm the header shows the `Admin` badge plus `Manage Content` and `Classes` tabs.
 
+Evidence to keep: the returned invite row, the email confirmation checkpoint if enabled, and a
+screenshot/checkpoint showing the signed-in admin UI.
+
 Verify in SQL:
 
 ```sql
@@ -210,6 +241,8 @@ where code = public.normalize_invite_code('<PASTE_RETURNED_CODE>');
 ```
 
 Expected result: `consumed_at` and `consumed_by` are populated.
+
+Save both admin verification query results with the activation evidence.
 
 If the owner account already exists but is not an admin, promote it from the SQL Editor:
 
@@ -231,6 +264,8 @@ returning id, email, display_name, role;
 
 Expected result: exactly one row with `role = 'admin'`. If this returns zero rows, the owner auth
 account does not exist yet.
+
+Save the returned promotion row if this fallback is used.
 
 ## Invite Setup
 
@@ -280,6 +315,8 @@ join public.classes c on c.id = e.class_id
 where e.email = lower('student@example.com')
 order by e.created_at desc;
 ```
+
+Save the consumed invite row and class enrollment row if this SQL fallback is used.
 
 ## Invite Enforcement Smoke Test
 
@@ -349,6 +386,9 @@ order by e.created_at desc;
 
 Expected result: one row for the class-scoped invite.
 
+Evidence to keep: SQL output for the invalid invite, mismatch invite, consumed invite, reused
+invite, and class enrollment checks.
+
 Signup without an invite should fail at the database trigger. The normal app UI does not expose a
 no-invite submit path, so treat any successful no-invite account creation as a production blocker.
 
@@ -414,6 +454,9 @@ set status = 'archived',
 where id = 'smoke-publish-001';
 ```
 
+Evidence to keep: admin publish checkpoint, student Practice checkpoint, attempt persistence query
+result, and cleanup query result.
+
 ## Cloud Image Storage Smoke Test
 
 Use only original throwaway images for this test. A simple generated graph or hand-authored diagram
@@ -476,6 +519,10 @@ where id = 'smoke-image-001';
 ```
 
 Then refresh the student session and confirm the question and linked image are no longer visible.
+
+Evidence to keep: bucket query result, media linkage query result, admin draft screenshot/checkpoint,
+student published-image screenshot/checkpoint, student archived-question checkpoint, and optional
+`[PASS] cloud image write path` CLI output if the automated write smoke is run.
 
 ## Troubleshooting
 

@@ -28,6 +28,8 @@ Password: localadmin
 ```
 
 This development admin is available only while running the Vite dev server and is not included in production builds.
+It is not valid for cloud Storage, production RLS, or student visibility smoke tests; use a real
+Supabase admin for those checks.
 
 Run verification:
 
@@ -49,7 +51,7 @@ npm run smoke:supabase
 
 The first public deployment target is Vercel. See:
 
-- `docs/operations/production-activation.md` for the owner-facing M6 activation checklist.
+- `docs/operations/production-activation.md` for the owner-facing M8 activation checklist.
 - `docs/operations/deployment.md` for Vercel deploys, environment variables, domains, and deploy checks.
 - `docs/operations/supabase-setup.md` for Supabase SQL, Auth, Storage, first admin bootstrap, invites, and publishing smoke tests.
 
@@ -71,7 +73,7 @@ Optional Supabase setup:
 - Add a browser-safe `VITE_SUPABASE_ANON_KEY` value using a Supabase publishable key or legacy anon public key.
 - Run `supabase/schema.sql` in the Supabase SQL Editor.
 - Bootstrap the first admin with an invite as described in `docs/operations/supabase-setup.md`.
-- Use `docs/operations/production-activation.md` as the full M6 deployment checklist.
+- Use `docs/operations/production-activation.md` as the full M8 deployment checklist.
 
 ## No-Code Content Management
 

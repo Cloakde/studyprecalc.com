@@ -4,13 +4,13 @@ Last updated: 2026-05-14
 
 ## Current Phase
 
-M7 cloud image storage is complete repo-side. Supabase-backed question/solution image uploads, stable media references, media metadata/linking, local fallback, docs, and tests are in place.
+M8 live cloud activation preflight is complete repo-side. Owner activation is still pending in Supabase and Vercel: apply SQL, bootstrap real admin/student accounts, deploy, then run the read-only and write smoke checks.
 
 ## Active Ownership
 
-| Agent | Task | File Scope | Status |
-| ----- | ---- | ---------- | ------ |
-| Codex | Coordinate M7 cloud image storage and integrate agent outputs | `.ai/*`, `src/app/App.tsx`, final integration, final verification, final git push | Complete |
+| Agent | Task                       | File Scope | Status |
+| ----- | -------------------------- | ---------- | ------ |
+| None  | No active agent file claim | N/A        | Clear  |
 
 ## Notes
 
@@ -49,6 +49,10 @@ M7 cloud image storage is complete repo-side. Supabase-backed question/solution 
 - Running `npm run smoke:supabase` against the current configured Supabase project fails because `public.validate_invite` and `public.questions` are not in the schema cache yet; run `supabase/schema.sql` in the Supabase dashboard before expecting that smoke check to pass.
 - M7 adds Supabase cloud image uploads for admin-authored question/explanation assets. Cloud images are stored in the private `question-images` bucket, question JSON stores stable `supabase-image:<storage_path>` references, and rendering resolves short-lived signed URLs.
 - Cloud publishing now rejects browser-local images/videos so published Supabase content does not point at media that only exists in one browser profile.
+- M8 expands `npm run smoke:supabase` with Storage bucket checks, media schema checks, and an opt-in `SMOKE_WRITE=1` cloud image write smoke.
+- The write smoke requires real Supabase admin credentials. Add student smoke credentials to verify fresh student signed URL access after publish and denial after archive.
+- Supabase image uploads now remove the uploaded Storage object if `media_records` metadata insert fails, reducing orphaned file risk.
+- Running `npm run smoke:supabase` against the current configured Supabase project still fails live activation checks because `public.validate_invite`, `public.questions`, and the `question-images` bucket are not all installed yet. Apply `supabase/schema.sql` before expecting those checks to pass.
 
 ## Last Verification
 
@@ -78,3 +82,4 @@ M7 cloud image storage is complete repo-side. Supabase-backed question/solution 
 2026-05-14: Codex integrated milestones 1-5 and ran `npm run validate:content`, `npm test` (80 tests), `npm run lint`, `npm run build`, and `git diff --check`. All passed; diff check reported CRLF warnings only. Browser smoke confirmed local admin sees Manage Content and Classes, class/invite creation works, Content Manager draft/publish controls render, and invite code input has a unique accessible label. QA found and Codex fixed Manage Content horizontal overflow hardening and missing Content Manager validation `role="alert"`; final QA confirmed no document-level horizontal overflow at 1440px or 390px.
 2026-05-14: Codex completed M6 production activation tooling and ran `npm run validate:content`, `npm test` (87 tests), `npm run lint`, `npm run build`, and `git diff --check`. All passed; diff check reported a CRLF warning for `supabase/schema.sql` only. `npm run smoke:supabase` executed and correctly failed live checks because the configured Supabase project has not yet applied `supabase/schema.sql`.
 2026-05-14: Codex + agents completed M7 cloud image storage and ran targeted media/content/schema tests, `npm test` (101 tests), `npm run lint`, `npm run build`, and `git diff --check`. All passed; diff check reported CRLF warnings only. Browser check confirmed the local app sign-in surface renders at `http://127.0.0.1:5173`; automated admin login was blocked by the in-app browser email input automation issue.
+2026-05-14: Codex + agents completed M8 live cloud activation preflight and ran `npm test -- supabaseSmoke supabaseMediaStore`, targeted ESLint for the smoke/media files, `npm run validate:content`, `npm test` (104 tests), `npm run lint`, `npm run build`, and `git diff --check`. All passed; diff check reported CRLF warnings only. `npm run smoke:supabase` executed and correctly failed live activation checks because the configured Supabase project has not yet applied the required SQL/bucket setup.

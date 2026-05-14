@@ -1,4 +1,4 @@
-# M6 Production Activation Checklist
+# M8 Production Activation Checklist
 
 Use this checklist when the owner is ready to activate the first production deployment for
 `studyprecalc.com`. Follow the steps in order.
@@ -37,6 +37,11 @@ Owner must verify:
 - `VITE_SUPABASE_ANON_KEY` is the publishable or legacy anon public key, never `service_role`.
 - Any private values shown in local terminals or dashboards are not pasted into docs or commits.
 
+Evidence to keep:
+
+- Terminal output showing all four commands passed on the deploy commit.
+- Confirmation that `.env` points at the production Supabase project when running cloud smoke checks.
+
 ## 2. Run Supabase SQL
 
 Owner, in the Supabase dashboard:
@@ -50,6 +55,12 @@ Owner, in the Supabase dashboard:
 
 Codex can verify the SQL file exists and can review its contents locally. Codex cannot run SQL in
 the owner's Supabase project without owner dashboard access.
+
+Evidence to keep:
+
+- Supabase SQL Editor success message for `supabase/schema.sql`.
+- Query results showing all required tables, the private `question-images` bucket, and expected RLS
+  policies.
 
 ## 3. Bootstrap Admin Invite
 
@@ -68,6 +79,14 @@ Owner, in Supabase SQL Editor:
 Codex can verify the local UI path exists. The owner must create the production invite and confirm
 the production account.
 
+Evidence to keep:
+
+- Returned one-time invite row with the code stored outside Git.
+- Screenshot or checkpoint showing `Cloud account`, the `Admin` badge, `Manage Content`, and
+  `Classes`.
+- SQL results showing the owner profile has `role = 'admin'` and the invite has `consumed_at` and
+  `consumed_by`.
+
 ## 4. Configure Auth Redirects
 
 Owner, in Supabase Auth URL Configuration:
@@ -85,6 +104,12 @@ Owner, in Supabase Auth URL Configuration:
 
 Codex cannot verify Supabase Auth dashboard settings directly unless the owner provides access or
 screenshots.
+
+Evidence to keep:
+
+- Screenshot or copied dashboard values for Site URL and redirect URLs.
+- If email confirmation is enabled, screenshot/checkpoint that the confirmation link returns to
+  `https://studyprecalc.com`.
 
 ## 5. Configure Vercel Environment Variables
 
@@ -107,6 +132,12 @@ browser-local fallback mode. Redeploy after changing any `VITE_` variable.
 Codex can verify the expected variable names from repo docs. The owner must enter the real values in
 Vercel.
 
+Evidence to keep:
+
+- Vercel Environment Variables screen showing `VITE_SUPABASE_URL`,
+  `VITE_SUPABASE_ANON_KEY`, and optional `VITE_DESMOS_API_KEY` are configured for Production.
+- Deployment timestamp after the latest `VITE_` variable change.
+
 ## 6. Deploy
 
 Owner, in Vercel:
@@ -121,6 +152,12 @@ Owner, in Vercel:
 6. Sign in as the owner admin.
 
 Codex can verify a deployment URL after the owner shares it or after public DNS is live.
+
+Evidence to keep:
+
+- Vercel deployment URL and deployment status showing a successful build.
+- Screenshot/checkpoint from the deployed URL showing `Cloud account`.
+- Screenshot/checkpoint showing owner admin login succeeded on the deployed build.
 
 ## 7. Connect `studyprecalc.com`
 
@@ -137,6 +174,12 @@ Owner, in Vercel and the domain registrar:
 
 Codex can run DNS and HTTP checks after the records propagate.
 
+Evidence to keep:
+
+- Vercel Domains screen showing configured domains.
+- DNS/HTTP check output showing `studyprecalc.com` and `www.studyprecalc.com` resolve and return
+  HTTP 200 after redirects.
+
 ## 8. Run App Smoke Tests
 
 Owner or Codex after deployment:
@@ -144,25 +187,29 @@ Owner or Codex after deployment:
 1. Run `npm run smoke:supabase` locally after `.env` points at the production Supabase project.
 2. Optionally set `SMOKE_ADMIN_EMAIL` and `SMOKE_ADMIN_PASSWORD`, then rerun
    `npm run smoke:supabase` to verify admin login and `profiles.role = admin`.
-3. Open `https://studyprecalc.com`.
-4. Confirm the auth screen says `Cloud account`.
-5. Sign in as the owner admin.
-6. Confirm `Admin`, `Manage Content`, and `Classes` are visible.
-7. Create a class and a student invite.
-8. Run the invite checks in
+3. For the automated cloud image write smoke, set `SMOKE_WRITE=1`, `SMOKE_ADMIN_EMAIL`,
+   `SMOKE_ADMIN_PASSWORD`, `SMOKE_STUDENT_EMAIL`, and `SMOKE_STUDENT_PASSWORD`, then rerun
+   `npm run smoke:supabase`. The script uploads a generated image, publishes a temporary question,
+   checks admin/student signed URL behavior, archives it, and cleans up.
+4. Open `https://studyprecalc.com`.
+5. Confirm the auth screen says `Cloud account`.
+6. Sign in as the owner admin.
+7. Confirm `Admin`, `Manage Content`, and `Classes` are visible.
+8. Create a class and a student invite.
+9. Run the invite checks in
    [Invite Enforcement Smoke Test](supabase-setup.md#invite-enforcement-smoke-test).
-9. Create and publish one original text-only smoke question.
-10. Sign up as a student in a private window or different browser profile using the invite.
-11. Confirm the published question appears in Practice.
-12. Submit one practice attempt.
-13. Confirm the Dashboard updates.
-14. Verify the question row and attempt row with the SQL checks in
+10. Create and publish one original text-only smoke question.
+11. Sign up as a student in a private window or different browser profile using the invite.
+12. Confirm the published question appears in Practice.
+13. Submit one practice attempt.
+14. Confirm the Dashboard updates.
+15. Verify the question row and attempt row with the SQL checks in
     [Content Publishing Smoke Test](supabase-setup.md#content-publishing-smoke-test).
-15. Run the [Cloud Image Storage Smoke Test](supabase-setup.md#cloud-image-storage-smoke-test)
+16. Run the [Cloud Image Storage Smoke Test](supabase-setup.md#cloud-image-storage-smoke-test)
     with an original PNG, JPEG, WebP, or GIF under 1 MB.
-16. Confirm the image is stored through stable media references and renders for students only after
+17. Confirm the image is stored through stable media references and renders for students only after
     the linked question is published.
-17. Archive or delete the smoke questions.
+18. Archive or delete the smoke questions.
 
 Do not use AP, College Board, or third-party copyrighted images in smoke tests unless the owner has
 confirmed usage rights. Do not upload video files to app storage; video explanations should remain
@@ -170,6 +217,24 @@ YouTube, Vimeo, or approved embed/link references for now.
 
 Codex can verify public HTTP responses and local app behavior. Owner dashboard access is required
 for SQL verification, invite/account confirmation, and any private production data inspection.
+
+The dev-only local admin (`admin@studyprecalc.local` / `localadmin`) is not valid evidence for
+production Storage or RLS. It uses browser-local fallback and cannot prove that Supabase Auth,
+Storage, media metadata, or student visibility work in the cloud.
+
+Evidence to keep:
+
+- `npm run smoke:supabase` output, including `[PASS] validate_invite RPC`,
+  `[PASS] anon unpublished content access`, `[PASS] question-images bucket`, and either
+  `[PASS] admin login` or a documented skip if admin smoke credentials were intentionally omitted.
+- If write smoke is run, `npm run smoke:supabase` output showing `[PASS] cloud image write path`.
+- SQL output from invite enforcement and content publishing checks.
+- Screenshot/checkpoint showing the admin published an original smoke question.
+- Screenshot/checkpoint from a separate student session showing the published question and cloud
+  image render.
+- SQL output showing linked `public.media_records` and `public.question_media` rows for
+  `smoke-image-001`.
+- Screenshot/checkpoint after archive showing the student can no longer see the smoke question.
 
 ## 9. Roll Back If Needed
 
@@ -180,6 +245,12 @@ Owner, if production breaks:
 3. Re-run the domain HTTP checks from [Deployment Runbook](deployment.md#domain-deploy-checks).
 4. Re-run owner login.
 5. Re-run one student invite signup or practice persistence check if auth or data changed.
+
+Evidence to keep:
+
+- Vercel rollback deployment URL or promoted deployment ID.
+- HTTP check output after rollback.
+- Owner login and one student persistence checkpoint after rollback.
 
 CLI option after Vercel login:
 

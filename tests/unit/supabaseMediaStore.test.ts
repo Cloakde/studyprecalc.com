@@ -22,7 +22,7 @@ function createImageFile(options: { name?: string; type?: string; size?: number 
   });
 }
 
-function createMockClient() {
+function createMockClient(options: { insertError?: { message: string } | null } = {}) {
   const uploaded: Array<{
     bucket: string;
     path: string;
@@ -30,6 +30,7 @@ function createMockClient() {
     options: { contentType?: string; upsert?: boolean } | undefined;
   }> = [];
   const insertedRows: SupabaseMediaRecordInsert[] = [];
+  const removed: Array<{ bucket: string; paths: string[] }> = [];
   const signedUrlCalls: Array<{ bucket: string; path: string; expiresIn: number }> = [];
 
   const client: SupabaseMediaClient = {
@@ -49,6 +50,10 @@ function createMockClient() {
               error: null,
             };
           },
+          async remove(paths) {
+            removed.push({ bucket, paths });
+            return { data: {}, error: null };
+          },
         };
       },
     },
@@ -64,6 +69,13 @@ function createMockClient() {
             select() {
               return {
                 async single() {
+                  if (options.insertError) {
+                    return {
+                      data: null,
+                      error: options.insertError,
+                    };
+                  }
+
                   return {
                     data: {
                       ...row,
@@ -80,7 +92,7 @@ function createMockClient() {
     },
   };
 
-  return { client, insertedRows, signedUrlCalls, uploaded };
+  return { client, insertedRows, removed, signedUrlCalls, uploaded };
 }
 
 describe('supabase image references', () => {
@@ -99,6 +111,32 @@ describe('supabase image references', () => {
     expect(parseSupabaseImageReference('supabase-image:/secret.png')).toBeNull();
     expect(parseSupabaseImageReference('local-image:image-123')).toBeNull();
     expect(() => createSupabaseImageReference('../secret.png')).toThrow();
+  });
+
+  it('removes the uploaded object when media metadata insert fails', async () => {
+    const { client, removed } = createMockClient({
+      insertError: { message: 'metadata insert denied' },
+    });
+
+    await expect(
+      uploadSupabaseImage(
+        {
+          file: createImageFile({ name: 'orphan.png', type: 'image/png', size: 128 }),
+          alt: 'Orphan cleanup test image.',
+          assetId: 'orphan-test',
+          now: () => new Date('2026-05-14T12:00:00.000Z'),
+          randomId: () => 'cleanup',
+        },
+        { client },
+      ),
+    ).rejects.toThrow('metadata insert denied');
+
+    expect(removed).toEqual([
+      {
+        bucket: supabaseImageBucket,
+        paths: ['uploads/anonymous/2026/05/14/orphan-test-cleanup.png'],
+      },
+    ]);
   });
 });
 

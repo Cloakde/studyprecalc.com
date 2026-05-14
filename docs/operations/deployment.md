@@ -2,8 +2,8 @@
 
 First public deployment target: Vercel.
 
-For the ordered owner-facing M6 launch flow, start with
-[M6 Production Activation Checklist](production-activation.md).
+For the ordered owner-facing M8 launch flow, start with
+[M8 Production Activation Checklist](production-activation.md).
 
 Complete [Supabase setup](supabase-setup.md) before relying on production accounts, invites,
 published content, question image uploads, saved attempts, or dashboard persistence.
@@ -32,6 +32,8 @@ npm run build
 
 Do not treat a build as ready for students until these pass on the branch or commit being deployed.
 
+Evidence to keep: terminal output showing these commands passed on the exact commit deployed.
+
 ## Vercel Environment Variables
 
 Set these in the Vercel project for Production. Also set them for Preview and Development unless
@@ -54,6 +56,9 @@ Rules:
 - `VITE_SUPABASE_ANON_KEY` must be browser-safe. Do not use a Supabase `service_role` key.
 - Redeploy after changing any Vite variable.
 
+Evidence to keep: Vercel Environment Variables screen showing the variable names are configured for
+Production, plus the redeploy timestamp after the latest change.
+
 ## Deploy From Vercel Dashboard
 
 1. Push or import this repository into GitHub.
@@ -63,6 +68,9 @@ Rules:
 5. Deploy.
 6. Open the generated `*.vercel.app` URL.
 7. Confirm the login screen says `Cloud account`.
+
+Evidence to keep: deployment URL, successful Vercel build status, and screenshot/checkpoint showing
+`Cloud account` on the generated URL.
 
 ## Deploy From Vercel CLI
 
@@ -87,6 +95,9 @@ If the build fails or behaves unexpectedly, inspect logs:
 npx vercel inspect <deployment-url> --logs --wait
 ```
 
+Evidence to keep: CLI deployment URL, `vercel inspect` success output, and any logs used to resolve
+a failed deploy.
+
 ## Connect `studyprecalc.com`
 
 Dashboard route:
@@ -100,6 +111,8 @@ Dashboard route:
 7. Set `studyprecalc.com` as the primary domain.
 8. Configure `www.studyprecalc.com` to redirect to the primary domain if Vercel offers that option.
 9. Wait for Vercel to show the domain as configured.
+
+Evidence to keep: Vercel Domains screen showing configured apex and `www` domains.
 
 CLI route after `vercel link`:
 
@@ -142,6 +155,8 @@ foreach ($url in $urls) {
 
 Expected result: each URL resolves and returns HTTP 200 after redirects.
 
+Evidence to keep: DNS command output and HTTP status output.
+
 App-level checks:
 
 1. Open `https://studyprecalc.com`.
@@ -157,6 +172,14 @@ App-level checks:
    questions are not readable.
 10. Submit one practice attempt and confirm the dashboard updates.
 
+Use a real Supabase admin account for these checks. The local dev-only admin proves only
+browser-local authoring and is not valid evidence for production Auth, Storage, RLS, or student
+visibility.
+
+Evidence to keep: admin UI checkpoint, student private-window checkpoint, Supabase smoke script
+output, SQL query results from the linked Supabase smoke tests, and dashboard persistence
+checkpoint.
+
 Supabase Auth domain checks:
 
 1. In Supabase Auth URL Configuration, set Site URL to `https://studyprecalc.com`.
@@ -164,6 +187,9 @@ Supabase Auth domain checks:
    Vercel preview URLs, and local dev URLs as listed in [Supabase setup](supabase-setup.md).
 3. If email confirmation is enabled, run one signup and confirm the email link returns to the
    production domain.
+
+Evidence to keep: Supabase Auth URL Configuration screenshot/checkpoint and one successful
+confirmation redirect checkpoint if email confirmation is enabled.
 
 ## Rollback
 
@@ -173,6 +199,9 @@ If production breaks after deploy:
 2. Promote the last known-good deployment.
 3. Re-run the domain HTTP checks.
 4. Re-run one owner login and one student practice persistence check.
+
+Evidence to keep: promoted deployment URL or ID, HTTP check output, owner login checkpoint, and one
+student persistence checkpoint.
 
 CLI rollback option:
 

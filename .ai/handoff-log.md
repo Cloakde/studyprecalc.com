@@ -295,3 +295,12 @@ Use this file as an append-only record whenever an agent finishes, pauses, or ha
 - Browser check: Reloaded `http://127.0.0.1:5173` in the in-app browser and confirmed the app sign-in surface renders. Automated local-admin login could not complete because the in-app browser automation failed on the email input; no source issue was found by tests/build.
 - Decisions made: Question JSON stores stable `supabase-image:<storage_path>` references, not signed URLs. Rendering resolves short-lived signed URLs from the private `question-images` bucket. Cloud-published questions now reject browser-local images and videos.
 - Next step: Owner applies `supabase/schema.sql`, signs in with a real Supabase admin, uploads an original PNG/JPEG/WebP/GIF under 1 MB, publishes it, and follows the Cloud Image Storage Smoke Test in `docs/operations/supabase-setup.md`.
+
+### 2026-05-14 - Codex + Agents - M8 Live Cloud Activation Preflight
+
+- Status: Complete for repo-side M8 preflight. Live activation remains owner-run because Supabase SQL, Vercel deploy, production admin/student accounts, and DNS are dashboard-controlled.
+- Files changed: Updated `scripts/smoke-supabase.ts`, `tests/unit/supabaseSmoke.test.ts`, `src/data/supabase/mediaStore.ts`, `tests/unit/supabaseMediaStore.test.ts`, production/Supabase/deployment runbooks, milestone docs, and coordination files.
+- Verification: Ran `npm test -- supabaseSmoke supabaseMediaStore`, targeted ESLint for the smoke/media files, `npm run validate:content`, `npm test` (104 tests), `npm run lint`, `npm run build`, and `git diff --check`. All passed; diff check reported CRLF warnings only.
+- Live smoke: Ran `npm run smoke:supabase`; it correctly failed current production-readiness checks because the configured Supabase project has not yet applied the required SQL/bucket setup. Failing checks included `validate_invite RPC`, `anon unpublished content access`, and `question-images bucket`.
+- Decisions made: The default smoke remains read-only. `SMOKE_WRITE=1` opts into a generated-image write smoke that uploads, publishes, checks signed URL behavior, archives, verifies student denial after archive when student credentials are provided, and cleans up. Supabase image upload now removes the Storage object if metadata insert fails.
+- Next step: Owner applies `supabase/schema.sql`, bootstraps real admin/student smoke accounts, configures/redeploys Vercel, then reruns `npm run smoke:supabase` and the M8 browser smoke checklist.

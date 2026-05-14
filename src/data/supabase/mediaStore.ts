@@ -30,6 +30,7 @@ type SupabaseStorageBucketClient = {
     path: string,
     expiresIn: number,
   ) => Promise<{ data: { signedUrl: string } | null; error: SupabaseErrorLike | null }>;
+  remove: (paths: string[]) => Promise<{ data: unknown; error: SupabaseErrorLike | null }>;
 };
 
 export type SupabaseMediaClient = {
@@ -258,6 +259,7 @@ export async function uploadSupabaseImage(
   const insertResult = await client.from('media_records').insert(mediaRecord).select('*').single();
 
   if (insertResult.error) {
+    await bucket.remove([storagePath]).catch(() => undefined);
     throw new Error(insertResult.error.message);
   }
 

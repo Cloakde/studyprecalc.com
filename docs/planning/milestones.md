@@ -144,55 +144,69 @@ Goal: adding the 100th question should be as easy as adding the 10th.
 
 Exit criteria: a non-engineer collaborator can author a new question, validate it, and preview it without engineer help.
 
-### M8 — Video Explanations
+### M8 — Live Cloud Activation
+
+Goal: prove the hosted Supabase/Vercel deployment is ready for real admin and student use.
+
+- [x] **M8.1** Repo-side Supabase smoke script checks invite RPC, unpublished-content denial, media schema readiness, and Storage bucket readiness.
+- [x] **M8.2** Optional write smoke uploads a generated image, links media metadata, publishes a smoke question, checks signed URL behavior, and cleans up.
+- [x] **M8.3** Owner-facing production activation runbook names required evidence after each setup step.
+- [ ] **M8.4** Owner applies `supabase/schema.sql` in the production Supabase dashboard.
+- [ ] **M8.5** Owner bootstraps and signs in with a real Supabase admin account.
+- [ ] **M8.6** Owner deploys or redeploys Vercel with production Supabase env vars.
+- [ ] **M8.7** Owner runs live read-only and write Supabase smoke checks with real admin/student smoke credentials.
+- [ ] **M8.8** Owner confirms browser QA for admin publish, cloud image render, student visibility, archive denial, and dashboard persistence.
+
+Exit criteria: `studyprecalc.com` runs in cloud mode and one real admin/student smoke cycle passes end to end.
+
+### M9 — Video Explanations
 
 Goal: video as an optional layer over the existing text explanation.
 
-- [x] **M8.1** Video player component.
-- [x] **M8.2** Per-question video reference resolution (URL, transcript path, thumbnail).
-- [ ] **M8.3** Transcript display under the player, with timestamp navigation.
-- [x] **M8.4** Graceful fallback to text steps when a question has no video.
-- [ ] **M8.5** Loading and bandwidth affordances for slow connections.
-- [x] **M8.6** Author guidance: target length, structure, recording standards, in `docs/product/`.
+- [x] **M9.1** Video player component.
+- [x] **M9.2** Per-question video reference resolution (URL, transcript path, thumbnail).
+- [ ] **M9.3** Transcript display under the player, with timestamp navigation.
+- [x] **M9.4** Graceful fallback to text steps when a question has no video.
+- [ ] **M9.5** Loading and bandwidth affordances for slow connections.
+- [x] **M9.6** Author guidance: target length, structure, recording standards, in `docs/product/`.
 
 Exit criteria: at least one question has a real video explanation and the player works in the web app.
 
-### M9 — Polish and Web Deploy
+### M10 — Polish and Web Deploy
 
 Goal: a public, usable v1 of the web app.
 
-- [ ] **M9.1** Responsive layout: phone, tablet, desktop browser.
-- [ ] **M9.2** Keyboard navigation for MCQ choices and submit.
-- [ ] **M9.3** Screen-reader semantics audit on every interactive component.
-- [ ] **M9.4** Math accessibility: alt text for graphs, screen-reader-friendly equation output where possible.
-- [ ] **M9.5** Performance budget: page weight, time-to-interactive, math-render time.
-- [~] **M9.6** Static deploy pipeline (Vercel first). See `docs/decisions/0008-vercel-first-web-deploy.md` and `docs/operations/deployment.md`.
-- [ ] **M9.7** Versioned content bundle so users know what's current.
-- [ ] **M9.8** Privacy notes: what stays local, what (if anything) leaves the device.
+- [ ] **M10.1** Responsive layout: phone, tablet, desktop browser.
+- [ ] **M10.2** Keyboard navigation for MCQ choices and submit.
+- [ ] **M10.3** Screen-reader semantics audit on every interactive component.
+- [ ] **M10.4** Math accessibility: alt text for graphs, screen-reader-friendly equation output where possible.
+- [ ] **M10.5** Performance budget: page weight, time-to-interactive, math-render time.
+- [~] **M10.6** Static deploy pipeline (Vercel first). See `docs/decisions/0008-vercel-first-web-deploy.md` and `docs/operations/deployment.md`.
+- [ ] **M10.7** Versioned content bundle so users know what's current.
+- [ ] **M10.8** Privacy notes: what stays local, what (if anything) leaves the device.
 
 Exit criteria: a stranger can open the site and complete a practice session with no bugs or accessibility blockers.
 
-### M10 — Desktop Port
+### M11 — Desktop Port
 
 Goal: deferred indefinitely. Reconsider only if there is a strong future need for offline distribution outside the browser.
 
-- [-] **M10.1** Scaffold desktop shell.
-- [-] **M10.2** Desktop persistence.
-- [-] **M10.3** Native menus and window management.
-- [-] **M10.4** Bundle content for offline desktop use.
-- [-] **M10.5** Desktop update mechanism.
-- [-] **M10.6** Cross-platform desktop packaging.
-- [-] **M10.7** Desktop smoke-test plan.
+- [-] **M11.1** Scaffold desktop shell.
+- [-] **M11.2** Desktop persistence.
+- [-] **M11.3** Native menus and window management.
+- [-] **M11.4** Bundle content for offline desktop use.
+- [-] **M11.5** Desktop update mechanism.
+- [-] **M11.6** Cross-platform desktop packaging.
+- [-] **M11.7** Desktop smoke-test plan.
 
 Exit criteria: none while deferred.
 
 ## Out of Scope For Now
 
-These are real future features, intentionally deferred:
+These are real future features or hardening passes, intentionally deferred:
 
-- Production user accounts and login with backend authentication.
-- Cloud sync across devices.
-- Multi-user / classroom mode.
+- Full production hardening beyond the current Supabase beta setup.
+- Organization-level account administration beyond basic classes and invites.
 - Server-backed grading.
 - Adaptive difficulty / spaced repetition.
 - AI tutoring or AI-generated hints.
