@@ -187,3 +187,93 @@ Use this file as an append-only record whenever an agent finishes, pauses, or ha
 - Decisions made: Shipped app starts with no bundled questions; schema allows empty sets; test-only fixtures are neutral and isolated under `tests/fixtures`.
 - Blockers: Production Supabase smoke test still requires running `supabase/schema.sql` and creating/promoting the owner account in the dashboard.
 - Next recommended step: Run Supabase SQL, then build the server-backed content publishing and invite account flow.
+
+### 2026-05-14 - Agent 6 / Codex - CONTENT-006
+
+- Status: Domain publishing rules complete; broader CONTENT-006 remains active for UI/backend integration.
+- Files changed: Added `src/domain/questions/publication.ts`, added `src/domain/questions/visibility.ts`, updated `src/data/schemas/questionSchema.ts`, and added `tests/unit/publication.test.ts`.
+- Verification: Ran `npm test -- publication`, `npm run validate:content`, `npm test` (62 tests), targeted `npx eslint src/domain/questions/publication.ts src/domain/questions/visibility.ts src/data/schemas/questionSchema.ts tests/unit/publication.test.ts`, and targeted `npx prettier --check ...`. All passed.
+- Decisions made: Missing publication status is treated as `draft` to avoid accidental student exposure; students see only `published`; admins can preview drafts by default; archived questions stay hidden unless an admin caller explicitly includes them.
+- Blockers: Full `npm run lint` currently fails on unused imports in `src/app/App.tsx`; full `npm run build` currently fails in `src/app/App.tsx` and `src/data/localClassStore.ts` due concurrent integration work outside Agent 6 scope.
+- Next recommended step: Integrate the publishing helpers into the App/content-store UI path once Agent 3/4/5 changes settle, then rerun full lint/build.
+
+### 2026-05-14 - Agent 5 / Codex - CONTENT-005/CONTENT-006
+
+- Status: Complete for Content Manager UI scope; broader server-backed content and publishing integration remains active.
+- Files changed: Updated `src/app/components/ContentManager.tsx` and content-manager styles in `src/app/styles/app.css`; updated coordination status/handoff files.
+- Verification: Ran targeted strict TypeScript for `src/app/components/ContentManager.tsx`, `npm run lint`, `npm test` (62 tests), `npm run validate:content`, and `git diff --check`. All passed. Full `npm run build` is currently blocked by concurrent integration errors in `src/app/App.tsx` and `src/data/localClassStore.ts` outside Agent 5 scope.
+- Decisions made: The manager now surfaces server/local library status, refresh affordance when provided, draft/publish/archive lifecycle controls, publish-readiness checks, and a richer student vs answer-key preview without changing backend stores or schemas from this scope.
+- Blockers: Build blockers are `src/app/App.tsx(22,10)` missing `useSupabaseQuestionContentStore` export and `src/data/localClassStore.ts(119,3)` returning a widened `version: string` instead of the class payload literal.
+- Next recommended step: Resolve the concurrent App/content-store and class-store integration blockers, then rerun the full build and browser-check the Manage Content flow with the backend store wired.
+
+### 2026-05-14 - Agent 3 / Codex - AUTH-006
+
+- Status: Complete for the Invite/Auth UI scope; broader AUTH-006 remains active for backend/admin invite work.
+- Files changed: Updated `src/app/components/AccountAuth.tsx`, AccountAuth-specific styles in `src/app/styles/app.css`, and coordination files.
+- Verification: Ran `npx eslint src/app/components/AccountAuth.tsx`, scoped `npx tsc --noEmit ... src/app/components/AccountAuth.tsx`, `npx prettier --check src/app/components/AccountAuth.tsx src/app/styles/app.css`, `npm test` (70 tests), `npm run lint`, and scoped `git diff --check`. All passed. Attempted `npm run build`; it is currently blocked by unrelated active work in `src/app/App.tsx`, `src/data/localClassStore.ts`, and `src/data/supabase/questionContentStore.ts`.
+- Decisions made: The Sign Up tab now opens an invite-code step while public signup remains blocked. Entering an invite code reveals the account-creation form and forwards the normalized code through `onSignup`; local dev admin remains on the login path.
+- Blockers: Full build is waiting on active App/class/content-store integration outside this scope. In-app browser automation was unavailable, so verification is command-line only.
+- Next recommended step: Finish backend invite validation/admin invite creation, then run full build and browser QA for accepted and rejected invite codes.
+
+### 2026-05-14 - Agent 2 / Codex - AUTH-006
+
+- Status: Complete for the invite/auth backend scope; broader AUTH-006 remains active for final app/schema integration and smoke testing.
+- Files changed: Added `src/domain/invites/*`, `src/data/localInviteStore.ts`, `src/data/supabase/inviteStore.ts`, `tests/unit/inviteDomain.test.ts`, `tests/unit/localInviteStore.test.ts`, and `tests/unit/supabaseInviteMapping.test.ts`.
+- Verification: Ran `npm test -- invite` (10 tests), `npm test` (70 tests), `npm run lint`, and scoped `npx prettier --check ...` for invite files. All passed. Attempted `npm run build`; it is currently blocked by `src/data/localClassStore.ts(119,3)` returning a widened `version: string` outside Agent 2 scope.
+- Decisions made: Invite codes are normalized to uppercase, single-use after consumption, optionally email/class scoped, and rejected when invalid, expired, or already used. Local fallback stores invite records in browser storage; Supabase adapter targets an `invites` table surface with create, validate, consume, revoke, row mapping, and hook methods.
+- Blockers: Full build requires the class-store worker/integrator to fix the `ClassPayload.version` literal type issue.
+- Next recommended step: Resolve the class-store build blocker, then run full build and browser QA for local invite creation, invite signup, class enrollment, and rejected expired/used codes.
+
+### 2026-05-14 - Agent 4 / Codex - CONTENT-005/CONTENT-006
+
+- Status: Complete for content storage backend scope; broader server-backed content manager and publishing integration remains active.
+- Files changed: Added `src/domain/questions/contentRecords.ts`, `src/data/questionContentStore.ts`, `src/data/localQuestionContentStore.ts`, `src/data/supabase/questionContentStore.ts`, and `tests/unit/questionContentStore.test.ts`. Updated coordination status/handoff files.
+- Verification: Ran `npm test -- questionContentStore`, `npx tsc --noEmit --pretty false`, `npm run lint`, `npm test` (70 tests), `npm run build`, and `git diff --check`. Content-store tests, lint, full tests, and diff check passed. TypeScript/build are blocked only by concurrent class-store work in `src/data/localClassStore.ts(119,3)`.
+- Decisions made: Question storage records keep publication metadata outside the question body. Supabase uses the existing `questions` table, with `is_published` as the student-visible flag and a JSON content envelope for lifecycle metadata. Local storage reads the new record payload and can migrate the legacy local question-pack payload.
+- Blockers: Full build cannot complete until the class-store payload version type is fixed outside Agent 4 scope.
+- Next recommended step: Resolve the class-store build blocker, then smoke-test the Manage Content flow against local fallback and Supabase-backed content records.
+
+### 2026-05-14 - Wave 2 Agent 11 / Codex - AUTH-003/DEPLOY-002
+
+- Status: Complete for deployment/operations runbook scope; actual Supabase dashboard setup and Vercel deployment remain owner/action tasks.
+- Files changed: Added `docs/operations/supabase-setup.md`; updated `docs/operations/deployment.md`, `README.md`, `docs/INDEX.md`, `.ai/status.md`, `.ai/task-board.md`, and `.ai/handoff-log.md`.
+- Verification: Ran `npx prettier --check README.md docs/operations/deployment.md docs/operations/supabase-setup.md docs/INDEX.md` and `git diff --check -- README.md docs/operations/deployment.md docs/operations/supabase-setup.md docs/INDEX.md .ai/status.md .ai/task-board.md .ai/handoff-log.md`. Formatting and whitespace checks passed; the diff check reported only existing CRLF warnings for `.ai/*` coordination files.
+- Decisions made: Documented first admin bootstrap through a one-time SQL-created admin invite because the current production UI requires an invite before signup. Documented that the `question-images` bucket is provisioned by SQL, but current app-side production content smoke tests should use text-only or HTTPS-image content until Supabase Storage image upload is wired.
+- Blockers: I did not run live Supabase SQL, Vercel deploy, DNS checks, or browser smoke tests because those require owner dashboard/project access and production credentials.
+- Next recommended step: Owner runs `supabase/schema.sql`, bootstraps the admin invite, configures Vercel env vars, deploys, connects `studyprecalc.com`, then follows the runbook smoke tests.
+
+### 2026-05-14 - Wave 2 Agent 7 / Codex - CLASS-001
+
+- Status: Complete for class backend worker scope; broader class management remains active for UI/final smoke testing.
+- Files changed: Updated `src/domain/classes/types.ts`, `src/data/localClassStore.ts`, and `src/data/supabase/classStore.ts`; added `tests/unit/localClassStore.test.ts` and `tests/unit/supabaseClassMapping.test.ts`; updated coordination files.
+- Verification: Ran `npm test -- class` (5 tests), `npx tsc --noEmit --pretty false`, scoped `npx prettier --check ...`, `npm test` (80 tests), `npm run lint`, `npm run build`, and `git diff --check`. All passed; diff check reported only existing CRLF warnings.
+- Decisions made: Kept class/enrollment roles owned by the class domain instead of importing account data-layer types. Local and Supabase enrollment paths now normalize roster rows and upsert duplicates by `(classId, accountId)` while preserving the original enrollment id/createdAt.
+- Blockers: None in the class backend scope.
+- Next recommended step: Final integrator should smoke-test invite signup into a class after the admin class UI and Supabase schema setup are available.
+
+### 2026-05-14 - Wave 2 Agent 8 / Codex - CLASS-001
+
+- Status: Complete for Admin Class UI scope; broader CLASS-001 remains active for final smoke testing with signup/enrollment.
+- Files changed: Updated `src/app/components/AdminClassManager.tsx`, admin-class-specific CSS in `src/app/styles/app.css`, and coordination files.
+- Verification: Ran scoped `npx eslint src/app/components/AdminClassManager.tsx`, scoped `npx tsc --noEmit ... src/app/components/AdminClassManager.tsx`, `npx prettier --check src/app/components/AdminClassManager.tsx src/app/styles/app.css`, scoped `git diff --check`, `npm run lint`, `npm test` (80 tests), `npm run build`, and `npm run validate:content`. All passed. Confirmed the Vite dev server at `http://127.0.0.1:5173` returns HTTP 200.
+- Decisions made: Kept the existing props/backend contract. The screen now has admin summary metrics, selected-class metrics, sorted roster/invite lists, trimmed form submissions, end-of-day invite expiration dates, async refresh/revoke feedback, and clipboard failure handling.
+- Blockers: In-app browser automation could not run because no browser targets were registered in the Browser plugin.
+- Next recommended step: Final integrator should run browser QA for local admin class creation, invite copy/revoke, invite signup, and automatic roster enrollment once a browser target is available.
+
+### 2026-05-14 - Wave 2 Agent 10 / Codex - AUTH-006/CONTENT-005/CONTENT-006/CLASS-001
+
+- Status: Complete for integration test harness scope; broader final smoke testing remains active.
+- Files changed: Added `tests/fixtures/integrationHarness.ts` and `tests/unit/integrationHarness.test.ts`; updated `.ai/status.md`, `.ai/task-board.md`, and `.ai/handoff-log.md`.
+- Verification: Ran `npm test -- integrationHarness` (5 tests), `npm test` (80 tests), `npx prettier --check tests/fixtures/integrationHarness.ts tests/unit/integrationHarness.test.ts`, `npx eslint tests/fixtures/integrationHarness.ts tests/unit/integrationHarness.test.ts`, `npm run lint`, `npm run validate:content`, `npm run build`, and scoped `git diff --check`. All passed; diff check reported existing CRLF warnings only.
+- Decisions made: Kept integration coverage in a test-only harness that composes existing local invite/account/class/content stores instead of editing app source. Covered invite validation/signup/consume/enrollment, invalid invite rejection before account creation, admin/student role gating, published-only student visibility, admin draft visibility, local fallback, and empty question bank behavior.
+- Blockers: None in this scope.
+- Next recommended step: Final integrator should run browser smoke tests for local invite signup, class enrollment, admin content visibility, and Supabase-backed production flows once schema/dashboard setup is available.
+
+### 2026-05-14 - Codex - Milestones 1-5 Integration
+
+- Status: Complete for code integration. Live Supabase/Vercel smoke testing remains owner-run because it requires dashboard/deployment access.
+- Files changed: Integrated invite-only auth, content publishing, class management, Supabase schema/RLS, operation docs, and tests across `src/app`, `src/data`, `src/domain`, `tests`, `supabase`, `docs/operations`, and `.ai`.
+- Verification: Ran `npm run validate:content`, `npm test` (80 tests), `npm run lint`, `npm run build`, and `git diff --check`. All passed; diff check reported CRLF warnings only. Browser smoke confirmed local admin navigation, Classes, invite creation, Content Manager publish controls, and unique invite-code labeling.
+- Decisions made: Production signup remains invite-only with server-side Supabase enforcement. Students can read only published questions. First admin bootstrap is through an owner-created one-time admin invite. The `question-images` bucket and media metadata are provisioned, but production image upload wiring remains a future task.
+- QA fixes: Fixed Manage Content horizontal overflow hardening, added `role="alert"` to Content Manager validation errors, and renamed the invite heading to avoid accessible-label ambiguity. Final QA confirmed no document-level horizontal overflow at desktop `1440px` or mobile `390px`; mobile `.mode-tabs` remains the only intentional horizontal scroller.
+- Blockers: Owner still needs to run `supabase/schema.sql`, create/bootstrap the admin invite, configure Vercel env vars, deploy, connect `studyprecalc.com`, and run the cloud smoke tests in `docs/operations/supabase-setup.md`.

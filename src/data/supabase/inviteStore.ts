@@ -1,0 +1,367 @@
+import { useCallback, useEffect, useState } from 'react';
+
+import type { CreateLocalInviteInput } from '../localInviteStore';
+import {
+  consumeInviteCode as consumeInviteCodeInDomain,
+  createInvite,
+  isInviteCodeFormatValid,
+  markInviteConsumed,
+  normalizeInviteCode,
+  normalizeInviteRecord,
+  validateInviteCode as validateInviteCodeInDomain,
+  type InviteCodeRecord,
+  type InviteConsumeResult,
+  type InviteRole,
+  type InviteValidationResult,
+} from '../../domain/invites';
+import { supabase } from './client';
+
+export type InviteRow = {
+  id: string;
+  code: string;
+  role: InviteRole;
+  email: string | null;
+  class_id: string | null;
+  created_by: string | null;
+  created_at: string;
+  expires_at: string | null;
+  consumed_at: string | null;
+  consumed_by: string | null;
+  revoked_at?: string | null;
+};
+
+export type SupabaseInviteCodeLookup = string | { code: string; email?: string };
+
+export type ConsumeSupabaseInviteInput = {
+  code: string;
+  accountId: string;
+  email?: string;
+};
+
+export type CreateSupabaseInviteOptions = {
+  userId: string;
+  now?: () => Date;
+  createId?: () => string;
+  createCode?: () => string;
+};
+
+export type UseSupabaseInviteStoreOptions = {
+  enabled: boolean;
+  userId?: string;
+  now?: () => Date;
+  createId?: () => string;
+  createCode?: () => string;
+};
+
+function createBrowserId(prefix: string): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return `${prefix}-${crypto.randomUUID()}`;
+  }
+
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function createBrowserInviteCode(): string {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const values = new Uint8Array(8);
+
+  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+    crypto.getRandomValues(values);
+  } else {
+    for (let index = 0; index < values.length; index += 1) {
+      values[index] = Math.floor(Math.random() * alphabet.length);
+    }
+  }
+
+  const characters = Array.from(values, (value) => alphabet[value % alphabet.length]);
+
+  return `${characters.slice(0, 4).join('')}-${characters.slice(4).join('')}`;
+}
+
+function normalizeLookup(input: SupabaseInviteCodeLookup): { code: string; email?: string } {
+  return typeof input === 'string' ? { code: input } : input;
+}
+
+export function inviteFromSupabaseRow(row: InviteRow): InviteCodeRecord {
+  return normalizeInviteRecord({
+    id: row.id,
+    code: row.code,
+    role: row.role,
+    createdAt: row.created_at,
+    ...(row.expires_at ? { expiresAt: row.expires_at } : {}),
+    ...(row.email ? { email: row.email } : {}),
+    ...(row.class_id ? { classId: row.class_id } : {}),
+    ...(row.created_by ? { createdByAccountId: row.created_by } : {}),
+    ...(row.consumed_at ? { consumedAt: row.consumed_at } : {}),
+    ...(row.consumed_by ? { consumedByAccountId: row.consumed_by } : {}),
+  });
+}
+
+export function inviteToSupabaseRow(invite: InviteCodeRecord): InviteRow {
+  return {
+    id: invite.id,
+    code: invite.code,
+    role: invite.role,
+    email: invite.email ?? null,
+    class_id: invite.classId ?? null,
+    created_by: invite.createdByAccountId ?? null,
+    created_at: invite.createdAt,
+    expires_at: invite.expiresAt ?? null,
+    consumed_at: invite.consumedAt ?? null,
+    consumed_by: invite.consumedByAccountId ?? null,
+    revoked_at: null,
+  };
+}
+
+function createInviteFromInput(
+  input: CreateLocalInviteInput,
+  userId: string,
+  options: Omit<CreateSupabaseInviteOptions, 'userId'> = {},
+): InviteCodeRecord {
+  const now = options.now ?? (() => new Date());
+  const createId = options.createId ?? (() => createBrowserId('invite'));
+  const createCode = options.createCode ?? createBrowserInviteCode;
+
+  return createInvite({
+    id: input.id ?? createId(),
+    code: input.code ?? createCode(),
+    role: input.role,
+    createdAt: input.createdAt ?? now(),
+    ...(input.expiresAt ? { expiresAt: input.expiresAt } : {}),
+    ...(input.email ? { email: input.email } : {}),
+    ...(input.classId ? { classId: input.classId } : {}),
+    createdByAccountId: input.createdByAccountId ?? userId,
+  });
+}
+
+async function loadInviteByCode(code: string): Promise<InviteCodeRecord | null> {
+  if (!supabase) {
+    throw new Error('Supabase is not configured.');
+  }
+
+  const { data, error } = await supabase
+    .from('invites')
+    .select('*')
+    .eq('code', code)
+    .maybeSingle<InviteRow>();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data ? inviteFromSupabaseRow(data) : null;
+}
+
+export async function createSupabaseInvite(
+  input: CreateLocalInviteInput = {},
+  options: CreateSupabaseInviteOptions,
+): Promise<InviteCodeRecord> {
+  if (!supabase) {
+    throw new Error('Supabase is not configured.');
+  }
+
+  const invite = createInviteFromInput(input, options.userId, options);
+  const { data, error } = await supabase
+    .from('invites')
+    .insert(inviteToSupabaseRow(invite))
+    .select('*')
+    .single<InviteRow>();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data ? inviteFromSupabaseRow(data) : invite;
+}
+
+export async function validateSupabaseInviteCode(
+  input: SupabaseInviteCodeLookup,
+  options: Pick<UseSupabaseInviteStoreOptions, 'now'> = {},
+): Promise<InviteValidationResult> {
+  const lookup = normalizeLookup(input);
+  const code = normalizeInviteCode(lookup.code);
+
+  if (!code || !isInviteCodeFormatValid(code)) {
+    return validateInviteCodeInDomain({
+      code,
+      invites: [],
+      now: options.now?.(),
+      ...(lookup.email ? { email: lookup.email } : {}),
+    });
+  }
+
+  const invite = await loadInviteByCode(code);
+
+  return validateInviteCodeInDomain({
+    code,
+    invites: invite ? [invite] : [],
+    now: options.now?.(),
+    ...(lookup.email ? { email: lookup.email } : {}),
+  });
+}
+
+export async function consumeSupabaseInviteCode(
+  input: ConsumeSupabaseInviteInput,
+  options: Pick<UseSupabaseInviteStoreOptions, 'now'> = {},
+): Promise<InviteConsumeResult> {
+  if (!supabase) {
+    throw new Error('Supabase is not configured.');
+  }
+
+  const now = options.now ?? (() => new Date());
+  const validation = await validateSupabaseInviteCode(
+    {
+      code: input.code,
+      ...(input.email ? { email: input.email } : {}),
+    },
+    { now },
+  );
+
+  if (validation.status !== 'valid') {
+    return {
+      ...validation,
+      invites: validation.invite ? [validation.invite] : [],
+    };
+  }
+
+  const consumedInvite = markInviteConsumed(validation.invite, {
+    accountId: input.accountId,
+    consumedAt: now(),
+  });
+  const { data, error } = await supabase
+    .from('invites')
+    .update({
+      consumed_at: consumedInvite.consumedAt,
+      consumed_by: consumedInvite.consumedByAccountId,
+    })
+    .eq('id', validation.invite.id)
+    .is('consumed_at', null)
+    .select('*')
+    .maybeSingle<InviteRow>();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  if (!data) {
+    return {
+      status: 'used',
+      reason: 'used',
+      invite: validation.invite,
+      invites: [validation.invite],
+    };
+  }
+
+  const updatedInvite = inviteFromSupabaseRow(data);
+
+  return consumeInviteCodeInDomain({
+    code: updatedInvite.code,
+    accountId: input.accountId,
+    invites: [validation.invite],
+    now: updatedInvite.consumedAt ?? now(),
+    ...(input.email ? { email: input.email } : {}),
+  });
+}
+
+export function useSupabaseInviteStore({
+  enabled,
+  userId,
+  now,
+  createId,
+  createCode,
+}: UseSupabaseInviteStoreOptions) {
+  const [invites, setInvites] = useState<InviteCodeRecord[]>([]);
+  const [lastError, setLastError] = useState('');
+
+  const refreshInvites = useCallback(async () => {
+    if (!enabled || !supabase) {
+      setInvites([]);
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from('invites')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      setLastError(error.message);
+      return;
+    }
+
+    setInvites((data ?? []).map((row) => inviteFromSupabaseRow(row as InviteRow)));
+  }, [enabled]);
+
+  const createInviteRecord = useCallback(
+    async (input: CreateLocalInviteInput = {}) => {
+      if (!enabled || !supabase || !userId) {
+        throw new Error('Cloud invites are not available.');
+      }
+
+      const savedInvite = await createSupabaseInvite(input, {
+        userId,
+        ...(now ? { now } : {}),
+        ...(createId ? { createId } : {}),
+        ...(createCode ? { createCode } : {}),
+      });
+      setInvites((currentInvites) => [savedInvite, ...currentInvites]);
+      return savedInvite;
+    },
+    [createCode, createId, enabled, now, userId],
+  );
+
+  const validateCode = useCallback(
+    (input: SupabaseInviteCodeLookup) => validateSupabaseInviteCode(input, { now }),
+    [now],
+  );
+
+  const consumeCode = useCallback(
+    async (input: ConsumeSupabaseInviteInput) => {
+      const result = await consumeSupabaseInviteCode(input, { now });
+
+      if (result.status === 'consumed') {
+        setInvites((currentInvites) =>
+          currentInvites.map((invite) => (invite.id === result.invite.id ? result.invite : invite)),
+        );
+      }
+
+      return result;
+    },
+    [now],
+  );
+
+  const revokeInvite = useCallback(
+    async (inviteId: string) => {
+      const revokedAt = new Date().toISOString();
+
+      if (enabled && supabase) {
+        const { error } = await supabase
+          .from('invites')
+          .update({ revoked_at: revokedAt })
+          .eq('id', inviteId);
+
+        if (error) {
+          setLastError(error.message);
+          return;
+        }
+      }
+
+      setInvites((currentInvites) => currentInvites.filter((invite) => invite.id !== inviteId));
+    },
+    [enabled],
+  );
+
+  useEffect(() => {
+    void refreshInvites();
+  }, [refreshInvites]);
+
+  return {
+    invites,
+    lastError,
+    createInvite: createInviteRecord,
+    validateInviteCode: validateCode,
+    consumeInviteCode: consumeCode,
+    revokeInvite,
+    refreshInvites,
+  };
+}

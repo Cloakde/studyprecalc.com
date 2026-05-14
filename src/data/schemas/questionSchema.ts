@@ -1,8 +1,11 @@
 import { z } from 'zod';
 
+import { publicationStatuses } from '../../domain/questions/publication';
+
 const difficultySchema = z.enum(['intro', 'medium', 'advanced']);
 const calculatorPolicySchema = z.enum(['none', 'graphing']);
 const questionSectionSchema = z.enum(['practice', 'mcq-a', 'mcq-b', 'frq-a', 'frq-b']);
+const publicationStatusSchema = z.enum(publicationStatuses);
 
 const localImageReferenceSchema = z
   .string()
@@ -71,6 +74,7 @@ const baseQuestionSchema = z.object({
   difficulty: difficultySchema,
   calculator: calculatorPolicySchema,
   section: questionSectionSchema,
+  publicationStatus: publicationStatusSchema.optional(),
   tags: z.array(z.string().min(1)).min(1),
   prompt: z.string().min(1),
   assets: z.array(assetSchema).optional(),

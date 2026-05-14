@@ -43,7 +43,8 @@ One-line map of every doc and folder in this repo. Update this when you add, rem
 
 ## Operations (`docs/operations/`)
 
-- [docs/operations/deployment.md](operations/deployment.md) - Vercel deployment, environment variables, and `studyprecalc.com` domain setup.
+- [docs/operations/deployment.md](operations/deployment.md) - Vercel deployment, environment variables, `studyprecalc.com` domain setup, deploy checks, and rollback.
+- [docs/operations/supabase-setup.md](operations/supabase-setup.md) - Supabase SQL, environment variables, Auth, Storage, first admin bootstrap, invite setup, and content publishing smoke tests.
 
 ## Planning (`docs/planning/`)
 

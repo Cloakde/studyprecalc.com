@@ -1,16 +1,16 @@
 # Agent Status
 
-Last updated: 2026-05-13
+Last updated: 2026-05-14
 
 ## Current Phase
 
-Starter question content removal is complete.
+Milestones 1-5 are implemented in code. Supabase dashboard setup and live production smoke testing remain owner-run deployment tasks.
 
 ## Active Ownership
 
-| Agent | Task | File Scope | Status |
-| ----- | ---- | ---------- | ------ |
-| None  | -    | -          | Idle   |
+| Agent | Task                                                                              | File Scope | Status   |
+| ----- | --------------------------------------------------------------------------------- | ---------- | -------- |
+| None  | Milestones 1-5 implementation is complete; next edits should claim a fresh scope. | N/A        | Complete |
 
 ## Notes
 
@@ -40,6 +40,11 @@ Starter question content removal is complete.
 - Local development has a dev-only admin login: `admin@studyprecalc.local` / `localadmin`.
 - The `Manage Content` tab is now admin-only.
 - The bundled starter question bank is intentionally empty. Owner-authored questions should be added through admin content management or future Supabase publishing.
+- Agent 4 completed the backend-neutral question content store with local fallback, Supabase mapping, and publication metadata. Agent 7 has since resolved the class-store build blocker.
+- Invite-only signup now uses invite codes in local fallback and Supabase signup metadata; production SQL enforces invite consumption server-side.
+- Admins can manage classes, create/revoke invites, and enroll students through invite signup.
+- Content management supports draft, publish, and archive states, with students seeing published questions only.
+- Supabase setup and deployment runbooks are updated for `studyprecalc.com`, including first-admin bootstrap through an owner-created admin invite.
 
 ## Last Verification
 
@@ -57,3 +62,13 @@ Starter question content removal is complete.
 2026-05-13: Codex ran `npm run build`, `npm run lint`, and `npm test` (42 tests). All passed. Browser QA confirmed the Sign Up control shows the invite-only alert and keeps the login form visible.
 2026-05-13: Codex ran `npm test` (43 tests), `npm run lint`, `npm run build`, and `npm run validate:content`. All passed. Browser QA confirmed local dev admin login shows the Admin badge and Manage Content tab.
 2026-05-13: Codex ran `npm run validate:content` (0 questions), `npm test` (43 tests), `npm run lint`, `npm run build`, `npx prettier --check ...`, and `git diff --check`. All passed. Browser QA confirmed Dashboard shows 0 questions, Practice shows the empty state, and Session setup disables start with 0 questions.
+2026-05-14: Agent 6 ran `npm test -- publication`, `npm run validate:content`, `npm test` (62 tests), targeted `npx eslint src/domain/questions/publication.ts src/domain/questions/visibility.ts src/data/schemas/questionSchema.ts tests/unit/publication.test.ts`, and targeted `npx prettier --check ...`. All passed. Full `npm run lint` and `npm run build` were attempted but are currently blocked by concurrent App/class/content-store integration errors outside Agent 6 scope.
+2026-05-14: Agent 5 ran `npx tsc --noEmit --pretty false --strict --jsx react-jsx --target ES2020 --module ESNext --moduleResolution Bundler --allowSyntheticDefaultImports --esModuleInterop --skipLibCheck --lib DOM,DOM.Iterable,ES2020 --types vite/client,node src/app/components/ContentManager.tsx`, `npm run lint`, `npm test` (62 tests), `npm run validate:content`, and `git diff --check`. All passed. Full `npm run build` is blocked by concurrent integration errors in `src/app/App.tsx` and `src/data/localClassStore.ts` outside Agent 5 scope.
+2026-05-14: Agent 3 ran `npx eslint src/app/components/AccountAuth.tsx`, scoped `npx tsc --noEmit ... src/app/components/AccountAuth.tsx`, `npx prettier --check src/app/components/AccountAuth.tsx src/app/styles/app.css`, `npm test` (70 tests), `npm run lint`, and scoped `git diff --check`. All passed. `npm run build` is currently blocked by unrelated active work in `src/app/App.tsx`, `src/data/localClassStore.ts`, and `src/data/supabase/questionContentStore.ts`.
+2026-05-14: Agent 2 ran `npm test -- invite` (10 tests), `npm test` (70 tests), `npm run lint`, and scoped `npx prettier --check ...` for invite files. All passed. `npm run build` is currently blocked by `src/data/localClassStore.ts(119,3)` returning a widened `version: string` outside Agent 2 scope.
+2026-05-14: Agent 4 ran `npm test -- questionContentStore`, `npx tsc --noEmit --pretty false`, `npm run lint`, `npm test` (70 tests), `npm run build`, and `git diff --check`. Content store tests, lint, full tests, and diff check passed. TypeScript/build are now blocked only by concurrent class-store work in `src/data/localClassStore.ts(119,3)`.
+2026-05-14: Wave 2 Agent 11 ran `npx prettier --check README.md docs/operations/deployment.md docs/operations/supabase-setup.md docs/INDEX.md` and `git diff --check -- README.md docs/operations/deployment.md docs/operations/supabase-setup.md docs/INDEX.md .ai/status.md .ai/task-board.md .ai/handoff-log.md`. Formatting and whitespace checks passed; the diff check reported only existing CRLF warnings for `.ai/*` coordination files.
+2026-05-14: Agent 7 ran `npm test -- class` (5 tests), `npx tsc --noEmit --pretty false`, scoped `npx prettier --check ...`, `npm test` (80 tests), `npm run lint`, `npm run build`, and `git diff --check`. All passed; diff check reported existing CRLF warnings only.
+2026-05-14: Agent 8 ran scoped `npx eslint src/app/components/AdminClassManager.tsx`, scoped `npx tsc --noEmit ... src/app/components/AdminClassManager.tsx`, `npx prettier --check src/app/components/AdminClassManager.tsx src/app/styles/app.css`, scoped `git diff --check`, `npm run lint`, `npm test` (80 tests), `npm run build`, and `npm run validate:content`. All passed. Confirmed the Vite dev server at `http://127.0.0.1:5173` returns HTTP 200; in-app browser automation was unavailable because no browser targets were registered.
+2026-05-14: Wave 2 Agent 10 ran `npm test -- integrationHarness` (5 tests), `npm test` (80 tests), `npx prettier --check tests/fixtures/integrationHarness.ts tests/unit/integrationHarness.test.ts`, `npx eslint tests/fixtures/integrationHarness.ts tests/unit/integrationHarness.test.ts`, `npm run lint`, `npm run validate:content`, `npm run build`, and scoped `git diff --check`. All passed; diff check reported existing CRLF warnings only.
+2026-05-14: Codex integrated milestones 1-5 and ran `npm run validate:content`, `npm test` (80 tests), `npm run lint`, `npm run build`, and `git diff --check`. All passed; diff check reported CRLF warnings only. Browser smoke confirmed local admin sees Manage Content and Classes, class/invite creation works, Content Manager draft/publish controls render, and invite code input has a unique accessible label. QA found and Codex fixed Manage Content horizontal overflow hardening and missing Content Manager validation `role="alert"`; final QA confirmed no document-level horizontal overflow at 1440px or 390px.

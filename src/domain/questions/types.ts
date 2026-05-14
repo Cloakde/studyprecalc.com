@@ -38,6 +38,7 @@ export type BaseQuestion = {
   difficulty: Difficulty;
   calculator: CalculatorPolicy;
   section: QuestionSection;
+  publicationStatus?: 'draft' | 'published' | 'archived';
   tags: string[];
   prompt: string;
   assets?: QuestionAsset[];

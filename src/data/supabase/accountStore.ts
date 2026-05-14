@@ -25,6 +25,7 @@ function normalizeEmail(email: string): string {
 function validateSignupInput(input: SignupInput): SignupInput {
   const email = normalizeEmail(input.email);
   const displayName = input.displayName.trim();
+  const inviteCode = input.inviteCode?.trim().toUpperCase();
 
   if (!displayName) {
     throw new Error('Enter a name for this account.');
@@ -42,6 +43,7 @@ function validateSignupInput(input: SignupInput): SignupInput {
     displayName,
     email,
     password: input.password,
+    ...(inviteCode ? { inviteCode } : {}),
   };
 }
 
@@ -133,6 +135,7 @@ export function useSupabaseAccountStore() {
       options: {
         data: {
           display_name: signupInput.displayName,
+          invite_code: signupInput.inviteCode,
         },
       },
     });

@@ -1,10 +1,16 @@
 import {
+  Archive,
+  CheckCircle2,
+  CircleAlert,
+  Cloud,
   Download,
+  Eye,
   FileUp,
   Image as ImageIcon,
-  PenLine,
   Plus,
+  RefreshCw,
   Save,
+  Send,
   Trash2,
   Video,
   XCircle,
@@ -22,6 +28,7 @@ import {
   saveLocalVideoFile,
 } from '../../data/localVideoStore';
 import { QuestionSchema, QuestionSetSchema } from '../../data/schemas/questionSchema';
+import type { QuestionPublicationStatus } from '../../domain/questions/publication';
 import type {
   CalculatorPolicy,
   Difficulty,
@@ -31,16 +38,24 @@ import type {
   Question,
   QuestionAsset,
   QuestionSection,
+  VideoExplanation as VideoExplanationData,
 } from '../../domain/questions/types';
 import { MathText } from './MathText';
 import { QuestionAssetGallery } from './QuestionAssetGallery';
+import { VideoExplanation } from './VideoExplanation';
 
 type ContentManagerProps = {
   customQuestions: Question[];
   seedQuestionIds: Set<string>;
-  onSaveQuestion: (question: Question) => void;
+  onSaveQuestion: (question: Question, status?: QuestionPublicationStatus) => void;
   onDeleteQuestion: (questionId: string) => void;
   onImportQuestions: (questions: Question[]) => { imported: number; skipped: number };
+  onSetQuestionStatus: (questionId: string, status: QuestionPublicationStatus) => void;
+  getQuestionStatus: (questionId: string) => QuestionPublicationStatus;
+  contentSourceLabel?: string;
+  contentError?: string;
+  isContentLoading?: boolean;
+  onRefreshContent?: () => void;
 };
 
 type ChoiceDraft = {
@@ -71,8 +86,19 @@ type AssetDraft = {
   caption: string;
 };
 
+type DraftWorkflowState = QuestionPublicationStatus;
+
+type PreviewMode = 'student' | 'answer';
+
+type ReadinessCheck = {
+  id: string;
+  label: string;
+  complete: boolean;
+};
+
 type QuestionDraft = {
   id: string;
+  workflowState: DraftWorkflowState;
   type: 'mcq' | 'frq';
   unit: string;
   topic: string;
@@ -127,6 +153,7 @@ function createAssetId(prefix = 'asset'): string {
 function createBlankDraft(): QuestionDraft {
   return {
     id: `user-${Date.now()}`,
+    workflowState: 'draft',
     type: 'mcq',
     unit: '',
     topic: '',
@@ -162,6 +189,33 @@ function linesToList(value: string): string[] {
 
 function listToLines(value: string[] | undefined): string {
   return value?.join('\n') ?? '';
+}
+
+function hasText(value: string): boolean {
+  return value.trim().length > 0;
+}
+
+function tagsToList(value: string): string[] {
+  return value
+    .split(',')
+    .map((tag) => tag.trim())
+    .filter(Boolean);
+}
+
+function parseDurationSeconds(value: string): number | undefined {
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return undefined;
+  }
+
+  const seconds = Number(trimmed);
+
+  if (!Number.isInteger(seconds) || seconds <= 0) {
+    return undefined;
+  }
+
+  return seconds;
 }
 
 function isSupportedVideoFile(file: File): boolean {
@@ -213,11 +267,15 @@ function questionHasLocalMedia(question: Question): boolean {
   return questionAssetHasLocalMedia || solutionAssetHasLocalMedia || videoHasLocalMedia;
 }
 
-function questionToDraft(question: Question): QuestionDraft {
+function questionToDraft(
+  question: Question,
+  workflowState: DraftWorkflowState = 'published',
+): QuestionDraft {
   const video = question.explanation.video;
 
   return {
     id: question.id,
+    workflowState,
     type: question.type,
     unit: question.unit,
     topic: question.topic,
@@ -274,9 +332,7 @@ function draftToQuestion(draft: QuestionDraft): Question {
           url: draft.videoUrl.trim(),
           thumbnailPath: draft.videoThumbnailPath.trim() || undefined,
           transcriptPath: draft.videoTranscriptPath.trim() || undefined,
-          durationSeconds: draft.videoDurationSeconds.trim()
-            ? Number(draft.videoDurationSeconds.trim())
-            : undefined,
+          durationSeconds: parseDurationSeconds(draft.videoDurationSeconds),
         }
       : undefined,
   };
@@ -289,10 +345,7 @@ function draftToQuestion(draft: QuestionDraft): Question {
     difficulty: draft.difficulty,
     calculator: draft.calculator,
     section: draft.section,
-    tags: draft.tags
-      .split(',')
-      .map((tag) => tag.trim())
-      .filter(Boolean),
+    tags: tagsToList(draft.tags),
     prompt: draft.prompt.trim(),
     assets: draftAssetsToAssets(draft.questionAssets),
     explanation,
@@ -336,17 +389,131 @@ function formatValidationError(error: unknown): string {
   return 'Question could not be saved.';
 }
 
+function getWorkflowStateLabel(workflowState: DraftWorkflowState): string {
+  if (workflowState === 'published') {
+    return 'Published';
+  }
+
+  if (workflowState === 'archived') {
+    return 'Archived';
+  }
+
+  return 'Draft';
+}
+
+function draftToVideoExplanation(draft: QuestionDraft): VideoExplanationData | undefined {
+  if (!draft.videoUrl.trim()) {
+    return undefined;
+  }
+
+  return {
+    url: draft.videoUrl.trim(),
+    thumbnailPath: draft.videoThumbnailPath.trim() || undefined,
+    transcriptPath: draft.videoTranscriptPath.trim() || undefined,
+    durationSeconds: parseDurationSeconds(draft.videoDurationSeconds),
+  };
+}
+
+function getReadinessChecks(draft: QuestionDraft): ReadinessCheck[] {
+  const checks: ReadinessCheck[] = [
+    {
+      id: 'identity',
+      label: 'ID, unit, topic, skill, and tags',
+      complete:
+        hasText(draft.id) &&
+        hasText(draft.unit) &&
+        hasText(draft.topic) &&
+        hasText(draft.skill) &&
+        tagsToList(draft.tags).length > 0,
+    },
+    {
+      id: 'prompt',
+      label: 'Student prompt',
+      complete: hasText(draft.prompt),
+    },
+    {
+      id: 'solution',
+      label: 'Explanation, steps, and common mistakes',
+      complete:
+        hasText(draft.explanationSummary) &&
+        linesToList(draft.explanationSteps).length > 0 &&
+        linesToList(draft.commonMistakes).length > 0,
+    },
+    {
+      id: 'video',
+      label: 'Video transcript when video is attached',
+      complete: !hasText(draft.videoUrl) || hasText(draft.videoTranscriptPath),
+    },
+    {
+      id: 'duration',
+      label: 'Positive whole-number video duration',
+      complete:
+        !hasText(draft.videoDurationSeconds) ||
+        parseDurationSeconds(draft.videoDurationSeconds) !== undefined,
+    },
+  ];
+
+  if (draft.type === 'mcq') {
+    checks.push({
+      id: 'choices',
+      label: 'Four choices with explanations',
+      complete:
+        draft.choices.length === 4 &&
+        draft.choices.every((choice) => hasText(choice.text) && hasText(choice.explanation)),
+    });
+    checks.push({
+      id: 'correct-choice',
+      label: 'Correct choice selected',
+      complete: draft.choices.some((choice) => choice.id === draft.correctChoiceId),
+    });
+  } else {
+    checks.push({
+      id: 'frq-parts',
+      label: 'FRQ parts, sample responses, work, and rubric',
+      complete:
+        draft.frqParts.length > 0 &&
+        draft.frqParts.every(
+          (part) =>
+            hasText(part.id) &&
+            hasText(part.prompt) &&
+            hasText(part.sampleResponse) &&
+            linesToList(part.expectedWork).length > 0 &&
+            part.rubric.length > 0 &&
+            part.rubric.every(
+              (criterion) =>
+                hasText(criterion.id) &&
+                hasText(criterion.description) &&
+                Number.isInteger(Number(criterion.points)) &&
+                Number(criterion.points) > 0,
+            ),
+        ),
+    });
+  }
+
+  return checks;
+}
+
 export function ContentManager({
   customQuestions,
   seedQuestionIds,
   onSaveQuestion,
   onDeleteQuestion,
   onImportQuestions,
+  onSetQuestionStatus,
+  getQuestionStatus,
+  contentSourceLabel = 'Local fallback',
+  contentError = '',
+  isContentLoading = false,
+  onRefreshContent,
 }: ContentManagerProps) {
   const [draft, setDraft] = useState<QuestionDraft>(() => createBlankDraft());
   const [selectedQuestionId, setSelectedQuestionId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string>('');
   const [error, setError] = useState<string>('');
+  const [previewMode, setPreviewMode] = useState<PreviewMode>('student');
+  const [workflowStatesByQuestionId, setWorkflowStatesByQuestionId] = useState<
+    Record<string, DraftWorkflowState>
+  >({});
   const [isUploadingVideo, setIsUploadingVideo] = useState(false);
   const [uploadingImageTarget, setUploadingImageTarget] = useState<'question' | 'solution' | null>(
     null,
@@ -361,6 +528,9 @@ export function ContentManager({
     () => customQuestions.find((question) => question.id === selectedQuestionId) ?? null,
     [customQuestions, selectedQuestionId],
   );
+  const readinessChecks = useMemo(() => getReadinessChecks(draft), [draft]);
+  const isReadyToPublish = readinessChecks.every((check) => check.complete);
+  const previewVideo = useMemo(() => draftToVideoExplanation(draft), [draft]);
 
   useEffect(() => {
     activeDraftIdRef.current = draft.id;
@@ -386,9 +556,23 @@ export function ContentManager({
     setError('');
   }
 
-  function saveQuestion() {
+  function loadQuestionIntoEditor(question: Question) {
+    const workflowState = workflowStatesByQuestionId[question.id] ?? getQuestionStatus(question.id);
+
+    setSelectedQuestionId(question.id);
+    setDraft(questionToDraft(question, workflowState));
     setNotice('');
     setError('');
+  }
+
+  function saveQuestion(workflowState: DraftWorkflowState = 'draft') {
+    setNotice('');
+    setError('');
+
+    if (workflowState === 'published' && !isReadyToPublish) {
+      setError('Complete the publish checklist before publishing.');
+      return;
+    }
 
     if (seedQuestionIds.has(draft.id.trim())) {
       setError('That ID belongs to a built-in question. Use a different ID.');
@@ -413,14 +597,25 @@ export function ContentManager({
       return;
     }
 
+    if (draft.videoDurationSeconds.trim() && !parseDurationSeconds(draft.videoDurationSeconds)) {
+      setError('Use a positive whole number for video duration.');
+      return;
+    }
+
     try {
       const question = draftToQuestion(draft);
       const parsed = QuestionSchema.parse(question);
 
-      onSaveQuestion(parsed);
+      onSaveQuestion(parsed, workflowState);
+      setWorkflowStatesByQuestionId((current) => ({
+        ...current,
+        [parsed.id]: workflowState,
+      }));
       setSelectedQuestionId(parsed.id);
-      setDraft(questionToDraft(parsed));
-      setNotice('Question saved.');
+      setDraft(questionToDraft(parsed, workflowState));
+      setNotice(
+        workflowState === 'published' ? 'Question saved and marked publish-ready.' : 'Draft saved.',
+      );
     } catch (saveError) {
       setError(formatValidationError(saveError));
     }
@@ -428,12 +623,30 @@ export function ContentManager({
 
   function deleteQuestion(questionId: string) {
     onDeleteQuestion(questionId);
+    setWorkflowStatesByQuestionId((current) => {
+      const nextStates = { ...current };
+      delete nextStates[questionId];
+      return nextStates;
+    });
 
     if (selectedQuestionId === questionId) {
       startNewQuestion();
     }
 
     setNotice('Question deleted.');
+  }
+
+  function archiveQuestion(questionId: string) {
+    onSetQuestionStatus(questionId, 'archived');
+    setWorkflowStatesByQuestionId((current) => ({
+      ...current,
+      [questionId]: 'archived',
+    }));
+    setDraft((current) => ({
+      ...current,
+      workflowState: 'archived',
+    }));
+    setNotice('Question archived. Students will not see it.');
   }
 
   function exportQuestions() {
@@ -752,6 +965,9 @@ export function ContentManager({
         <div>
           <p className="eyebrow">Content Manager</p>
           <h1>No-code Question Authoring</h1>
+          <p className="manager-header__copy">
+            Server publishing uses draft saves, publish readiness, and JSON backup handoff.
+          </p>
         </div>
         <div className="manager-actions">
           <button className="ghost-button" onClick={() => startNewQuestion('mcq')} type="button">
@@ -788,30 +1004,71 @@ export function ContentManager({
           />
         </div>
       </header>
+      <section className="manager-sync-panel" aria-label="Content library status">
+        <div className="sync-card sync-card--primary">
+          <Cloud aria-hidden="true" />
+          <div>
+            <strong>{contentSourceLabel}</strong>
+            <span>
+              {isContentLoading
+                ? 'Loading content records'
+                : 'Question records align to publishing status and local fallback.'}
+            </span>
+          </div>
+        </div>
+        <div className="sync-card">
+          <RefreshCw aria-hidden="true" />
+          <div>
+            <strong>{customQuestions.length} authored</strong>
+            <span>Loaded into the admin workspace</span>
+          </div>
+        </div>
+        <div className="sync-card">
+          <RefreshCw aria-hidden="true" />
+          <div>
+            <strong>{contentError ? 'Sync issue' : 'Refresh ready'}</strong>
+            <span>{contentError || 'Reload the library after dashboard changes'}</span>
+          </div>
+        </div>
+        {onRefreshContent ? (
+          <button className="ghost-button" onClick={onRefreshContent} type="button">
+            <RefreshCw aria-hidden="true" />
+            Refresh Library
+          </button>
+        ) : null}
+      </section>
 
       <div className="manager-layout">
         <aside className="managed-list" aria-label="Authored questions">
           <h2>Authored Questions</h2>
           {customQuestions.length === 0 ? <p>No authored questions yet.</p> : null}
           <div className="managed-list__items">
-            {customQuestions.map((question) => (
-              <button
-                className="managed-list__item"
-                data-active={question.id === selectedQuestionId}
-                key={question.id}
-                onClick={() => {
-                  setSelectedQuestionId(question.id);
-                  setDraft(questionToDraft(question));
-                  setNotice('');
-                  setError('');
-                }}
-                type="button"
-              >
-                <strong>{question.skill || question.id}</strong>
-                <span>{question.type.toUpperCase()}</span>
-                <small>{question.topic}</small>
-              </button>
-            ))}
+            {customQuestions.map((question) => {
+              const workflowState =
+                workflowStatesByQuestionId[question.id] ?? getQuestionStatus(question.id);
+
+              return (
+                <button
+                  className="managed-list__item"
+                  data-active={question.id === selectedQuestionId}
+                  key={question.id}
+                  onClick={() => loadQuestionIntoEditor(question)}
+                  type="button"
+                >
+                  <div className="managed-list__item-header">
+                    <strong>{question.skill || question.id}</strong>
+                    <span className="status-pill" data-status={workflowState}>
+                      {getWorkflowStateLabel(workflowState)}
+                    </span>
+                  </div>
+                  <div className="managed-list__item-meta">
+                    <span>{question.type.toUpperCase()}</span>
+                    <span>{question.section.toUpperCase()}</span>
+                  </div>
+                  <small>{question.topic}</small>
+                </button>
+              );
+            })}
           </div>
         </aside>
 
@@ -820,32 +1077,91 @@ export function ContentManager({
             <div>
               <p className="eyebrow">{selectedQuestion ? 'Editing' : 'New Question'}</p>
               <h2>{draft.type === 'mcq' ? 'Multiple Choice' : 'Free Response'}</h2>
+              <div className="editor-toolbar__meta">
+                <span className="status-pill" data-status={draft.workflowState}>
+                  {getWorkflowStateLabel(draft.workflowState)}
+                </span>
+                <span>{isReadyToPublish ? 'Ready to publish' : 'Needs review'}</span>
+              </div>
             </div>
             <div className="action-row">
-              <button className="primary-button" onClick={saveQuestion} type="button">
+              <button className="ghost-button" onClick={() => saveQuestion('draft')} type="button">
                 <Save aria-hidden="true" />
-                Save
+                Save Draft
+              </button>
+              <button
+                className="primary-button"
+                disabled={!isReadyToPublish}
+                onClick={() => saveQuestion('published')}
+                type="button"
+              >
+                <Send aria-hidden="true" />
+                Publish
               </button>
               {selectedQuestion ? (
-                <button
-                  className="danger-button"
-                  onClick={() => deleteQuestion(selectedQuestion.id)}
-                  type="button"
-                >
-                  <Trash2 aria-hidden="true" />
-                  Delete
-                </button>
+                <>
+                  <button
+                    className="ghost-button"
+                    onClick={() => archiveQuestion(selectedQuestion.id)}
+                    type="button"
+                  >
+                    <Archive aria-hidden="true" />
+                    Archive
+                  </button>
+                  <button
+                    className="danger-button"
+                    onClick={() => deleteQuestion(selectedQuestion.id)}
+                    type="button"
+                  >
+                    <Trash2 aria-hidden="true" />
+                    Delete
+                  </button>
+                </>
               ) : null}
             </div>
           </div>
 
           {notice ? <div className="form-notice">{notice}</div> : null}
           {error ? (
-            <div className="form-error">
+            <div className="form-error" role="alert">
               <XCircle aria-hidden="true" />
               <span>{error}</span>
             </div>
           ) : null}
+
+          <section className="editor-section publish-readiness-panel">
+            <div className="section-heading-row">
+              <div>
+                <h3>Draft and Publish</h3>
+                <p>Draft saves preserve author work; publish marks the question publish-ready.</p>
+              </div>
+              {isReadyToPublish ? (
+                <CheckCircle2 aria-hidden="true" />
+              ) : (
+                <CircleAlert aria-hidden="true" />
+              )}
+            </div>
+            <div className="publish-status-row">
+              <span className="status-pill" data-status={draft.workflowState}>
+                {getWorkflowStateLabel(draft.workflowState)}
+              </span>
+              <span>
+                {isReadyToPublish ? 'All publish checks pass' : 'Complete checks before publish'}
+              </span>
+            </div>
+            <ul className="publish-check-list" aria-label="Publish readiness checks">
+              {readinessChecks.map((check) => (
+                <li data-complete={check.complete} key={check.id}>
+                  {check.complete ? (
+                    <CheckCircle2 aria-hidden="true" />
+                  ) : (
+                    <CircleAlert aria-hidden="true" />
+                  )}
+                  <span>{check.label}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
 
           <div className="form-grid form-grid--four">
             <label>
@@ -1286,21 +1602,144 @@ export function ContentManager({
         <aside className="preview-panel" aria-label="Question preview">
           <div className="section-heading-row">
             <h2>Preview</h2>
-            <PenLine aria-hidden="true" />
+            <Eye aria-hidden="true" />
           </div>
-          <MathText block text={draft.prompt || 'Question prompt preview'} />
-          <QuestionAssetGallery
-            ariaLabel="Question image preview"
-            assets={draftAssetsToAssets(draft.questionAssets)}
-          />
-          <div className="preview-card">
-            <h3>Solution Summary</h3>
-            <MathText block text={draft.explanationSummary || 'Solution summary preview'} />
+          <div className="preview-mode-toggle" role="group" aria-label="Preview mode">
+            <button
+              aria-pressed={previewMode === 'student'}
+              data-active={previewMode === 'student'}
+              onClick={() => setPreviewMode('student')}
+              type="button"
+            >
+              Student
+            </button>
+            <button
+              aria-pressed={previewMode === 'answer'}
+              data-active={previewMode === 'answer'}
+              onClick={() => setPreviewMode('answer')}
+              type="button"
+            >
+              Answer Key
+            </button>
+          </div>
+          <div className="preview-meta-strip" aria-label="Question metadata preview">
+            <span>{draft.unit || 'Unit'}</span>
+            <span>{draft.topic || 'Topic'}</span>
+            <span>{draft.difficulty}</span>
+            <span>{draft.calculator === 'graphing' ? 'Calculator' : 'No calculator'}</span>
+          </div>
+          <article className="preview-card preview-card--question">
+            <h3>Prompt</h3>
+            <MathText block text={draft.prompt || 'Question prompt preview'} />
             <QuestionAssetGallery
-              ariaLabel="Solution image preview"
-              assets={draftAssetsToAssets(draft.solutionAssets)}
+              ariaLabel="Question image preview"
+              assets={draftAssetsToAssets(draft.questionAssets)}
             />
-          </div>
+            {draft.type === 'mcq' ? (
+              <div className="preview-choice-list" aria-label="Multiple choice preview">
+                {draft.choices.map((choice) => (
+                  <div
+                    className="preview-choice"
+                    data-correct={previewMode === 'answer' && choice.id === draft.correctChoiceId}
+                    key={choice.id}
+                  >
+                    <span className="preview-choice__letter">{choice.id}</span>
+                    <div>
+                      <MathText text={choice.text || `Choice ${choice.id} text`} />
+                      {previewMode === 'answer' ? (
+                        <small>
+                          {choice.explanation || `Choice ${choice.id} explanation preview`}
+                        </small>
+                      ) : null}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="preview-frq-list" aria-label="Free response preview">
+                {draft.frqParts.map((part, index) => (
+                  <div className="preview-frq-part" key={`${part.id}-${index}`}>
+                    <h4>Part {part.id || String.fromCharCode(97 + index)}</h4>
+                    <MathText block text={part.prompt || 'FRQ part prompt preview'} />
+                    {previewMode === 'student' ? <div className="preview-response-box" /> : null}
+                  </div>
+                ))}
+              </div>
+            )}
+          </article>
+          {previewMode === 'answer' ? (
+            <>
+              {draft.type === 'frq' ? (
+                <div className="preview-card">
+                  <h3>FRQ Key</h3>
+                  {draft.frqParts.map((part, index) => (
+                    <div className="preview-frq-key" key={`${part.id}-key-${index}`}>
+                      <h4>Part {part.id || String.fromCharCode(97 + index)}</h4>
+                      <MathText block text={part.sampleResponse || 'Sample response preview'} />
+                      {linesToList(part.expectedWork).length > 0 ? (
+                        <ol className="preview-ordered-list">
+                          {linesToList(part.expectedWork).map((step, stepIndex) => (
+                            <li key={`${part.id}-work-${stepIndex}`}>
+                              <MathText text={step} />
+                            </li>
+                          ))}
+                        </ol>
+                      ) : null}
+                      {part.rubric.length > 0 ? (
+                        <div className="preview-rubric-list">
+                          {part.rubric.map((criterion, criterionIndex) => (
+                            <div
+                              className="preview-rubric-item"
+                              key={`${criterion.id}-${criterionIndex}`}
+                            >
+                              <strong>{criterion.points || '0'} pt</strong>
+                              <span>{criterion.description || 'Rubric criterion preview'}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+              <div className="preview-card">
+                <h3>Solution</h3>
+                <MathText block text={draft.explanationSummary || 'Solution summary preview'} />
+                {linesToList(draft.explanationSteps).length > 0 ? (
+                  <ol className="preview-ordered-list">
+                    {linesToList(draft.explanationSteps).map((step, index) => (
+                      <li key={`${step}-${index}`}>
+                        <MathText text={step} />
+                      </li>
+                    ))}
+                  </ol>
+                ) : null}
+                {linesToList(draft.commonMistakes).length > 0 ? (
+                  <div className="preview-mistakes">
+                    <h4>Common Mistakes</h4>
+                    <ul>
+                      {linesToList(draft.commonMistakes).map((mistake, index) => (
+                        <li key={`${mistake}-${index}`}>
+                          <MathText text={mistake} />
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+                <QuestionAssetGallery
+                  ariaLabel="Solution image preview"
+                  assets={draftAssetsToAssets(draft.solutionAssets)}
+                />
+                {previewVideo ? (
+                  <VideoExplanation
+                    className="preview-video"
+                    title="Video Preview"
+                    video={previewVideo}
+                  />
+                ) : null}
+              </div>
+            </>
+          ) : null}
         </aside>
       </div>
     </main>

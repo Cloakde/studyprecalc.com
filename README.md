@@ -40,7 +40,10 @@ npm run build
 
 ## Deployment
 
-The first public deployment target is Vercel. See `docs/operations/deployment.md`.
+The first public deployment target is Vercel. See:
+
+- `docs/operations/deployment.md` for Vercel deploys, environment variables, domains, and deploy checks.
+- `docs/operations/supabase-setup.md` for Supabase SQL, Auth, Storage, first admin bootstrap, invites, and publishing smoke tests.
 
 Use these hosted build settings:
 
@@ -57,8 +60,9 @@ Optional Desmos setup:
 Optional Supabase setup:
 
 - Add `VITE_SUPABASE_URL`.
-- Add a browser-safe `VITE_SUPABASE_ANON_KEY` or publishable key.
+- Add a browser-safe `VITE_SUPABASE_ANON_KEY` value using a Supabase publishable key or legacy anon public key.
 - Run `supabase/schema.sql` in the Supabase SQL Editor.
+- Bootstrap the first admin with an invite as described in `docs/operations/supabase-setup.md`.
 
 ## No-Code Content Management
 
@@ -66,13 +70,13 @@ Use the `Manage Content` tab in the app to create, edit, delete, import, and exp
 
 The bundled starter question bank is intentionally empty. Use the local development admin account to add your own original questions.
 
-The current manager is local-first. Authored questions are saved in the browser and can be exported as a question pack. A server-backed CMS can be added later when the public website needs centralized publishing.
+When Supabase is configured and an admin is signed in, authored questions are saved to the Supabase content library and published questions become visible to students. Without Supabase, the manager falls back to browser-local content for development.
 
 ## Accounts And Progress
 
-The login/sign-up flow uses Supabase when `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are configured. Attempts and grouped session results are scoped to the active account and power the Dashboard tab. If Supabase is not configured, the app falls back to browser-local profiles for development.
+The login/sign-up flow uses Supabase when `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are configured. Production sign-up is invite-only. Attempts and grouped session results are scoped to the active account and power the Dashboard tab. If Supabase is not configured, the app falls back to browser-local profiles for development.
 
-Run `supabase/schema.sql` in the Supabase SQL Editor before relying on cloud progress sync.
+Run `supabase/schema.sql` in the Supabase SQL Editor before relying on cloud accounts, invites, classes, content publishing, or progress sync.
 
 ## Read First
 

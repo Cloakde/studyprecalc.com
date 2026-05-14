@@ -1,4 +1,4 @@
-import { LogIn, UserPlus } from 'lucide-react';
+import { KeyRound, LogIn, UserPlus } from 'lucide-react';
 import { type FormEvent, useState } from 'react';
 
 import type { LoginInput, SignupInput } from '../../data/localAccountStore';
@@ -15,6 +15,7 @@ type AuthMode = 'login' | 'signup';
 
 const SIGNUP_DISABLED_MESSAGE =
   'Sign ups are currently closed. Study Precalc is invite-only for now.';
+const INVITE_SIGNUP_UNLOCKED_MESSAGE = 'Invite code entered. Create your account.';
 
 function isEmailConfirmationResult(result: unknown): result is { requiresEmailConfirmation: true } {
   return (
@@ -36,9 +37,13 @@ export function AccountAuth({
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [inviteCode, setInviteCode] = useState('');
+  const [acceptedInviteCode, setAcceptedInviteCode] = useState('');
+  const [isInviteSignupUnlocked, setIsInviteSignupUnlocked] = useState(false);
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const canUseSignup = allowSignup || isInviteSignupUnlocked;
 
   async function submitAuth(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -47,13 +52,18 @@ export function AccountAuth({
 
     try {
       if (mode === 'signup') {
-        if (!allowSignup) {
+        if (!canUseSignup) {
           setError(SIGNUP_DISABLED_MESSAGE);
           return;
         }
 
         setIsSubmitting(true);
-        const result = await onSignup({ displayName, email, password });
+        const result = await onSignup({
+          displayName,
+          email,
+          password,
+          inviteCode: acceptedInviteCode,
+        });
         setNotice(
           isEmailConfirmationResult(result)
             ? 'Account created. Check your email if confirmation is enabled.'
@@ -72,13 +82,36 @@ export function AccountAuth({
     }
   }
 
+  function submitInviteCode(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setNotice('');
+    setError('');
+
+    if (!inviteCode.trim()) {
+      setError('Enter an invite code to continue.');
+      return;
+    }
+
+    setIsInviteSignupUnlocked(true);
+    setAcceptedInviteCode(inviteCode.trim().toUpperCase());
+    setInviteCode('');
+    setNotice(INVITE_SIGNUP_UNLOCKED_MESSAGE);
+  }
+
+  const authHeading =
+    mode === 'signup' ? (canUseSignup ? 'Create Account' : 'Enter Invite Code') : 'Sign In';
+
   return (
     <main className="auth-shell">
       <section className="auth-panel" aria-labelledby="auth-heading">
         <div className="auth-panel__intro">
           <p className="eyebrow">{backendLabel}</p>
-          <h1 id="auth-heading">{mode === 'signup' ? 'Create Account' : 'Sign In'}</h1>
-          <p>Save practice history, sessions, and dashboard progress in this browser.</p>
+          <h1 id="auth-heading">{authHeading}</h1>
+          <p>
+            {mode === 'signup' && !canUseSignup
+              ? 'Enter your invite code to open account creation.'
+              : 'Save practice history, sessions, and dashboard progress in this browser.'}
+          </p>
         </div>
 
         <div className="auth-toggle" role="tablist" aria-label="Account mode">
@@ -100,14 +133,9 @@ export function AccountAuth({
             aria-selected={mode === 'signup'}
             data-active={mode === 'signup'}
             onClick={() => {
+              setMode('signup');
               setError('');
               setNotice('');
-              if (allowSignup) {
-                setMode('signup');
-              } else {
-                setMode('login');
-                setError(SIGNUP_DISABLED_MESSAGE);
-              }
             }}
             role="tab"
             type="button"
@@ -125,45 +153,72 @@ export function AccountAuth({
           </div>
         ) : null}
 
-        <form className="auth-form" onSubmit={submitAuth}>
-          {mode === 'signup' ? (
+        {mode === 'signup' && !canUseSignup ? (
+          <form className="auth-form auth-form--invite" onSubmit={submitInviteCode}>
             <label>
-              Name
+              Invite Code
               <input
-                autoComplete="name"
-                onChange={(event) => setDisplayName(event.target.value)}
+                autoComplete="one-time-code"
+                onChange={(event) => setInviteCode(event.target.value)}
                 required
                 type="text"
-                value={displayName}
+                value={inviteCode}
               />
             </label>
-          ) : null}
-          <label>
-            Email
-            <input
-              autoComplete="email"
-              onChange={(event) => setEmail(event.target.value)}
-              required
-              type="email"
-              value={email}
-            />
-          </label>
-          <label>
-            Password
-            <input
-              autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
-              minLength={6}
-              onChange={(event) => setPassword(event.target.value)}
-              required
-              type="password"
-              value={password}
-            />
-          </label>
-          <button className="primary-button" disabled={isSubmitting} type="submit">
-            {mode === 'signup' ? <UserPlus aria-hidden="true" /> : <LogIn aria-hidden="true" />}
-            {isSubmitting ? 'Working...' : mode === 'signup' ? 'Create Account' : 'Log In'}
-          </button>
-        </form>
+            <button className="primary-button" type="submit">
+              <KeyRound aria-hidden="true" />
+              Unlock Sign Up
+            </button>
+          </form>
+        ) : (
+          <form className="auth-form" onSubmit={submitAuth}>
+            {mode === 'signup' ? (
+              <>
+                {acceptedInviteCode ? (
+                  <div className="invite-chip">
+                    <KeyRound aria-hidden="true" />
+                    <span>{acceptedInviteCode}</span>
+                  </div>
+                ) : null}
+                <label>
+                  Name
+                  <input
+                    autoComplete="name"
+                    onChange={(event) => setDisplayName(event.target.value)}
+                    required
+                    type="text"
+                    value={displayName}
+                  />
+                </label>
+              </>
+            ) : null}
+            <label>
+              Email
+              <input
+                autoComplete="email"
+                onChange={(event) => setEmail(event.target.value)}
+                required
+                type="email"
+                value={email}
+              />
+            </label>
+            <label>
+              Password
+              <input
+                autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+                minLength={6}
+                onChange={(event) => setPassword(event.target.value)}
+                required
+                type="password"
+                value={password}
+              />
+            </label>
+            <button className="primary-button" disabled={isSubmitting} type="submit">
+              {mode === 'signup' ? <UserPlus aria-hidden="true" /> : <LogIn aria-hidden="true" />}
+              {isSubmitting ? 'Working...' : mode === 'signup' ? 'Create Account' : 'Log In'}
+            </button>
+          </form>
+        )}
       </section>
     </main>
   );

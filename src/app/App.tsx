@@ -5,24 +5,31 @@ import {
   createAccountScopedStorageKey,
   type LoginInput,
   type PublicAccount,
+  type SignupInput,
   useLocalAccountStore,
 } from '../data/localAccountStore';
 import { useLocalAttemptStore } from '../data/localAttemptStore';
+import { useLocalClassStore } from '../data/localClassStore';
+import { useLocalInviteStore } from '../data/localInviteStore';
 import { useManagedQuestionBank } from '../data/localQuestionStore';
 import { useLocalSessionStore } from '../data/localSessionStore';
 import { questionBank as seedQuestionBank, questionSetVersion } from '../data/seed/questionBank';
 import { useSupabaseAccountStore } from '../data/supabase/accountStore';
+import { useSupabaseClassStore } from '../data/supabase/classStore';
 import { isSupabaseConfigured } from '../data/supabase/client';
 import { useSupabaseAttemptStore } from '../data/supabase/attemptStore';
+import { useSupabaseInviteStore } from '../data/supabase/inviteStore';
+import { useSupabaseQuestionContentStore } from '../data/supabase/questionContentStore';
 import { useSupabaseSessionStore } from '../data/supabase/sessionStore';
 import { AccountAuth } from './components/AccountAuth';
+import { AdminClassManager } from './components/AdminClassManager';
 import { AttemptReview } from './components/AttemptReview';
 import { ContentManager } from './components/ContentManager';
 import { QuestionPractice } from './components/QuestionPractice';
 import { SessionPractice } from './components/SessionPractice';
 import { StudentDashboard } from './components/StudentDashboard';
 
-type AppMode = 'dashboard' | 'practice' | 'session' | 'review' | 'manage';
+type AppMode = 'dashboard' | 'practice' | 'session' | 'review' | 'manage' | 'classes';
 
 const localDevAdminEmail = 'admin@studyprecalc.local';
 const localDevAdminPassword = 'localadmin';
@@ -66,6 +73,15 @@ export function App() {
   const cloudOrLocalAccountStore = isSupabaseConfigured ? supabaseAccountStore : localAccountStore;
   const currentAccount = localDevAdminAccount ?? cloudOrLocalAccountStore.currentAccount;
   const canManageContent = currentAccount?.role === 'admin';
+  const accountId = currentAccount?.id;
+  const localQuestionStore = useManagedQuestionBank(seedQuestionBank);
+  const cloudQuestionStore = useSupabaseQuestionContentStore({
+    enabled: isSupabaseConfigured && !localDevAdminAccount && Boolean(accountId),
+    userId: accountId,
+    seedQuestions: seedQuestionBank,
+  });
+  const activeQuestionStore =
+    isSupabaseConfigured && !localDevAdminAccount ? cloudQuestionStore : localQuestionStore;
   const {
     questionBank,
     customQuestions,
@@ -73,8 +89,26 @@ export function App() {
     saveCustomQuestion,
     deleteCustomQuestion,
     importCustomQuestions,
-  } = useManagedQuestionBank(seedQuestionBank);
-  const accountId = currentAccount?.id;
+    setCustomQuestionStatus,
+    getQuestionStatus,
+    isContentLoading,
+    contentError,
+    refreshContent,
+  } = activeQuestionStore;
+  const localInviteStore = useLocalInviteStore();
+  const cloudInviteStore = useSupabaseInviteStore({
+    enabled: isSupabaseConfigured && !localDevAdminAccount && Boolean(accountId),
+    userId: accountId,
+  });
+  const activeInviteStore =
+    isSupabaseConfigured && !localDevAdminAccount ? cloudInviteStore : localInviteStore;
+  const localClassStore = useLocalClassStore();
+  const cloudClassStore = useSupabaseClassStore({
+    enabled: isSupabaseConfigured && !localDevAdminAccount && Boolean(accountId),
+    userId: accountId,
+  });
+  const activeClassStore =
+    isSupabaseConfigured && !localDevAdminAccount ? cloudClassStore : localClassStore;
   const attemptStore = useLocalAttemptStore({
     storageKey: createAccountScopedStorageKey(accountId, 'attempts'),
   });
@@ -101,7 +135,7 @@ export function App() {
   }, [currentAccount?.id, currentAccount]);
 
   useEffect(() => {
-    if (!canManageContent && mode === 'manage') {
+    if (!canManageContent && (mode === 'manage' || mode === 'classes')) {
       setMode('dashboard');
     }
   }, [canManageContent, mode]);
@@ -119,6 +153,38 @@ export function App() {
     }
 
     return cloudOrLocalAccountStore.login(input);
+  }
+
+  async function signupAccount(input: SignupInput) {
+    if (!input.inviteCode?.trim()) {
+      throw new Error('Enter an invite code to create an account.');
+    }
+
+    if (isSupabaseConfigured && !localDevAdminAccount) {
+      return supabaseAccountStore.signup(input);
+    }
+
+    const validation = localInviteStore.validateInviteCode({
+      code: input.inviteCode,
+      email: input.email,
+    });
+
+    if (validation.status !== 'valid') {
+      throw new Error(`Invite code is not available (${validation.reason}).`);
+    }
+
+    const account = await localAccountStore.signup(input);
+    const consumedInvite = localInviteStore.consumeInviteCode({
+      code: input.inviteCode,
+      email: input.email,
+      accountId: account.id,
+    });
+
+    if (consumedInvite.status === 'consumed' && consumedInvite.invite.classId) {
+      localClassStore.enrollAccount(consumedInvite.invite.classId, account);
+    }
+
+    return account;
   }
 
   function logoutAccount() {
@@ -151,7 +217,7 @@ export function App() {
       <AccountAuth
         backendLabel={isSupabaseConfigured ? 'Cloud account' : 'Local account'}
         onLogin={loginAccount}
-        onSignup={cloudOrLocalAccountStore.signup}
+        onSignup={signupAccount}
         supportingNotice={
           import.meta.env.DEV
             ? `Local admin: ${localDevAdminEmail} / ${localDevAdminPassword}`
@@ -209,14 +275,24 @@ export function App() {
           Review
         </button>
         {canManageContent ? (
-          <button
-            className="mode-tabs__button"
-            data-active={mode === 'manage'}
-            onClick={() => setMode('manage')}
-            type="button"
-          >
-            Manage Content
-          </button>
+          <>
+            <button
+              className="mode-tabs__button"
+              data-active={mode === 'manage'}
+              onClick={() => setMode('manage')}
+              type="button"
+            >
+              Manage Content
+            </button>
+            <button
+              className="mode-tabs__button"
+              data-active={mode === 'classes'}
+              onClick={() => setMode('classes')}
+              type="button"
+            >
+              Classes
+            </button>
+          </>
         ) : null}
       </nav>
       {mode === 'dashboard' ? (
@@ -308,7 +384,43 @@ export function App() {
             onDeleteQuestion={deleteCustomQuestion}
             onImportQuestions={importCustomQuestions}
             onSaveQuestion={saveCustomQuestion}
+            onSetQuestionStatus={setCustomQuestionStatus}
             seedQuestionIds={seedQuestionIds}
+            getQuestionStatus={getQuestionStatus}
+            contentSourceLabel={
+              isSupabaseConfigured && !localDevAdminAccount
+                ? 'Supabase content library'
+                : 'Local content library'
+            }
+            contentError={contentError}
+            isContentLoading={isContentLoading}
+            onRefreshContent={() => void refreshContent()}
+          />
+        ) : null
+      ) : null}
+      {mode === 'classes' ? (
+        canManageContent ? (
+          <AdminClassManager
+            classes={activeClassStore.classes}
+            enrollments={activeClassStore.enrollments}
+            invites={activeInviteStore.invites}
+            onCreateClass={(input) =>
+              activeClassStore.createClass({
+                ...input,
+                createdBy: accountId,
+              })
+            }
+            onCreateInvite={(input) =>
+              activeInviteStore.createInvite({
+                ...input,
+                createdByAccountId: accountId,
+              })
+            }
+            onRefresh={() => {
+              void activeInviteStore.refreshInvites?.();
+              void activeClassStore.refreshClasses?.();
+            }}
+            onRevokeInvite={(inviteId) => activeInviteStore.revokeInvite(inviteId)}
           />
         ) : null
       ) : null}

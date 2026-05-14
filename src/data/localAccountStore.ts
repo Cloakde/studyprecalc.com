@@ -37,6 +37,7 @@ export type SignupInput = {
   displayName: string;
   email: string;
   password: string;
+  inviteCode?: string;
 };
 
 export type LoginInput = {
@@ -229,6 +230,7 @@ function validateSignupInput(input: SignupInput): SignupInput {
     displayName,
     email,
     password: input.password,
+    ...(input.inviteCode?.trim() ? { inviteCode: input.inviteCode.trim() } : {}),
   };
 }
 
