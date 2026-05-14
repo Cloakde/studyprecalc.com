@@ -37,6 +37,10 @@
 | PROD-002    | Consolidate production activation runbook             | Codex + Agents   | Done   | Added owner-facing M6 checklist for SQL, admin bootstrap, Vercel env vars, deploy, domain, cloud smoke tests, and rollback.                           |
 | PROD-003    | Add CI gate for deployment readiness                  | Codex + Agents   | Done   | Added GitHub Actions checks for content validation, tests, lint, and build on push/PR.                                                                |
 | PROD-004    | Production schema/security activation review          | Codex + Agents   | Done   | Fixed Supabase invite UUID insert blocker, hardened first-admin bootstrap docs, added invite enforcement checks, and disabled SVG uploads for launch. |
+| MEDIA-002   | Add Supabase image upload adapter                     | Codex + Agents   | Done   | Added stable `supabase-image:<storage_path>` refs, upload validation, Storage upload, `media_records` insert, signed URL resolution, and unit tests.    |
+| MEDIA-003   | Link cloud images to published questions              | Codex + Agents   | Done   | Supabase content saves now sync `question_media` links for question/explanation cloud images and reject published browser-local media.                  |
+| MEDIA-004   | Wire cloud image uploads into Content Manager         | Codex + Agents   | Done   | Cloud admins upload images to Supabase; local dev keeps IndexedDB fallback. SVG is rejected for launch.                                                |
+| MEDIA-005   | Add cloud image storage docs and smoke coverage       | Codex + Agents   | Done   | Updated runbooks/authoring docs for limits, stable refs, signed URLs, rights, and production storage smoke checks.                                     |
 
 ## Later
 

@@ -72,6 +72,29 @@ describe('QuestionSetSchema', () => {
     ).not.toThrow();
   });
 
+  it('accepts stable Supabase image references for cloud-stored assets', () => {
+    const questionWithCloudAsset = {
+      ...testMcqQuestion,
+      id: 'test-mcq-cloud-assets-001',
+      assets: [
+        {
+          id: 'cloud-residual-plot',
+          type: 'graph',
+          path: 'supabase-image:uploads/admin-1/2026/05/14/residual-plot-abc123.png',
+          alt: 'Residual plot stored in cloud storage.',
+          caption: 'Residual plot',
+        },
+      ],
+    };
+
+    expect(() =>
+      QuestionSetSchema.parse({
+        version: testQuestionSet.version,
+        questions: [questionWithCloudAsset],
+      }),
+    ).not.toThrow();
+  });
+
   it('rejects duplicate FRQ part and rubric criterion IDs', () => {
     const invalidFrq = {
       ...testFrqQuestion,

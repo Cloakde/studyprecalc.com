@@ -29,6 +29,8 @@ Codex can verify:
 - The app can run in cloud mode when browser-safe Supabase env vars are present.
 - After Supabase SQL is installed, `npm run smoke:supabase` can verify the invite RPC, unpublished
   content access, and optional admin login.
+- Cloud image upload testing requires a real Supabase admin account. The local dev-only admin is for
+  browser-local authoring and does not prove production Storage access.
 
 Owner must verify:
 
@@ -43,6 +45,8 @@ Owner, in the Supabase dashboard:
 2. Open SQL Editor.
 3. Paste and run the full contents of `supabase/schema.sql`.
 4. Run the SQL verification queries in [Supabase setup](supabase-setup.md#verify-sql-setup).
+5. Confirm the private `question-images` bucket has a 1 MB file limit and allows only PNG, JPEG,
+   WebP, and GIF images.
 
 Codex can verify the SQL file exists and can review its contents locally. Codex cannot run SQL in
 the owner's Supabase project without owner dashboard access.
@@ -154,7 +158,15 @@ Owner or Codex after deployment:
 13. Confirm the Dashboard updates.
 14. Verify the question row and attempt row with the SQL checks in
     [Content Publishing Smoke Test](supabase-setup.md#content-publishing-smoke-test).
-15. Archive or delete the smoke question.
+15. Run the [Cloud Image Storage Smoke Test](supabase-setup.md#cloud-image-storage-smoke-test)
+    with an original PNG, JPEG, WebP, or GIF under 1 MB.
+16. Confirm the image is stored through stable media references and renders for students only after
+    the linked question is published.
+17. Archive or delete the smoke questions.
+
+Do not use AP, College Board, or third-party copyrighted images in smoke tests unless the owner has
+confirmed usage rights. Do not upload video files to app storage; video explanations should remain
+YouTube, Vimeo, or approved embed/link references for now.
 
 Codex can verify public HTTP responses and local app behavior. Owner dashboard access is required
 for SQL verification, invite/account confirmation, and any private production data inspection.

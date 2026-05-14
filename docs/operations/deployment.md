@@ -6,7 +6,7 @@ For the ordered owner-facing M6 launch flow, start with
 [M6 Production Activation Checklist](production-activation.md).
 
 Complete [Supabase setup](supabase-setup.md) before relying on production accounts, invites,
-published content, saved attempts, or dashboard persistence.
+published content, question image uploads, saved attempts, or dashboard persistence.
 
 ## Production Values
 
@@ -150,8 +150,12 @@ App-level checks:
 4. Confirm the `Admin` badge, `Manage Content`, and `Classes` tabs are visible.
 5. Create a class and student invite.
 6. Run the content publishing smoke test in [Supabase setup](supabase-setup.md).
-7. Sign up as a student with an invite in a different browser profile or private window.
-8. Submit one practice attempt and confirm the dashboard updates.
+7. Run the cloud image storage smoke test in [Supabase setup](supabase-setup.md) with an original
+   PNG, JPEG, WebP, or GIF under 1 MB.
+8. Sign up as a student with an invite in a different browser profile or private window.
+9. Confirm published question images render for the student and unpublished or archived image-linked
+   questions are not readable.
+10. Submit one practice attempt and confirm the dashboard updates.
 
 Supabase Auth domain checks:
 

@@ -25,6 +25,7 @@ import type {
 } from '../questionContentStore';
 import { QuestionSchema } from '../schemas/questionSchema';
 import { supabase } from './client';
+import { parseSupabaseImageReference, supabaseImageBucket } from './mediaStore';
 
 export type QuestionContentRow = {
   id: string;
@@ -35,6 +36,20 @@ export type QuestionContentRow = {
   created_by: string | null;
   created_at: string;
   updated_at: string;
+};
+
+type QuestionMediaPlacement = 'question' | 'explanation';
+
+type CloudQuestionImageAsset = {
+  assetId: string;
+  placement: QuestionMediaPlacement;
+  storagePath: string;
+  sortOrder: number;
+};
+
+type MediaRecordReferenceRow = {
+  id: string;
+  storage_path: string | null;
 };
 
 export type CreateSupabaseQuestionContentStoreOptions = {
@@ -59,6 +74,64 @@ function isObject(candidate: unknown): candidate is Record<string, unknown> {
 
 function stringOrUndefined(candidate: unknown): string | undefined {
   return typeof candidate === 'string' && candidate.trim() ? candidate.trim() : undefined;
+}
+
+function parseQuestionContentCandidate(candidate: unknown): Question {
+  const questionResult = QuestionSchema.safeParse(candidate);
+
+  if (!questionResult.success) {
+    throw questionResult.error;
+  }
+
+  return questionResult.data as Question;
+}
+
+export function extractCloudQuestionImageAssets(question: Question): CloudQuestionImageAsset[] {
+  const assets: CloudQuestionImageAsset[] = [];
+
+  const collectAssets = (placement: QuestionMediaPlacement, assetsCandidate: unknown) => {
+    if (!Array.isArray(assetsCandidate)) {
+      return;
+    }
+
+    assetsCandidate.forEach((assetCandidate) => {
+      if (
+        !isObject(assetCandidate) ||
+        typeof assetCandidate.id !== 'string' ||
+        typeof assetCandidate.path !== 'string'
+      ) {
+        return;
+      }
+
+      const storagePath = parseSupabaseImageReference(assetCandidate.path);
+
+      if (!storagePath) {
+        return;
+      }
+
+      assets.push({
+        assetId: assetCandidate.id,
+        placement,
+        storagePath,
+        sortOrder: assets.filter((asset) => asset.placement === placement).length,
+      });
+    });
+  };
+
+  collectAssets('question', question.assets);
+  collectAssets('explanation', question.explanation.assets);
+
+  return assets;
+}
+
+function questionHasBrowserLocalMedia(question: Question): boolean {
+  const hasLocalQuestionImage =
+    question.assets?.some((asset) => asset.path.startsWith('local-image:')) ?? false;
+  const hasLocalExplanationImage =
+    question.explanation.assets?.some((asset) => asset.path.startsWith('local-image:')) ?? false;
+  const hasLocalVideo = question.explanation.video?.url.startsWith('local-video:') ?? false;
+
+  return hasLocalQuestionImage || hasLocalExplanationImage || hasLocalVideo;
 }
 
 function getQuestionContentEnvelope(row: QuestionContentRow) {
@@ -118,9 +191,11 @@ export function questionContentRecordFromSupabaseRow(
   row: QuestionContentRow,
 ): QuestionContentRecord {
   const envelope = getQuestionContentEnvelope(row);
-  const questionResult = QuestionSchema.safeParse(envelope.question);
+  let question: Question;
 
-  if (!questionResult.success) {
+  try {
+    question = parseQuestionContentCandidate(envelope.question);
+  } catch {
     throw new Error(`Invalid Supabase question content row: ${row.id}`);
   }
 
@@ -130,7 +205,7 @@ export function questionContentRecordFromSupabaseRow(
     ? getSupabaseRecordStatus(row.status, row.is_published, publication)
     : getSupabaseRecordStatus(row.status, row.is_published, {});
 
-  return createQuestionContentRecord(questionResult.data as Question, {
+  return createQuestionContentRecord(question, {
     status,
     questionSetVersion:
       stringOrUndefined(publication.questionSetVersion) ?? row.question_set_version ?? 'server',
@@ -145,6 +220,74 @@ export function questionContentRecordFromSupabaseRow(
       ? { archivedAt: stringOrUndefined(publication.archivedAt) }
       : {}),
   });
+}
+
+async function syncQuestionMediaLinks(
+  client: SupabaseClient,
+  questionId: string,
+  question: Question,
+): Promise<void> {
+  const assets = extractCloudQuestionImageAssets(question);
+  const storagePaths = [...new Set(assets.map((asset) => asset.storagePath))];
+  const mediaIdByStoragePath = new Map<string, string>();
+
+  if (storagePaths.length > 0) {
+    const { data, error } = await client
+      .from('media_records')
+      .select('id, storage_path')
+      .eq('storage_bucket', supabaseImageBucket)
+      .in('storage_path', storagePaths);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    (data ?? []).forEach((row) => {
+      const mediaRecord = row as MediaRecordReferenceRow;
+
+      if (mediaRecord.storage_path) {
+        mediaIdByStoragePath.set(mediaRecord.storage_path, mediaRecord.id);
+      }
+    });
+
+    const missingStoragePaths = storagePaths.filter(
+      (storagePath) => !mediaIdByStoragePath.has(storagePath),
+    );
+
+    if (missingStoragePaths.length > 0) {
+      throw new Error(
+        `Missing media records for question image(s): ${missingStoragePaths.join(', ')}`,
+      );
+    }
+  }
+
+  const { error: deleteError } = await client
+    .from('question_media')
+    .delete()
+    .eq('question_id', questionId)
+    .in('placement', ['question', 'explanation']);
+
+  if (deleteError) {
+    throw new Error(deleteError.message);
+  }
+
+  if (assets.length === 0) {
+    return;
+  }
+
+  const { error: insertError } = await client.from('question_media').insert(
+    assets.map((asset) => ({
+      question_id: questionId,
+      media_id: mediaIdByStoragePath.get(asset.storagePath),
+      placement: asset.placement,
+      asset_id: asset.assetId,
+      sort_order: asset.sortOrder,
+    })),
+  );
+
+  if (insertError) {
+    throw new Error(insertError.message);
+  }
 }
 
 export function questionContentRecordToSupabaseRow(
@@ -194,6 +337,13 @@ export function createSupabaseQuestionContentStore({
 
   async function persistRecord(record: QuestionContentRecord): Promise<QuestionContentRecord> {
     const activeClient = assertSupabaseClient(enabled, client);
+
+    if (record.publication.status === 'published' && questionHasBrowserLocalMedia(record.question)) {
+      throw new Error(
+        'Cloud-published questions cannot use browser-local images or videos. Upload images to cloud storage and use an external video link.',
+      );
+    }
+
     const row = questionContentRecordToSupabaseRow(record, userId);
     const { data, error } = await activeClient
       .from('questions')
@@ -204,6 +354,8 @@ export function createSupabaseQuestionContentStore({
     if (error) {
       throw new Error(error.message);
     }
+
+    await syncQuestionMediaLinks(activeClient, record.id, record.question);
 
     return questionContentRecordFromSupabaseRow((data ?? row) as QuestionContentRow);
   }
@@ -242,7 +394,7 @@ export function createSupabaseQuestionContentStore({
       return loadRecordById(questionId);
     },
     async saveQuestion(input: SaveQuestionContentInput) {
-      const question = QuestionSchema.parse(input.question) as Question;
+      const question = parseQuestionContentCandidate(input.question);
       const existingRecord = await loadRecordById(question.id);
       const record = existingRecord
         ? updateQuestionContentRecord(existingRecord, question, {
@@ -296,6 +448,12 @@ export function createSupabaseQuestionContentStore({
         if (error) {
           throw new Error(error.message);
         }
+
+        await Promise.all(
+          importedRecords.map((record) =>
+            syncQuestionMediaLinks(activeClient, record.id, record.question),
+          ),
+        );
       }
 
       return {

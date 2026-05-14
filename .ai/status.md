@@ -4,13 +4,13 @@ Last updated: 2026-05-14
 
 ## Current Phase
 
-M6 production activation tooling is complete in code. Owner dashboard work remains: run Supabase SQL, bootstrap the first admin, configure Vercel/DNS, and rerun the live smoke checks.
+M7 cloud image storage is complete repo-side. Supabase-backed question/solution image uploads, stable media references, media metadata/linking, local fallback, docs, and tests are in place.
 
 ## Active Ownership
 
-| Agent | Task                                                                         | File Scope | Status   |
-| ----- | ---------------------------------------------------------------------------- | ---------- | -------- |
-| None  | M6 code/docs integration is complete; next edits should claim a fresh scope. | N/A        | Complete |
+| Agent | Task | File Scope | Status |
+| ----- | ---- | ---------- | ------ |
+| Codex | Coordinate M7 cloud image storage and integrate agent outputs | `.ai/*`, `src/app/App.tsx`, final integration, final verification, final git push | Complete |
 
 ## Notes
 
@@ -47,6 +47,8 @@ M6 production activation tooling is complete in code. Owner dashboard work remai
 - Supabase setup and deployment runbooks are updated for `studyprecalc.com`, including first-admin bootstrap through an owner-created admin invite.
 - M6 adds `npm run smoke:supabase`, a production activation checklist, GitHub Actions CI, safer high-entropy admin bootstrap docs, and a fix for Supabase invite inserts omitting browser-local IDs.
 - Running `npm run smoke:supabase` against the current configured Supabase project fails because `public.validate_invite` and `public.questions` are not in the schema cache yet; run `supabase/schema.sql` in the Supabase dashboard before expecting that smoke check to pass.
+- M7 adds Supabase cloud image uploads for admin-authored question/explanation assets. Cloud images are stored in the private `question-images` bucket, question JSON stores stable `supabase-image:<storage_path>` references, and rendering resolves short-lived signed URLs.
+- Cloud publishing now rejects browser-local images/videos so published Supabase content does not point at media that only exists in one browser profile.
 
 ## Last Verification
 
@@ -75,3 +77,4 @@ M6 production activation tooling is complete in code. Owner dashboard work remai
 2026-05-14: Wave 2 Agent 10 ran `npm test -- integrationHarness` (5 tests), `npm test` (80 tests), `npx prettier --check tests/fixtures/integrationHarness.ts tests/unit/integrationHarness.test.ts`, `npx eslint tests/fixtures/integrationHarness.ts tests/unit/integrationHarness.test.ts`, `npm run lint`, `npm run validate:content`, `npm run build`, and scoped `git diff --check`. All passed; diff check reported existing CRLF warnings only.
 2026-05-14: Codex integrated milestones 1-5 and ran `npm run validate:content`, `npm test` (80 tests), `npm run lint`, `npm run build`, and `git diff --check`. All passed; diff check reported CRLF warnings only. Browser smoke confirmed local admin sees Manage Content and Classes, class/invite creation works, Content Manager draft/publish controls render, and invite code input has a unique accessible label. QA found and Codex fixed Manage Content horizontal overflow hardening and missing Content Manager validation `role="alert"`; final QA confirmed no document-level horizontal overflow at 1440px or 390px.
 2026-05-14: Codex completed M6 production activation tooling and ran `npm run validate:content`, `npm test` (87 tests), `npm run lint`, `npm run build`, and `git diff --check`. All passed; diff check reported a CRLF warning for `supabase/schema.sql` only. `npm run smoke:supabase` executed and correctly failed live checks because the configured Supabase project has not yet applied `supabase/schema.sql`.
+2026-05-14: Codex + agents completed M7 cloud image storage and ran targeted media/content/schema tests, `npm test` (101 tests), `npm run lint`, `npm run build`, and `git diff --check`. All passed; diff check reported CRLF warnings only. Browser check confirmed the local app sign-in surface renders at `http://127.0.0.1:5173`; automated admin login was blocked by the in-app browser email input automation issue.

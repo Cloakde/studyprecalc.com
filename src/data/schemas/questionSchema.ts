@@ -11,11 +11,43 @@ const localImageReferenceSchema = z
   .string()
   .regex(/^local-image:[a-zA-Z0-9_-]+$/, 'Local image references must use local-image:<id>.');
 
+const supabaseImageReferenceSchema = z.string().refine((reference) => {
+  if (!reference.startsWith('supabase-image:')) {
+    return false;
+  }
+
+  const storagePath = reference.slice('supabase-image:'.length).trim();
+
+  if (
+    !storagePath ||
+    storagePath.length > 512 ||
+    storagePath.startsWith('/') ||
+    storagePath.endsWith('/') ||
+    storagePath.includes('\\') ||
+    storagePath.includes('//')
+  ) {
+    return false;
+  }
+
+  return storagePath
+    .split('/')
+    .every(
+      (segment) =>
+        segment !== '.' &&
+        segment !== '..' &&
+        /^[a-zA-Z0-9][a-zA-Z0-9._-]*[a-zA-Z0-9]$/.test(segment),
+    );
+}, 'Supabase image references must use supabase-image:<storage_path>.');
+
 const safeResourcePathSchema = z
   .string()
   .min(1)
   .refine((path) => {
     if (localImageReferenceSchema.safeParse(path).success) {
+      return true;
+    }
+
+    if (supabaseImageReferenceSchema.safeParse(path).success) {
       return true;
     }
 
@@ -25,7 +57,7 @@ const safeResourcePathSchema = z
     } catch {
       return false;
     }
-  }, 'Resource paths must be relative/static, HTTP(S), or a valid local image reference.');
+  }, 'Resource paths must be relative/static, HTTP(S), or a valid local/cloud image reference.');
 
 const assetSchema = z.object({
   id: z.string().min(1),

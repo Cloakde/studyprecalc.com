@@ -79,11 +79,26 @@ Use image assets for prompt visuals and solution visuals such as graphs, residua
 - `asset.alt`: Required accessible description of the visual.
 - `asset.caption`: Optional short label shown under the visual.
 
-Uploaded images are stored in browser/app storage. Exported JSON keeps the `local-image:<id>` reference, not the image file, so public or cross-device publishing still needs a future media library.
+For cloud-published content, uploaded images are stored in the private Supabase `question-images`
+bucket and linked through stable app media references. Do not paste short-lived signed URLs into
+question JSON; the app resolves stable references to signed URLs only when rendering for an
+authorized user.
+
+Cloud image upload rules:
+
+- Maximum size: 1 MB per image.
+- Allowed formats: PNG, JPEG, WebP, and GIF.
+- SVG is not allowed for launch.
+- Do not upload AP, College Board, or third-party copyrighted prompts, diagrams, rubrics, or images
+  unless usage rights are confirmed.
+
+In local fallback mode, uploaded images are stored in browser/app storage. Exported JSON keeps the
+`local-image:<id>` reference, not the image file, so local packs are not portable across browsers
+unless the images use public URLs or are reuploaded in the cloud manager.
 
 ## Video Explanations
 
-Use video references for checked-in content. The no-code manager can also upload a local draft video file for in-app playback.
+Use video references for checked-in content.
 
 - `video.url`: Public or local video URL.
 - `video.transcriptPath`: Required whenever `video.url` exists.
@@ -92,7 +107,9 @@ Use video references for checked-in content. The no-code manager can also upload
 
 Transcript files should be plain text or markdown and should include the spoken explanation, important equations, and descriptions of visual actions. If a video is not ready for transcript review, leave the entire `video` object out instead of adding a URL alone.
 
-Uploaded videos use a `local-video:<id>` reference. The video file is stored in browser/app storage, not inside exported JSON, so exported question packs need to be used in the same browser profile unless a future backend media library is added.
+Video files are not stored in Supabase app storage for now. YouTube, Vimeo, or another approved
+embed/link source is the expected production approach. Local draft video uploads may exist only in
+the browser profile that created them and should not be treated as production-ready content.
 
 ## Validation Issues
 

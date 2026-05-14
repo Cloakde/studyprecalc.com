@@ -139,8 +139,8 @@ Goal: adding the 100th question should be as easy as adding the 10th.
 - [x] **M7.5** Author guide: how to write a good question, distractor design notes, rubric design notes.
 - [x] **M7.6** Optional: lightweight in-app authoring editor (low priority; raw JSON + preview may be enough).
 - [x] **M7.7** Local-first import/export for authored question packs.
-- [ ] **M7.8** Server-backed CMS/admin publishing workflow for managing the public website question bank.
-- [~] **M7.9** Supabase question image storage bucket and RLS policy setup.
+- [x] **M7.8** Server-backed CMS/admin publishing workflow for managing the public website question bank.
+- [x] **M7.9** Supabase question image storage bucket and RLS policy setup.
 
 Exit criteria: a non-engineer collaborator can author a new question, validate it, and preview it without engineer help.
 

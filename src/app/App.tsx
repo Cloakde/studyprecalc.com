@@ -1,5 +1,5 @@
 import { LogOut, UserCircle } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import {
   createAccountScopedStorageKey,
@@ -19,12 +19,16 @@ import { useSupabaseClassStore } from '../data/supabase/classStore';
 import { isSupabaseConfigured } from '../data/supabase/client';
 import { useSupabaseAttemptStore } from '../data/supabase/attemptStore';
 import { useSupabaseInviteStore } from '../data/supabase/inviteStore';
+import { uploadSupabaseImage } from '../data/supabase/mediaStore';
 import { useSupabaseQuestionContentStore } from '../data/supabase/questionContentStore';
 import { useSupabaseSessionStore } from '../data/supabase/sessionStore';
 import { AccountAuth } from './components/AccountAuth';
 import { AdminClassManager } from './components/AdminClassManager';
 import { AttemptReview } from './components/AttemptReview';
-import { ContentManager } from './components/ContentManager';
+import {
+  ContentManager,
+  type ContentManagerImageUploadContext,
+} from './components/ContentManager';
 import { QuestionPractice } from './components/QuestionPractice';
 import { SessionPractice } from './components/SessionPractice';
 import { StudentDashboard } from './components/StudentDashboard';
@@ -63,6 +67,13 @@ function isLocalDevAdminLogin(input: LoginInput): boolean {
   );
 }
 
+function filenameToAltText(fileName: string): string {
+  return fileName
+    .replace(/\.[^.]+$/, '')
+    .replace(/[-_]+/g, ' ')
+    .trim();
+}
+
 export function App() {
   const [mode, setMode] = useState<AppMode>('dashboard');
   const [localDevAdminAccount, setLocalDevAdminAccount] = useState<PublicAccount | null>(
@@ -74,14 +85,14 @@ export function App() {
   const currentAccount = localDevAdminAccount ?? cloudOrLocalAccountStore.currentAccount;
   const canManageContent = currentAccount?.role === 'admin';
   const accountId = currentAccount?.id;
+  const isCloudBackendActive = isSupabaseConfigured && !localDevAdminAccount;
   const localQuestionStore = useManagedQuestionBank(seedQuestionBank);
   const cloudQuestionStore = useSupabaseQuestionContentStore({
-    enabled: isSupabaseConfigured && !localDevAdminAccount && Boolean(accountId),
+    enabled: isCloudBackendActive && Boolean(accountId),
     userId: accountId,
     seedQuestions: seedQuestionBank,
   });
-  const activeQuestionStore =
-    isSupabaseConfigured && !localDevAdminAccount ? cloudQuestionStore : localQuestionStore;
+  const activeQuestionStore = isCloudBackendActive ? cloudQuestionStore : localQuestionStore;
   const {
     questionBank,
     customQuestions,
@@ -97,18 +108,16 @@ export function App() {
   } = activeQuestionStore;
   const localInviteStore = useLocalInviteStore();
   const cloudInviteStore = useSupabaseInviteStore({
-    enabled: isSupabaseConfigured && !localDevAdminAccount && Boolean(accountId),
+    enabled: isCloudBackendActive && Boolean(accountId),
     userId: accountId,
   });
-  const activeInviteStore =
-    isSupabaseConfigured && !localDevAdminAccount ? cloudInviteStore : localInviteStore;
+  const activeInviteStore = isCloudBackendActive ? cloudInviteStore : localInviteStore;
   const localClassStore = useLocalClassStore();
   const cloudClassStore = useSupabaseClassStore({
-    enabled: isSupabaseConfigured && !localDevAdminAccount && Boolean(accountId),
+    enabled: isCloudBackendActive && Boolean(accountId),
     userId: accountId,
   });
-  const activeClassStore =
-    isSupabaseConfigured && !localDevAdminAccount ? cloudClassStore : localClassStore;
+  const activeClassStore = isCloudBackendActive ? cloudClassStore : localClassStore;
   const attemptStore = useLocalAttemptStore({
     storageKey: createAccountScopedStorageKey(accountId, 'attempts'),
   });
@@ -116,17 +125,39 @@ export function App() {
     storageKey: createAccountScopedStorageKey(accountId, 'sessions'),
   });
   const cloudAttemptStore = useSupabaseAttemptStore({
-    enabled: isSupabaseConfigured && !localDevAdminAccount,
+    enabled: isCloudBackendActive,
     userId: accountId,
   });
   const cloudSessionStore = useSupabaseSessionStore({
-    enabled: isSupabaseConfigured && !localDevAdminAccount,
+    enabled: isCloudBackendActive,
     userId: accountId,
   });
-  const activeAttemptStore =
-    isSupabaseConfigured && !localDevAdminAccount ? cloudAttemptStore : attemptStore;
-  const activeSessionStore =
-    isSupabaseConfigured && !localDevAdminAccount ? cloudSessionStore : sessionStore;
+  const activeAttemptStore = isCloudBackendActive ? cloudAttemptStore : attemptStore;
+  const activeSessionStore = isCloudBackendActive ? cloudSessionStore : sessionStore;
+
+  const uploadCloudQuestionImage = useCallback(
+    async (file: File, context: ContentManagerImageUploadContext) => {
+      const fallbackAlt =
+        filenameToAltText(file.name) ||
+        (context.placement === 'question' ? 'Question image' : 'Explanation image');
+      const asset = await uploadSupabaseImage({
+        file,
+        alt: fallbackAlt,
+        caption: fallbackAlt,
+        createdBy: accountId,
+        assetId: context.assetId,
+        assetType: 'image',
+      });
+
+      return {
+        path: asset.path,
+        alt: asset.alt,
+        caption: asset.caption,
+        fileName: file.name,
+      };
+    },
+    [accountId],
+  );
 
   useEffect(() => {
     if (currentAccount) {
@@ -160,7 +191,7 @@ export function App() {
       throw new Error('Enter an invite code to create an account.');
     }
 
-    if (isSupabaseConfigured && !localDevAdminAccount) {
+    if (isCloudBackendActive) {
       return supabaseAccountStore.signup(input);
     }
 
@@ -388,12 +419,11 @@ export function App() {
             seedQuestionIds={seedQuestionIds}
             getQuestionStatus={getQuestionStatus}
             contentSourceLabel={
-              isSupabaseConfigured && !localDevAdminAccount
-                ? 'Supabase content library'
-                : 'Local content library'
+              isCloudBackendActive ? 'Supabase content library' : 'Local content library'
             }
             contentError={contentError}
             isContentLoading={isContentLoading}
+            onUploadImageFile={isCloudBackendActive ? uploadCloudQuestionImage : undefined}
             onRefreshContent={() => void refreshContent()}
           />
         ) : null

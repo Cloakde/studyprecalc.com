@@ -286,3 +286,12 @@ Use this file as an append-only record whenever an agent finishes, pauses, or ha
 - Live smoke: Ran `npm run smoke:supabase`; it failed because the configured Supabase project does not yet expose `public.validate_invite` or `public.questions`, confirming `supabase/schema.sql` still needs to be applied/refreshed in the dashboard.
 - Security fixes: Supabase invite inserts now omit browser-local IDs so Postgres can generate UUIDs; first-admin bootstrap docs now generate high-entropy short-lived invite codes; existing-owner recovery now inserts/updates profiles from `auth.users`; SVG Storage uploads are disabled for launch.
 - Next step: Owner runs the M6 checklist in `docs/operations/production-activation.md`, starting with applying `supabase/schema.sql`, then reruns `npm run smoke:supabase`.
+
+### 2026-05-14 - Codex + Agents - M7 Cloud Image Storage
+
+- Status: Complete for repo-side cloud image storage. Live production image smoke testing still requires the owner to apply `supabase/schema.sql` in Supabase and sign in with a real admin account.
+- Files changed: Added `src/data/supabase/mediaStore.ts` and `tests/unit/supabaseMediaStore.test.ts`; updated `src/app/App.tsx`, `src/app/components/ContentManager.tsx`, `src/app/components/QuestionAssetGallery.tsx`, `src/data/schemas/questionSchema.ts`, `src/data/supabase/questionContentStore.ts`, content-store/schema tests, Supabase/deployment/product docs, planning, and coordination files.
+- Verification: Ran targeted `npm test -- questionContentStore questionSchema supabaseMediaStore`, `npm test` (101 tests), `npm run lint`, `npm run build`, and `git diff --check`. All passed; diff check reported CRLF warnings only.
+- Browser check: Reloaded `http://127.0.0.1:5173` in the in-app browser and confirmed the app sign-in surface renders. Automated local-admin login could not complete because the in-app browser automation failed on the email input; no source issue was found by tests/build.
+- Decisions made: Question JSON stores stable `supabase-image:<storage_path>` references, not signed URLs. Rendering resolves short-lived signed URLs from the private `question-images` bucket. Cloud-published questions now reject browser-local images and videos.
+- Next step: Owner applies `supabase/schema.sql`, signs in with a real Supabase admin, uploads an original PNG/JPEG/WebP/GIF under 1 MB, publishes it, and follows the Cloud Image Storage Smoke Test in `docs/operations/supabase-setup.md`.

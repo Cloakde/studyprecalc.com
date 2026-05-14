@@ -120,14 +120,46 @@ bucket in Supabase Storage after running the SQL.
 Current app behavior:
 
 - Server-backed question text and metadata are saved in `public.questions`.
-- Browser-uploaded images still use `local-image:<id>` references and are browser-local.
-- Production smoke-test content should be text-only or use stable HTTPS image URLs until the app has
-  a Supabase Storage upload adapter for authored question images.
-- SVG upload is disabled for launch. Use PNG, JPEG, WebP, or GIF exports for graphs and plots.
-- The app path does not yet production-test Storage uploads. A future storage smoke test should
-  upload an image, create `media_records` and `question_media` links, publish the question, verify
-  student read access, archive the question, then verify read denial.
-- Do not upload copyrighted College Board prompts, diagrams, rubrics, or images.
+- Cloud-authored question and solution images are stored in the private `question-images` bucket.
+- The bucket limit is 1 MB per file. Compress or resize large graphs before upload.
+- Allowed cloud image formats are PNG, JPEG, WebP, and GIF. SVG upload is disabled for launch.
+- Image metadata is stored in `public.media_records`, and the question-to-image placement is stored
+  in `public.question_media`.
+- Question JSON should keep stable app-level image references, not raw Supabase object URLs or signed
+  URLs. A stable reference survives URL expiration, bucket policy changes, and future media moves.
+- The app renders private bucket images by resolving the stable reference through media metadata and
+  requesting a short-lived signed URL at display time.
+- Do not upload copyrighted AP, College Board, or third-party prompts, diagrams, rubrics, or images
+  unless the owner has confirmed usage rights. Prefer original graphs and diagrams that practice the
+  same skills.
+- Video files are not stored in Supabase app storage for now. Use YouTube, Vimeo, or another approved
+  embed/link source for video explanations, with transcripts captured in content metadata.
+
+## Admin Image Checklist
+
+Use this checklist when testing cloud image authoring.
+
+Local development:
+
+1. Set `.env` with `VITE_SUPABASE_URL` and the browser-safe `VITE_SUPABASE_ANON_KEY`.
+2. Run `npm run dev`, then sign in with a real Supabase admin account. The dev-only local admin uses
+   browser-local fallback and is not a cloud Storage upload test.
+3. If Supabase env vars are absent, uploaded images remain local browser references such as
+   `local-image:<id>` and are not available across browsers or devices.
+4. Upload only PNG, JPEG, WebP, or GIF images under 1 MB.
+5. Save the question as a draft, then confirm the draft still renders for the admin after refresh.
+
+Production:
+
+1. Confirm the Vercel deployment has `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` set before
+   build time.
+2. Run the full contents of `supabase/schema.sql` in the production Supabase SQL Editor.
+3. Verify the `question-images` bucket exists, is private, has `file_size_limit = 1048576`, and lists
+   `image/png`, `image/jpeg`, `image/webp`, and `image/gif` as allowed MIME types.
+4. Sign in as an admin and upload one original smoke image under 1 MB.
+5. Save the draft and verify the image appears for the admin.
+6. Publish the question and verify the image appears for a signed-in student.
+7. Archive the question and verify the student can no longer read the question or its linked image.
 
 ## Bootstrap The First Admin
 
@@ -382,6 +414,69 @@ set status = 'archived',
 where id = 'smoke-publish-001';
 ```
 
+## Cloud Image Storage Smoke Test
+
+Use only original throwaway images for this test. A simple generated graph or hand-authored diagram
+is enough. Do not use AP or College Board assets unless rights are confirmed.
+
+1. Log in as an admin.
+2. Open `Manage Content`.
+3. Create a question with a unique ID such as `smoke-image-001`.
+4. Upload one PNG, JPEG, WebP, or GIF under 1 MB to the question prompt or explanation.
+5. Save the question as a draft.
+6. Refresh the page and confirm the admin can still see the image.
+7. Select `Publish`.
+8. Sign in as a student in a private window or different browser profile.
+9. Confirm the published question appears in Practice and the image renders.
+
+Verify the storage bucket:
+
+```sql
+select id, name, public, file_size_limit, allowed_mime_types
+from storage.buckets
+where id = 'question-images';
+```
+
+Expected result: one private bucket with `file_size_limit = 1048576` and allowed MIME types limited
+to PNG, JPEG, WebP, and GIF.
+
+Verify media metadata and question linkage:
+
+```sql
+select
+  q.id as question_id,
+  q.status,
+  qm.placement,
+  qm.asset_id,
+  mr.kind,
+  mr.source_kind,
+  mr.storage_bucket,
+  mr.storage_path,
+  mr.mime_type,
+  mr.byte_size
+from public.questions q
+join public.question_media qm on qm.question_id = q.id
+join public.media_records mr on mr.id = qm.media_id
+where q.id = 'smoke-image-001'
+order by qm.placement, qm.sort_order;
+```
+
+Expected result: at least one linked media row with `source_kind = 'storage'`,
+`storage_bucket = 'question-images'`, an allowed image MIME type, and `byte_size <= 1048576`.
+
+Student read access should work only after publish because the bucket is private and the app renders
+images with signed URLs generated from stable media references. To verify denial after archive:
+
+```sql
+update public.questions
+set status = 'archived',
+    is_published = false,
+    archived_at = now()
+where id = 'smoke-image-001';
+```
+
+Then refresh the student session and confirm the question and linked image are no longer visible.
+
 ## Troubleshooting
 
 - `Cloud account` does not appear on the login screen: confirm both Supabase Vite env vars are set
@@ -392,6 +487,11 @@ where id = 'smoke-publish-001';
   sign back in.
 - Students cannot see a question: verify `public.questions.status = 'published'` and
   `is_published = true`.
+- Students cannot see a question image: verify the question is published, the image has rows in
+  `public.media_records` and `public.question_media`, the Storage object is in `question-images`,
+  and the file is an allowed image type under 1 MB.
+- Admin image upload fails: verify the signed-in account has `public.profiles.role = 'admin'`, the
+  bucket exists from `supabase/schema.sql`, and the file is PNG, JPEG, WebP, or GIF rather than SVG.
 - Attempts do not persist: verify the user is signed in through Supabase, not the local dev admin,
   and that `public.attempts` RLS policies exist.
 

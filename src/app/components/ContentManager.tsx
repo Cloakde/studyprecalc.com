@@ -56,6 +56,28 @@ type ContentManagerProps = {
   contentError?: string;
   isContentLoading?: boolean;
   onRefreshContent?: () => void;
+  onUploadImageFile?: (
+    file: File,
+    context: ContentManagerImageUploadContext,
+  ) => Promise<ContentManagerImageUploadResult>;
+};
+
+export type ContentManagerImageUploadPlacement = 'question' | 'explanation';
+
+export type ContentManagerImageUploadContext = {
+  placement: ContentManagerImageUploadPlacement;
+  assetId: string;
+  questionId: string;
+  questionTitle?: string;
+  questionUnit?: string;
+  questionTopic?: string;
+};
+
+export type ContentManagerImageUploadResult = {
+  path: string;
+  alt?: string;
+  caption?: string;
+  fileName?: string;
 };
 
 type ChoiceDraft = {
@@ -145,6 +167,14 @@ const defaultFrqPart: FrqPartDraft = {
 
 const maxLocalVideoFileSizeBytes = 250 * 1024 * 1024;
 const maxLocalImageFileSizeBytes = 20 * 1024 * 1024;
+const maxCloudImageFileSizeBytes = 1 * 1024 * 1024;
+const supportedCloudImageExtensions = /\.(gif|jpeg|jpg|png|webp)$/i;
+const supportedCloudImageMimeTypes = new Set([
+  'image/gif',
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+]);
 
 function createAssetId(prefix = 'asset'): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -223,7 +253,19 @@ function isSupportedVideoFile(file: File): boolean {
 }
 
 function isSupportedImageFile(file: File): boolean {
-  return file.type.startsWith('image/') || /\.(gif|jpeg|jpg|png|svg|webp)$/i.test(file.name);
+  if (file.type) {
+    return supportedCloudImageMimeTypes.has(file.type);
+  }
+
+  return supportedCloudImageExtensions.test(file.name);
+}
+
+function isSupportedCloudImageFile(file: File): boolean {
+  if (file.type) {
+    return supportedCloudImageMimeTypes.has(file.type);
+  }
+
+  return supportedCloudImageExtensions.test(file.name);
 }
 
 function filenameToAltText(fileName: string): string {
@@ -265,6 +307,14 @@ function questionHasLocalMedia(question: Question): boolean {
   const videoHasLocalMedia = isLocalVideoReference(question.explanation.video?.url);
 
   return questionAssetHasLocalMedia || solutionAssetHasLocalMedia || videoHasLocalMedia;
+}
+
+function draftHasLocalMedia(draft: QuestionDraft): boolean {
+  return (
+    draft.questionAssets.some((asset) => isLocalImageReference(asset.path)) ||
+    draft.solutionAssets.some((asset) => isLocalImageReference(asset.path)) ||
+    isLocalVideoReference(draft.videoUrl)
+  );
 }
 
 function questionToDraft(
@@ -505,6 +555,7 @@ export function ContentManager({
   contentError = '',
   isContentLoading = false,
   onRefreshContent,
+  onUploadImageFile,
 }: ContentManagerProps) {
   const [draft, setDraft] = useState<QuestionDraft>(() => createBlankDraft());
   const [selectedQuestionId, setSelectedQuestionId] = useState<string | null>(null);
@@ -531,6 +582,10 @@ export function ContentManager({
   const readinessChecks = useMemo(() => getReadinessChecks(draft), [draft]);
   const isReadyToPublish = readinessChecks.every((check) => check.complete);
   const previewVideo = useMemo(() => draftToVideoExplanation(draft), [draft]);
+  const imageStorageLabel = onUploadImageFile ? 'Cloud storage' : 'Browser-local storage';
+  const imageUploadHelp = onUploadImageFile
+    ? 'Image uploads are stored in cloud storage and linked to this question when saved. Cloud storage accepts PNG, JPG, WebP, or GIF files under 1 MB.'
+    : 'Image uploads are stored in this browser with IndexedDB. Use PNG, JPG, WebP, or GIF files. Exported JSON keeps image references, not the image files.';
 
   useEffect(() => {
     activeDraftIdRef.current = draft.id;
@@ -599,6 +654,13 @@ export function ContentManager({
 
     if (draft.videoDurationSeconds.trim() && !parseDurationSeconds(draft.videoDurationSeconds)) {
       setError('Use a positive whole number for video duration.');
+      return;
+    }
+
+    if (onUploadImageFile && workflowState === 'published' && draftHasLocalMedia(draft)) {
+      setError(
+        'Cloud-published questions cannot use browser-local images or videos. Upload images to cloud storage and use an external video link.',
+      );
       return;
     }
 
@@ -792,6 +854,20 @@ export function ContentManager({
     );
   }
 
+  function createImageUploadContext(
+    target: 'question' | 'solution',
+    assetId: string,
+  ): ContentManagerImageUploadContext {
+    return {
+      placement: target === 'question' ? 'question' : 'explanation',
+      assetId,
+      questionId: draft.id.trim() || draft.id,
+      questionTitle: draft.skill.trim() || draft.topic.trim() || undefined,
+      questionUnit: draft.unit.trim() || undefined,
+      questionTopic: draft.topic.trim() || undefined,
+    };
+  }
+
   async function uploadImageFile(
     event: ChangeEvent<HTMLInputElement>,
     target: 'question' | 'solution',
@@ -807,21 +883,63 @@ export function ContentManager({
     }
 
     try {
-      if (!isSupportedImageFile(file)) {
-        setError('Choose an image file such as PNG, JPG, SVG, GIF, or WebP.');
-        return;
-      }
-
-      if (file.size > maxLocalImageFileSizeBytes) {
-        const maxMegabytes = Math.round(maxLocalImageFileSizeBytes / (1024 * 1024));
-        setError(`Choose an image file smaller than ${maxMegabytes} MB.`);
-        return;
-      }
-
       setUploadingImageTarget(target);
-      const record = await saveLocalImageFile(file);
       const field = getAssetDraftField(target);
-      const altText = filenameToAltText(record.name) || 'Uploaded image';
+      const assetId = createAssetId(target);
+      let uploadedAsset: AssetDraft;
+      let uploadedFileName = file.name;
+
+      if (onUploadImageFile) {
+        if (!isSupportedCloudImageFile(file)) {
+          setError('Cloud image storage accepts PNG, JPG, WebP, or GIF files.');
+          return;
+        }
+
+        if (file.size > maxCloudImageFileSizeBytes) {
+          const maxMegabytes = Math.round(maxCloudImageFileSizeBytes / (1024 * 1024));
+          setError(`Cloud image storage accepts images smaller than ${maxMegabytes} MB.`);
+          return;
+        }
+
+        const upload = await onUploadImageFile(file, createImageUploadContext(target, assetId));
+        const uploadPath = upload.path.trim();
+
+        if (!uploadPath) {
+          throw new Error('Cloud image upload did not return a usable image path.');
+        }
+
+        const fallbackAltText = filenameToAltText(upload.fileName ?? file.name) || 'Uploaded image';
+        uploadedFileName = upload.fileName ?? file.name;
+        uploadedAsset = {
+          id: assetId,
+          type: 'image',
+          path: uploadPath,
+          alt: upload.alt?.trim() || fallbackAltText,
+          caption: upload.caption?.trim() || fallbackAltText,
+        };
+      } else {
+        if (!isSupportedImageFile(file)) {
+          setError('Choose an image file such as PNG, JPG, GIF, or WebP.');
+          return;
+        }
+
+        if (file.size > maxLocalImageFileSizeBytes) {
+          const maxMegabytes = Math.round(maxLocalImageFileSizeBytes / (1024 * 1024));
+          setError(`Choose an image file smaller than ${maxMegabytes} MB.`);
+          return;
+        }
+
+        const record = await saveLocalImageFile(file);
+        const altText = filenameToAltText(record.name) || 'Uploaded image';
+        uploadedFileName = record.name;
+        uploadedAsset = {
+          id: assetId,
+          type: 'image',
+          path: createLocalImageReference(record.id),
+          alt: altText,
+          caption: altText,
+        };
+      }
 
       if (activeDraftIdRef.current !== draftIdAtUploadStart) {
         setError(
@@ -832,18 +950,13 @@ export function ContentManager({
 
       setDraft((current) => ({
         ...current,
-        [field]: [
-          ...current[field],
-          {
-            id: createAssetId(target),
-            type: 'image',
-            path: createLocalImageReference(record.id),
-            alt: altText,
-            caption: altText,
-          },
-        ],
+        [field]: [...current[field], uploadedAsset],
       }));
-      setNotice(`Uploaded ${record.name}. Save the question to attach it.`);
+      setNotice(
+        onUploadImageFile
+          ? `Uploaded ${uploadedFileName} to cloud storage. Save the question to attach it.`
+          : `Uploaded ${uploadedFileName}. Save the question to attach it.`,
+      );
     } catch (uploadError) {
       setError(formatValidationError(uploadError));
     } finally {
@@ -886,13 +999,16 @@ export function ContentManager({
             {isUploading ? 'Uploading...' : 'Upload Image File'}
           </button>
           <input
-            accept="image/*,.gif,.jpeg,.jpg,.png,.svg,.webp"
+            accept="image/png,image/jpeg,image/gif,image/webp,.gif,.jpeg,.jpg,.png,.webp"
             className="visually-hidden"
             onChange={(event) => uploadImageFile(event, target)}
             ref={inputRef}
             type="file"
           />
         </div>
+        <p className="asset-editor-note">
+          {imageStorageLabel}: {imageUploadHelp}
+        </p>
         {assets.length === 0 ? <p className="empty-list-copy">No images attached.</p> : null}
         {assets.map((asset, index) => (
           <div className="asset-editor-row" key={`${asset.id}-${index}`}>
@@ -943,6 +1059,11 @@ export function ContentManager({
               <p className="asset-editor-note">
                 Uploaded image is stored in this browser. Exported JSON keeps the image reference,
                 not the image file.
+              </p>
+            ) : onUploadImageFile && asset.path ? (
+              <p className="asset-editor-note">
+                Uploaded image is stored in cloud storage. Save the question to keep this link with
+                the authored content.
               </p>
             ) : null}
             <button
