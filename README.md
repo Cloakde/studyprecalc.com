@@ -38,10 +38,18 @@ npm run lint
 npm run build
 ```
 
+After `supabase/schema.sql` has been run in the production Supabase project, run the Supabase smoke
+check:
+
+```sh
+npm run smoke:supabase
+```
+
 ## Deployment
 
 The first public deployment target is Vercel. See:
 
+- `docs/operations/production-activation.md` for the owner-facing M6 activation checklist.
 - `docs/operations/deployment.md` for Vercel deploys, environment variables, domains, and deploy checks.
 - `docs/operations/supabase-setup.md` for Supabase SQL, Auth, Storage, first admin bootstrap, invites, and publishing smoke tests.
 
@@ -63,6 +71,7 @@ Optional Supabase setup:
 - Add a browser-safe `VITE_SUPABASE_ANON_KEY` value using a Supabase publishable key or legacy anon public key.
 - Run `supabase/schema.sql` in the Supabase SQL Editor.
 - Bootstrap the first admin with an invite as described in `docs/operations/supabase-setup.md`.
+- Use `docs/operations/production-activation.md` as the full M6 deployment checklist.
 
 ## No-Code Content Management
 

@@ -43,6 +43,7 @@ One-line map of every doc and folder in this repo. Update this when you add, rem
 
 ## Operations (`docs/operations/`)
 
+- [docs/operations/production-activation.md](operations/production-activation.md) - owner-facing M6 checklist for local verification, Supabase activation, Vercel deployment, domain connection, smoke tests, and rollback.
 - [docs/operations/deployment.md](operations/deployment.md) - Vercel deployment, environment variables, `studyprecalc.com` domain setup, deploy checks, and rollback.
 - [docs/operations/supabase-setup.md](operations/supabase-setup.md) - Supabase SQL, environment variables, Auth, Storage, first admin bootstrap, invite setup, and content publishing smoke tests.
 

@@ -30,6 +30,8 @@ export type InviteRow = {
   revoked_at?: string | null;
 };
 
+export type InviteInsertRow = Omit<InviteRow, 'id'>;
+
 export type SupabaseInviteCodeLookup = string | { code: string; email?: string };
 
 export type ConsumeSupabaseInviteInput = {
@@ -113,6 +115,23 @@ export function inviteToSupabaseRow(invite: InviteCodeRecord): InviteRow {
   };
 }
 
+export function inviteToSupabaseInsertRow(invite: InviteCodeRecord): InviteInsertRow {
+  const row = inviteToSupabaseRow(invite);
+
+  return {
+    code: row.code,
+    role: row.role,
+    email: row.email,
+    class_id: row.class_id,
+    created_by: row.created_by,
+    created_at: row.created_at,
+    expires_at: row.expires_at,
+    consumed_at: row.consumed_at,
+    consumed_by: row.consumed_by,
+    revoked_at: row.revoked_at,
+  };
+}
+
 function createInviteFromInput(
   input: CreateLocalInviteInput,
   userId: string,
@@ -163,7 +182,7 @@ export async function createSupabaseInvite(
   const invite = createInviteFromInput(input, options.userId, options);
   const { data, error } = await supabase
     .from('invites')
-    .insert(inviteToSupabaseRow(invite))
+    .insert(inviteToSupabaseInsertRow(invite))
     .select('*')
     .single<InviteRow>();
 

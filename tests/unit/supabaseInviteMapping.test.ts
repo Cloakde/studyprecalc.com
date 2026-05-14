@@ -1,5 +1,9 @@
 import { createInvite, type InviteCodeRecord } from '../../src/domain/invites';
-import { inviteFromSupabaseRow, inviteToSupabaseRow } from '../../src/data/supabase/inviteStore';
+import {
+  inviteFromSupabaseRow,
+  inviteToSupabaseInsertRow,
+  inviteToSupabaseRow,
+} from '../../src/data/supabase/inviteStore';
 
 function createInviteRecord(overrides: Partial<InviteCodeRecord> = {}): InviteCodeRecord {
   return {
@@ -55,5 +59,18 @@ describe('supabase invite row mapping', () => {
       consumed_by: null,
     });
     expect(inviteFromSupabaseRow(row)).toEqual(invite);
+  });
+
+  it('omits the browser-local invite id from Supabase inserts', () => {
+    const invite = createInviteRecord();
+    const row = inviteToSupabaseInsertRow(invite);
+
+    expect(row).not.toHaveProperty('id');
+    expect(row).toMatchObject({
+      code: 'CLOUD-2026',
+      role: 'student',
+      email: 'student@example.com',
+      class_id: 'class-1',
+    });
   });
 });

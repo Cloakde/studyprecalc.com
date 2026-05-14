@@ -4,13 +4,13 @@ Last updated: 2026-05-14
 
 ## Current Phase
 
-Milestones 1-5 are implemented in code. Supabase dashboard setup and live production smoke testing remain owner-run deployment tasks.
+M6 production activation tooling is complete in code. Owner dashboard work remains: run Supabase SQL, bootstrap the first admin, configure Vercel/DNS, and rerun the live smoke checks.
 
 ## Active Ownership
 
-| Agent | Task                                                                              | File Scope | Status   |
-| ----- | --------------------------------------------------------------------------------- | ---------- | -------- |
-| None  | Milestones 1-5 implementation is complete; next edits should claim a fresh scope. | N/A        | Complete |
+| Agent | Task                                                                         | File Scope | Status   |
+| ----- | ---------------------------------------------------------------------------- | ---------- | -------- |
+| None  | M6 code/docs integration is complete; next edits should claim a fresh scope. | N/A        | Complete |
 
 ## Notes
 
@@ -45,6 +45,8 @@ Milestones 1-5 are implemented in code. Supabase dashboard setup and live produc
 - Admins can manage classes, create/revoke invites, and enroll students through invite signup.
 - Content management supports draft, publish, and archive states, with students seeing published questions only.
 - Supabase setup and deployment runbooks are updated for `studyprecalc.com`, including first-admin bootstrap through an owner-created admin invite.
+- M6 adds `npm run smoke:supabase`, a production activation checklist, GitHub Actions CI, safer high-entropy admin bootstrap docs, and a fix for Supabase invite inserts omitting browser-local IDs.
+- Running `npm run smoke:supabase` against the current configured Supabase project fails because `public.validate_invite` and `public.questions` are not in the schema cache yet; run `supabase/schema.sql` in the Supabase dashboard before expecting that smoke check to pass.
 
 ## Last Verification
 
@@ -72,3 +74,4 @@ Milestones 1-5 are implemented in code. Supabase dashboard setup and live produc
 2026-05-14: Agent 8 ran scoped `npx eslint src/app/components/AdminClassManager.tsx`, scoped `npx tsc --noEmit ... src/app/components/AdminClassManager.tsx`, `npx prettier --check src/app/components/AdminClassManager.tsx src/app/styles/app.css`, scoped `git diff --check`, `npm run lint`, `npm test` (80 tests), `npm run build`, and `npm run validate:content`. All passed. Confirmed the Vite dev server at `http://127.0.0.1:5173` returns HTTP 200; in-app browser automation was unavailable because no browser targets were registered.
 2026-05-14: Wave 2 Agent 10 ran `npm test -- integrationHarness` (5 tests), `npm test` (80 tests), `npx prettier --check tests/fixtures/integrationHarness.ts tests/unit/integrationHarness.test.ts`, `npx eslint tests/fixtures/integrationHarness.ts tests/unit/integrationHarness.test.ts`, `npm run lint`, `npm run validate:content`, `npm run build`, and scoped `git diff --check`. All passed; diff check reported existing CRLF warnings only.
 2026-05-14: Codex integrated milestones 1-5 and ran `npm run validate:content`, `npm test` (80 tests), `npm run lint`, `npm run build`, and `git diff --check`. All passed; diff check reported CRLF warnings only. Browser smoke confirmed local admin sees Manage Content and Classes, class/invite creation works, Content Manager draft/publish controls render, and invite code input has a unique accessible label. QA found and Codex fixed Manage Content horizontal overflow hardening and missing Content Manager validation `role="alert"`; final QA confirmed no document-level horizontal overflow at 1440px or 390px.
+2026-05-14: Codex completed M6 production activation tooling and ran `npm run validate:content`, `npm test` (87 tests), `npm run lint`, `npm run build`, and `git diff --check`. All passed; diff check reported a CRLF warning for `supabase/schema.sql` only. `npm run smoke:supabase` executed and correctly failed live checks because the configured Supabase project has not yet applied `supabase/schema.sql`.

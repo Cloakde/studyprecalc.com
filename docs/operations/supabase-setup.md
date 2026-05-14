@@ -2,6 +2,9 @@
 
 Use this runbook to prepare the production Supabase project for Study Precalc.
 
+For the ordered owner-facing M6 launch flow, start with
+[M6 Production Activation Checklist](production-activation.md).
+
 ## Project Values
 
 - Production Supabase URL: `https://cwjmaxeaszaklbjwlvyg.supabase.co`
@@ -50,7 +53,7 @@ The script is intended to be rerunnable. It creates or updates:
 - Row Level Security policies for student-owned progress, admin-managed content, classes, invites,
   and media metadata.
 - A private Storage bucket named `question-images` with a 1 MB file limit and these MIME types:
-  `image/png`, `image/jpeg`, `image/webp`, `image/gif`, and `image/svg+xml`.
+  `image/png`, `image/jpeg`, `image/webp`, and `image/gif`.
 
 ## Verify SQL Setup
 
@@ -120,37 +123,40 @@ Current app behavior:
 - Browser-uploaded images still use `local-image:<id>` references and are browser-local.
 - Production smoke-test content should be text-only or use stable HTTPS image URLs until the app has
   a Supabase Storage upload adapter for authored question images.
+- SVG upload is disabled for launch. Use PNG, JPEG, WebP, or GIF exports for graphs and plots.
+- The app path does not yet production-test Storage uploads. A future storage smoke test should
+  upload an image, create `media_records` and `question_media` links, publish the question, verify
+  student read access, archive the question, then verify read denial.
 - Do not upload copyrighted College Board prompts, diagrams, rubrics, or images.
 
 ## Bootstrap The First Admin
 
 The production UI requires an invite code before signup, so bootstrap the owner with a one-time
-admin invite from the SQL Editor.
+admin invite from the SQL Editor. Enable Supabase email confirmation before using an admin invite,
+and do not use predictable invite codes such as `OWNER-2026`.
 
-Replace the email and code first:
+Replace the email first, then run this SQL. It generates a high-entropy one-time code, expires it
+quickly, and returns the exact code to use:
 
 ```sql
+with generated_invite as (
+  select public.normalize_invite_code(encode(gen_random_bytes(16), 'hex')) as code
+)
 insert into public.invites (code, role, email, expires_at)
-values (
-  public.normalize_invite_code('OWNER-2026'),
+select
+  generated_invite.code,
   'admin',
   lower(trim('owner@example.com')),
-  now() + interval '7 days'
-)
-on conflict (code) do update
-set role = excluded.role,
-    email = excluded.email,
-    expires_at = excluded.expires_at,
-    revoked_at = null,
-    consumed_at = null,
-    consumed_by = null;
+  now() + interval '30 minutes'
+from generated_invite
+returning code, role, email, expires_at;
 ```
 
 Then:
 
 1. Open the deployed app or the local dev app configured with Supabase env vars.
 2. Select `Sign Up`.
-3. Enter the bootstrap invite code and select `Unlock Sign Up`.
+3. Enter the returned bootstrap invite code and select `Unlock Sign Up`.
 4. Create the owner account with the matching email address.
 5. Confirm the email if Supabase email confirmation is enabled.
 6. Log in and confirm the header shows the `Admin` badge plus `Manage Content` and `Classes` tabs.
@@ -168,7 +174,7 @@ Expected result: one row with `role = 'admin'`.
 ```sql
 select code, role, email, consumed_at, consumed_by
 from public.invites
-where code = public.normalize_invite_code('OWNER-2026');
+where code = public.normalize_invite_code('<PASTE_RETURNED_CODE>');
 ```
 
 Expected result: `consumed_at` and `consumed_by` are populated.
@@ -176,10 +182,23 @@ Expected result: `consumed_at` and `consumed_by` are populated.
 If the owner account already exists but is not an admin, promote it from the SQL Editor:
 
 ```sql
-update public.profiles
-set role = 'admin'
-where email = lower('owner@example.com');
+insert into public.profiles (id, email, display_name, role)
+select
+  id,
+  lower(trim(email)),
+  coalesce(raw_user_meta_data ->> 'display_name', split_part(email, '@', 1), 'Owner'),
+  'admin'
+from auth.users
+where lower(trim(email)) = lower(trim('owner@example.com'))
+on conflict (id) do update
+set email = excluded.email,
+    display_name = coalesce(public.profiles.display_name, excluded.display_name),
+    role = 'admin'
+returning id, email, display_name, role;
 ```
+
+Expected result: exactly one row with `role = 'admin'`. If this returns zero rows, the owner auth
+account does not exist yet.
 
 ## Invite Setup
 
@@ -229,6 +248,77 @@ join public.classes c on c.id = e.class_id
 where e.email = lower('student@example.com')
 order by e.created_at desc;
 ```
+
+## Invite Enforcement Smoke Test
+
+Run these checks after the SQL schema is installed and before giving codes to students.
+
+Known-bad invite check:
+
+```sql
+select *
+from public.validate_invite('SMOKE-INVALID-INVITE', 'student@example.com');
+```
+
+Expected result: `is_valid = false` and `reason = 'not-found'`.
+
+Email mismatch check:
+
+```sql
+with smoke_invite as (
+  insert into public.invites (code, role, email, expires_at)
+  values (
+    public.normalize_invite_code('SMOKE-MISMATCH-' || substr(encode(gen_random_bytes(4), 'hex'), 1, 8)),
+    'student',
+    lower(trim('student@example.com')),
+    now() + interval '30 minutes'
+  )
+  returning code
+)
+select validate_invite.*
+from smoke_invite
+cross join public.validate_invite(smoke_invite.code, 'wrong@example.com') as validate_invite;
+```
+
+Expected result: `is_valid = false` and `reason = 'email-mismatch'`.
+
+Class invite consumption check:
+
+1. Create a temporary class from the app or SQL.
+2. Create an email-bound student invite for that class.
+3. Sign up as that student with the matching email and invite code.
+4. Verify the invite is consumed and cannot be reused:
+
+```sql
+select code, email, class_id, consumed_at, consumed_by, revoked_at
+from public.invites
+where email = lower('student@example.com')
+order by created_at desc
+limit 1;
+```
+
+```sql
+select *
+from public.validate_invite('<PASTE_CONSUMED_CODE>', 'student@example.com');
+```
+
+Expected result: the invite row has `consumed_at` and `consumed_by`; the reused invite check returns
+`is_valid = false` and `reason = 'used'`.
+
+Verify class enrollment:
+
+```sql
+select c.name, e.email, e.display_name, e.role, e.created_at
+from public.class_enrollments e
+join public.classes c on c.id = e.class_id
+where e.email = lower('student@example.com')
+order by e.created_at desc;
+```
+
+Expected result: one row for the class-scoped invite.
+
+Signup without an invite should fail at the database trigger. The normal app UI does not expose a
+no-invite submit path, so treat any successful no-invite account creation as a production blocker.
 
 ## Content Publishing Smoke Test
 

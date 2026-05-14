@@ -277,3 +277,12 @@ Use this file as an append-only record whenever an agent finishes, pauses, or ha
 - Decisions made: Production signup remains invite-only with server-side Supabase enforcement. Students can read only published questions. First admin bootstrap is through an owner-created one-time admin invite. The `question-images` bucket and media metadata are provisioned, but production image upload wiring remains a future task.
 - QA fixes: Fixed Manage Content horizontal overflow hardening, added `role="alert"` to Content Manager validation errors, and renamed the invite heading to avoid accessible-label ambiguity. Final QA confirmed no document-level horizontal overflow at desktop `1440px` or mobile `390px`; mobile `.mode-tabs` remains the only intentional horizontal scroller.
 - Blockers: Owner still needs to run `supabase/schema.sql`, create/bootstrap the admin invite, configure Vercel env vars, deploy, connect `studyprecalc.com`, and run the cloud smoke tests in `docs/operations/supabase-setup.md`.
+
+### 2026-05-14 - Codex + Agents - M6 Production Activation
+
+- Status: Complete for repo-side M6 tooling and handoff. Live production activation remains owner-run in Supabase/Vercel.
+- Files changed: Added `.github/workflows/ci.yml`, `docs/operations/production-activation.md`, `scripts/smoke-supabase.ts`, and `tests/unit/supabaseSmoke.test.ts`; updated production docs, `package.json`, `scripts/README.md`, `src/data/supabase/inviteStore.ts`, `tests/unit/supabaseInviteMapping.test.ts`, `supabase/schema.sql`, and coordination files.
+- Verification: Ran `npm run validate:content`, `npm test` (87 tests), `npm run lint`, `npm run build`, and `git diff --check`. All passed; diff check reported only a CRLF warning for `supabase/schema.sql`.
+- Live smoke: Ran `npm run smoke:supabase`; it failed because the configured Supabase project does not yet expose `public.validate_invite` or `public.questions`, confirming `supabase/schema.sql` still needs to be applied/refreshed in the dashboard.
+- Security fixes: Supabase invite inserts now omit browser-local IDs so Postgres can generate UUIDs; first-admin bootstrap docs now generate high-entropy short-lived invite codes; existing-owner recovery now inserts/updates profiles from `auth.users`; SVG Storage uploads are disabled for launch.
+- Next step: Owner runs the M6 checklist in `docs/operations/production-activation.md`, starting with applying `supabase/schema.sql`, then reruns `npm run smoke:supabase`.

@@ -10,6 +10,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "test": "vitest run",
+    "smoke:supabase": "tsx scripts/smoke-supabase.ts",
     "validate:content": "tsx scripts/validate-content.ts"
   },
   "dependencies": {

@@ -2,6 +2,9 @@
 
 First public deployment target: Vercel.
 
+For the ordered owner-facing M6 launch flow, start with
+[M6 Production Activation Checklist](production-activation.md).
+
 Complete [Supabase setup](supabase-setup.md) before relying on production accounts, invites,
 published content, saved attempts, or dashboard persistence.
 

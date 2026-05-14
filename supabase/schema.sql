@@ -650,7 +650,7 @@ values (
   'question-images',
   false,
   1048576,
-  array['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/svg+xml']
+  array['image/png', 'image/jpeg', 'image/webp', 'image/gif']
 )
 on conflict (id) do update
 set public = excluded.public,
