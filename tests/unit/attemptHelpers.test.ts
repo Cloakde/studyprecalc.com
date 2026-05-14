@@ -1,22 +1,11 @@
-import seedQuestionSet from '../../content/questions/seed-ap-precalc.json';
-import { QuestionSetSchema } from '../../src/data/schemas/questionSchema';
 import { createFrqAttempt, createMcqAttempt } from '../../src/domain/attempts';
-
-const questionSet = QuestionSetSchema.parse(seedQuestionSet);
+import { testFrqQuestion, testMcqQuestion } from '../fixtures/testQuestions';
 
 describe('attempt helpers', () => {
   it('creates a scored MCQ attempt from a question and selected choice', () => {
-    const question = questionSet.questions.find((item) => item.id === 'pc-mcq-rat-001');
-
-    expect(question?.type).toBe('mcq');
-
-    if (!question || question.type !== 'mcq') {
-      throw new Error('Expected MCQ seed question.');
-    }
-
     const attempt = createMcqAttempt({
       id: 'attempt-mcq-1',
-      question,
+      question: testMcqQuestion,
       selectedChoiceId: 'B',
       startedAt: '2026-05-13T10:00:00.000Z',
       submittedAt: '2026-05-13T10:02:05.000Z',
@@ -24,7 +13,7 @@ describe('attempt helpers', () => {
 
     expect(attempt).toMatchObject({
       id: 'attempt-mcq-1',
-      questionId: 'pc-mcq-rat-001',
+      questionId: 'test-mcq-001',
       questionType: 'mcq',
       response: {
         type: 'mcq',
@@ -38,27 +27,19 @@ describe('attempt helpers', () => {
   });
 
   it('creates a scored FRQ attempt from responses and self-scored criteria', () => {
-    const question = questionSet.questions.find((item) => item.id === 'pc-frq-log-001');
-
-    expect(question?.type).toBe('frq');
-
-    if (!question || question.type !== 'frq') {
-      throw new Error('Expected FRQ seed question.');
-    }
-
     const attempt = createFrqAttempt({
       id: 'attempt-frq-1',
-      question,
+      question: testFrqQuestion,
       partResponses: {
-        a: 'B(2)=96(0.74)^2, so the charge is about 52.6%.',
+        a: 'This response states and interprets the setup.',
         b: '',
       },
       earnedPointsByCriterion: {
-        'pc-frq-log-001-a-setup': true,
-        'pc-frq-log-001-a-interpret': true,
-        'pc-frq-log-001-b-equation': true,
-        'pc-frq-log-001-b-solve': false,
-        'pc-frq-log-001-b-interpret': false,
+        'test-frq-001-a-setup': true,
+        'test-frq-001-a-interpret': true,
+        'test-frq-001-b-equation': true,
+        'test-frq-001-b-solve': false,
+        'test-frq-001-b-interpret': false,
       },
       startedAt: new Date('2026-05-13T11:00:00.000Z'),
       submittedAt: new Date('2026-05-13T11:05:00.000Z'),
@@ -66,12 +47,12 @@ describe('attempt helpers', () => {
 
     expect(attempt).toMatchObject({
       id: 'attempt-frq-1',
-      questionId: 'pc-frq-log-001',
+      questionId: 'test-frq-001',
       questionType: 'frq',
       response: {
         type: 'frq',
         partResponses: {
-          a: 'B(2)=96(0.74)^2, so the charge is about 52.6%.',
+          a: 'This response states and interprets the setup.',
         },
       },
       score: 3,

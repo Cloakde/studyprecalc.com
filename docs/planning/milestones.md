@@ -33,10 +33,10 @@ Goal: lock in the decisions and tooling that block everything else.
 - [x] **M0.4** Define the attempt and scoring schema (new ADR).
 - [x] **M0.5** Stand up build tooling: TypeScript, linter, formatter, test runner, dev server.
 - [x] **M0.6** Choose the math renderer (KaTeX vs. MathJax) — needed for prompts, choices, and explanations. ADR.
-- [x] **M0.7** Author 3 seed MCQs and 1 seed FRQ in `content/questions/` against the schema.
+- [x] **M0.7** Remove starter questions from `content/questions/` so the shipped app starts with no bundled questions.
 - [ ] **M0.8** Wire a minimal CI check (lint + typecheck + tests) so future milestones cannot regress silently.
 
-Exit criteria: schema validates seed content; the project builds; tests run; one ADR per major choice; CI green.
+Exit criteria: schema validates starter content; the project builds; tests run; one ADR per major choice; CI green.
 
 ### M1 — Read-only Viewer
 

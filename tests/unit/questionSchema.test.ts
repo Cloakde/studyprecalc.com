@@ -1,32 +1,29 @@
 import seedQuestionSet from '../../content/questions/seed-ap-precalc.json';
 import { QuestionSetSchema } from '../../src/data/schemas/questionSchema';
+import { testFrqQuestion, testMcqQuestion, testQuestionSet } from '../fixtures/testQuestions';
 
 describe('QuestionSetSchema', () => {
-  it('validates the seed AP Precalculus content', () => {
+  it('validates the empty starter question set', () => {
     const parsed = QuestionSetSchema.parse(seedQuestionSet);
 
-    expect(parsed.questions).toHaveLength(4);
-    expect(parsed.questions.some((question) => question.type === 'mcq')).toBe(true);
-    expect(parsed.questions.some((question) => question.type === 'frq')).toBe(true);
+    expect(parsed.questions).toHaveLength(0);
   });
 
   it('rejects duplicate question IDs', () => {
-    const parsed = QuestionSetSchema.parse(seedQuestionSet);
     const duplicated = {
-      version: parsed.version,
-      questions: [parsed.questions[0], parsed.questions[0]],
+      version: testQuestionSet.version,
+      questions: [testMcqQuestion, testMcqQuestion],
     };
 
     expect(() => QuestionSetSchema.parse(duplicated)).toThrow();
   });
 
   it('accepts local uploaded video references', () => {
-    const parsed = QuestionSetSchema.parse(seedQuestionSet);
     const questionWithLocalVideo = {
-      ...parsed.questions[0],
-      id: 'pc-mcq-local-video-001',
+      ...testMcqQuestion,
+      id: 'test-mcq-local-video-001',
       explanation: {
-        ...parsed.questions[0].explanation,
+        ...testMcqQuestion.explanation,
         video: {
           url: 'local-video:video-123_abc',
         },
@@ -35,17 +32,16 @@ describe('QuestionSetSchema', () => {
 
     expect(() =>
       QuestionSetSchema.parse({
-        version: parsed.version,
+        version: testQuestionSet.version,
         questions: [questionWithLocalVideo],
       }),
     ).not.toThrow();
   });
 
   it('accepts prompt and explanation image assets', () => {
-    const parsed = QuestionSetSchema.parse(seedQuestionSet);
     const questionWithAssets = {
-      ...parsed.questions[0],
-      id: 'pc-mcq-assets-001',
+      ...testMcqQuestion,
+      id: 'test-mcq-assets-001',
       assets: [
         {
           id: 'residual-plot',
@@ -56,13 +52,13 @@ describe('QuestionSetSchema', () => {
         },
       ],
       explanation: {
-        ...parsed.questions[0].explanation,
+        ...testMcqQuestion.explanation,
         assets: [
           {
             id: 'solution-graph',
             type: 'graph',
             path: '/assets/images/solution-graph.png',
-            alt: 'Annotated solution graph showing a removable discontinuity.',
+            alt: 'Annotated solution graph for a test item.',
           },
         ],
       },
@@ -70,33 +66,24 @@ describe('QuestionSetSchema', () => {
 
     expect(() =>
       QuestionSetSchema.parse({
-        version: parsed.version,
+        version: testQuestionSet.version,
         questions: [questionWithAssets],
       }),
     ).not.toThrow();
   });
 
   it('rejects duplicate FRQ part and rubric criterion IDs', () => {
-    const parsed = QuestionSetSchema.parse(seedQuestionSet);
-    const frqQuestion = parsed.questions.find((question) => question.type === 'frq');
-
-    expect(frqQuestion?.type).toBe('frq');
-
-    if (!frqQuestion || frqQuestion.type !== 'frq') {
-      throw new Error('Expected seed FRQ question.');
-    }
-
     const invalidFrq = {
-      ...frqQuestion,
+      ...testFrqQuestion,
       parts: [
-        frqQuestion.parts[0],
+        testFrqQuestion.parts[0],
         {
-          ...frqQuestion.parts[1],
-          id: frqQuestion.parts[0].id,
+          ...testFrqQuestion.parts[1],
+          id: testFrqQuestion.parts[0].id,
           rubric: [
             {
-              ...frqQuestion.parts[1].rubric[0],
-              id: frqQuestion.parts[0].rubric[0].id,
+              ...testFrqQuestion.parts[1].rubric[0],
+              id: testFrqQuestion.parts[0].rubric[0].id,
             },
           ],
         },
@@ -105,17 +92,16 @@ describe('QuestionSetSchema', () => {
 
     expect(() =>
       QuestionSetSchema.parse({
-        version: parsed.version,
+        version: testQuestionSet.version,
         questions: [invalidFrq],
       }),
     ).toThrow();
   });
 
   it('rejects unsafe asset and video paths', () => {
-    const parsed = QuestionSetSchema.parse(seedQuestionSet);
     const questionWithUnsafeMedia = {
-      ...parsed.questions[0],
-      id: 'pc-mcq-unsafe-media-001',
+      ...testMcqQuestion,
+      id: 'test-mcq-unsafe-media-001',
       assets: [
         {
           id: 'unsafe-asset',
@@ -125,7 +111,7 @@ describe('QuestionSetSchema', () => {
         },
       ],
       explanation: {
-        ...parsed.questions[0].explanation,
+        ...testMcqQuestion.explanation,
         video: {
           url: 'ftp://example.com/video.mp4',
         },
@@ -134,7 +120,7 @@ describe('QuestionSetSchema', () => {
 
     expect(() =>
       QuestionSetSchema.parse({
-        version: parsed.version,
+        version: testQuestionSet.version,
         questions: [questionWithUnsafeMedia],
       }),
     ).toThrow();

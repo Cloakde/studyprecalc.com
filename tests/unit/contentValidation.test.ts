@@ -3,10 +3,10 @@ import { type AuthoringQuestion, validateAuthoringMetadata } from '../../scripts
 
 const makeQuestion = (overrides: Partial<AuthoringQuestion> = {}): AuthoringQuestion => {
   const baseQuestion: AuthoringQuestion = {
-    id: 'pc-mcq-rat-999',
-    tags: ['rational-functions', 'holes'],
+    id: 'test-mcq-999',
+    tags: ['test-topic', 'test-skill'],
     explanation: {
-      commonMistakes: ['Confusing a removable discontinuity with a vertical asymptote.'],
+      commonMistakes: ['Selecting a distractor without checking the prompt.'],
     },
   };
 
@@ -26,7 +26,7 @@ const issueCodesFor = (question: AuthoringQuestion) =>
   );
 
 describe('validateAuthoringMetadata', () => {
-  it('accepts the seed content authoring metadata', () => {
+  it('accepts the empty starter content set', () => {
     const issues = validateAuthoringMetadata([
       {
         sourcePath: 'content/questions/seed-ap-precalc.json',
@@ -45,7 +45,7 @@ describe('validateAuthoringMetadata', () => {
       },
       {
         sourcePath: 'content/questions/b.json',
-        questions: [makeQuestion({ tags: ['exponential-functions'] })],
+        questions: [makeQuestion({ tags: ['test-topic-two'] })],
       },
     ]);
 
@@ -53,7 +53,7 @@ describe('validateAuthoringMetadata', () => {
       expect.objectContaining({
         code: 'duplicate-question-id',
         file: 'content/questions/b.json',
-        questionId: 'pc-mcq-rat-999',
+        questionId: 'test-mcq-999',
       }),
     );
   });

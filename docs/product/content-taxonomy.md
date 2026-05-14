@@ -112,9 +112,9 @@ Use these tags first. Add a new tag only when it names a reusable search facet t
 
 ```json
 {
-  "unit": "Polynomial and Rational Functions",
-  "topic": "Rational function behavior",
-  "skill": "Identify removable discontinuities and intercepts",
-  "tags": ["rational-functions", "holes", "intercepts", "no-calculator"]
+  "unit": "Function Concepts",
+  "topic": "Function transformations",
+  "skill": "Identify the effect of a transformation",
+  "tags": ["function-transformations", "translations", "graphs", "no-calculator"]
 }
 ```

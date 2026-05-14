@@ -8,18 +8,21 @@ const localImageReferenceSchema = z
   .string()
   .regex(/^local-image:[a-zA-Z0-9_-]+$/, 'Local image references must use local-image:<id>.');
 
-const safeResourcePathSchema = z.string().min(1).refine((path) => {
-  if (localImageReferenceSchema.safeParse(path).success) {
-    return true;
-  }
+const safeResourcePathSchema = z
+  .string()
+  .min(1)
+  .refine((path) => {
+    if (localImageReferenceSchema.safeParse(path).success) {
+      return true;
+    }
 
-  try {
-    const url = new URL(path, 'https://precalc.local');
-    return url.protocol === 'http:' || url.protocol === 'https:';
-  } catch {
-    return false;
-  }
-}, 'Resource paths must be relative/static, HTTP(S), or a valid local image reference.');
+    try {
+      const url = new URL(path, 'https://precalc.local');
+      return url.protocol === 'http:' || url.protocol === 'https:';
+    } catch {
+      return false;
+    }
+  }, 'Resource paths must be relative/static, HTTP(S), or a valid local image reference.');
 
 const assetSchema = z.object({
   id: z.string().min(1),
@@ -33,14 +36,17 @@ const localVideoReferenceSchema = z
   .string()
   .regex(/^local-video:[a-zA-Z0-9_-]+$/, 'Local video references must use local-video:<id>.');
 
-const httpUrlSchema = z.string().url().refine((rawUrl) => {
-  try {
-    const url = new URL(rawUrl);
-    return url.protocol === 'http:' || url.protocol === 'https:';
-  } catch {
-    return false;
-  }
-}, 'URLs must use HTTP(S).');
+const httpUrlSchema = z
+  .string()
+  .url()
+  .refine((rawUrl) => {
+    try {
+      const url = new URL(rawUrl);
+      return url.protocol === 'http:' || url.protocol === 'https:';
+    } catch {
+      return false;
+    }
+  }, 'URLs must use HTTP(S).');
 
 const videoExplanationSchema = z.object({
   url: z.union([httpUrlSchema, localVideoReferenceSchema]),
@@ -157,7 +163,7 @@ export const QuestionSchema = z.union([McqQuestionSchema, FrqQuestionSchema]);
 export const QuestionSetSchema = z
   .object({
     version: z.string().min(1),
-    questions: z.array(QuestionSchema).min(1),
+    questions: z.array(QuestionSchema),
   })
   .superRefine((questionSet, context) => {
     const seenIds = new Set<string>();

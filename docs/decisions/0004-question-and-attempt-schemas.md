@@ -16,6 +16,8 @@ Use JSON question sets validated by Zod schemas in `src/data/schemas/`.
 
 Question content lives in `content/questions/`. Runtime code imports the content, validates it, and exposes typed question objects to the app.
 
+Question sets may contain zero questions so the public app can ship with an empty owner-authored starter bank.
+
 Attempt records are also validated by Zod and stored through a future persistence layer.
 
 ## Rationale
@@ -27,6 +29,7 @@ Attempt records are also validated by Zod and stored through a future persistenc
 ## Consequences
 
 - Every question must include metadata, prompt text, answer data, explanations, and steps.
+- Empty starter question sets are valid, but they produce no practice/session questions until an admin adds content.
 - MCQ and FRQ use a shared base shape with type-specific fields.
 - Video explanations are represented as optional references.
 - Persistence can evolve from browser-local storage to backend storage without changing the attempt contract.

@@ -10,7 +10,7 @@
 | DEC-001     | Choose web stack                                      | Codex            | Done   | See `docs/decisions/0002-web-and-desktop-stack.md`.                                                                              |
 | DEC-002     | Choose math renderer                                  | Codex            | Done   | See `docs/decisions/0003-math-renderer.md`.                                                                                      |
 | DEC-003     | Define question and attempt schemas                   | Codex            | Done   | See `docs/decisions/0004-question-and-attempt-schemas.md`.                                                                       |
-| APP-001     | Build first runnable question practice UI             | Codex            | Done   | React/Vite app with seed content, math rendering, MCQ review, FRQ self-score, and calculator panel.                              |
+| APP-001     | Build first runnable question practice UI             | Codex            | Done   | React/Vite app with empty starter content, math rendering, MCQ review, FRQ self-score, and calculator panel.                     |
 | CONTENT-002 | Build no-code content manager                         | Codex            | Done   | Browser authoring UI for adding, editing, deleting, importing, and exporting questions with solutions/video links. See ADR 0005. |
 | APP-002     | Persistent attempt tracking and review                | Codex + Worker A | Done   | Local saved attempts, review display, import/export, remove, clear confirmation, and question badges.                            |
 | APP-003     | Question bank navigation and filters                  | Codex            | Done   | Browse/filter by type, unit, difficulty, calculator, tags/search, and random question.                                           |
@@ -28,6 +28,7 @@
 | DEPLOY-001  | Add first public web deployment setup                 | Codex            | Done   | Added Vercel static deployment config and domain connection instructions for `studyprecalc.com`.                                 |
 | AUTH-004    | Block public sign-ups for invite-only beta            | Codex            | Done   | Kept signup implementation but now show an invite-only error from the sign-up UI.                                                |
 | AUTH-005    | Add local dev admin and admin-only content management | Codex            | Done   | Added a dev-only local admin login and hide Manage Content for student accounts.                                                 |
+| CONTENT-004 | Remove starter questions from the shipped app         | Codex            | Done   | Emptied the bundled starter bank and kept practice/session/review screens stable with no questions.                              |
 
 ## Later
 

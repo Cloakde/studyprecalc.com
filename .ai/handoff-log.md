@@ -178,3 +178,12 @@ Use this file as an append-only record whenever an agent finishes, pauses, or ha
 - Decisions made: Add a Vite-development-only local admin login and role-gate Manage Content to admin accounts. Supabase `profiles.role` remains the production source of truth.
 - Blockers: Local dev admin is not a production invite system; it is intentionally available only in Vite dev builds.
 - Next recommended step: Build real production invites/admin-created accounts, then move content publishing from local browser storage to Supabase-backed admin publishing.
+
+### 2026-05-13 - Codex - CONTENT-004
+
+- Status: Complete.
+- Files changed: Emptied `content/questions/seed-ap-precalc.json`, allowed empty question sets, moved tests to neutral fixtures, and updated docs/coordination files.
+- Verification: Ran `npm run validate:content` (0 questions), `npm test` (43 tests), `npm run lint`, `npm run build`, `npx prettier --check ...`, and `git diff --check`. All passed. Browser QA with local admin confirmed Dashboard 0 questions, Practice empty state, and Session start disabled.
+- Decisions made: Shipped app starts with no bundled questions; schema allows empty sets; test-only fixtures are neutral and isolated under `tests/fixtures`.
+- Blockers: Production Supabase smoke test still requires running `supabase/schema.sql` and creating/promoting the owner account in the dashboard.
+- Next recommended step: Run Supabase SQL, then build the server-backed content publishing and invite account flow.

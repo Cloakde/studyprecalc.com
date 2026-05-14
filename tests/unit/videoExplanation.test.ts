@@ -13,7 +13,7 @@ describe('VideoExplanation', () => {
     const markup = renderVideo({
       url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
       durationSeconds: 65,
-      transcriptPath: '/transcripts/rational-functions.txt',
+      transcriptPath: '/transcripts/test-video.txt',
     });
 
     expect(markup).toContain('https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ');

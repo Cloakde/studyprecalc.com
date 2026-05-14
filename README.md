@@ -64,6 +64,8 @@ Optional Supabase setup:
 
 Use the `Manage Content` tab in the app to create, edit, delete, import, and export authored questions without coding.
 
+The bundled starter question bank is intentionally empty. Use the local development admin account to add your own original questions.
+
 The current manager is local-first. Authored questions are saved in the browser and can be exported as a question pack. A server-backed CMS can be added later when the public website needs centralized publishing.
 
 ## Accounts And Progress

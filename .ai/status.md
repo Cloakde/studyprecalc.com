@@ -4,13 +4,13 @@ Last updated: 2026-05-13
 
 ## Current Phase
 
-Local development admin account and admin-gated content management are complete.
+Starter question content removal is complete.
 
 ## Active Ownership
 
 | Agent | Task | File Scope | Status |
 | ----- | ---- | ---------- | ------ |
-| None  | None | None       | Idle   |
+| None  | -    | -          | Idle   |
 
 ## Notes
 
@@ -39,6 +39,7 @@ Local development admin account and admin-gated content management are complete.
 - Public sign-up is currently blocked in the UI for an invite-only beta, but the signup implementation is preserved for later.
 - Local development has a dev-only admin login: `admin@studyprecalc.local` / `localadmin`.
 - The `Manage Content` tab is now admin-only.
+- The bundled starter question bank is intentionally empty. Owner-authored questions should be added through admin content management or future Supabase publishing.
 
 ## Last Verification
 
@@ -55,3 +56,4 @@ Local development admin account and admin-gated content management are complete.
 2026-05-13: Codex ran `npm run build`, `npm run lint`, `npx prettier --check README.md docs/operations/deployment.md docs/decisions/0008-vercel-first-web-deploy.md docs/INDEX.md docs/planning/milestones.md .ai/status.md .ai/task-board.md vercel.json`, and `git diff --check`. All passed.
 2026-05-13: Codex ran `npm run build`, `npm run lint`, and `npm test` (42 tests). All passed. Browser QA confirmed the Sign Up control shows the invite-only alert and keeps the login form visible.
 2026-05-13: Codex ran `npm test` (43 tests), `npm run lint`, `npm run build`, and `npm run validate:content`. All passed. Browser QA confirmed local dev admin login shows the Admin badge and Manage Content tab.
+2026-05-13: Codex ran `npm run validate:content` (0 questions), `npm test` (43 tests), `npm run lint`, `npm run build`, `npx prettier --check ...`, and `git diff --check`. All passed. Browser QA confirmed Dashboard shows 0 questions, Practice shows the empty state, and Session setup disables start with 0 questions.

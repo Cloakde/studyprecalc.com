@@ -23,7 +23,7 @@ function createMemoryStorage(): AttemptStorage {
 function createAttempt(overrides: Partial<Attempt> = {}): Attempt {
   return {
     id: 'attempt-1',
-    questionId: 'pc-mcq-rat-001',
+    questionId: 'test-mcq-001',
     questionType: 'mcq',
     startedAt: '2026-05-13T10:00:00.000Z',
     submittedAt: '2026-05-13T10:01:00.000Z',
@@ -144,7 +144,7 @@ describe('local attempt store helpers', () => {
 
     payload.attempts.push({
       id: '',
-      questionId: 'pc-mcq-rat-001',
+      questionId: 'test-mcq-001',
       questionType: 'mcq',
       startedAt: 'not-a-date',
       submittedAt: 'not-a-date',
@@ -157,7 +157,7 @@ describe('local attempt store helpers', () => {
     });
     payload.attempts.push({
       id: 'impossible-attempt',
-      questionId: 'pc-mcq-rat-001',
+      questionId: 'test-mcq-001',
       questionType: 'mcq',
       startedAt: '2026-05-13T10:00:00.000Z',
       submittedAt: '2026-05-13T10:01:00.000Z',

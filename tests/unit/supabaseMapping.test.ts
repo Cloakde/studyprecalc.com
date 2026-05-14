@@ -6,7 +6,7 @@ import { sessionFromSupabaseRow, sessionToSupabaseRow } from '../../src/data/sup
 function createAttempt(): Attempt {
   return {
     id: 'attempt-1',
-    questionId: 'pc-mcq-rat-001',
+    questionId: 'test-mcq-001',
     questionType: 'mcq',
     startedAt: '2026-05-13T10:00:00.000Z',
     submittedAt: '2026-05-13T10:01:00.000Z',
@@ -46,11 +46,11 @@ function createSession(): SessionResult {
     markedQuestionIds: [],
     questionResults: [
       {
-        questionId: 'pc-mcq-rat-001',
+        questionId: 'test-mcq-001',
         questionType: 'mcq',
-        unit: 'Rational and Polynomial Functions',
-        topic: 'Rational function behavior',
-        skill: 'Identify removable discontinuities and intercepts',
+        unit: 'Test Unit',
+        topic: 'Test MCQ Topic',
+        skill: 'Select the correct test choice',
         difficulty: 'intro',
         calculator: 'none',
         score: 1,
@@ -72,7 +72,7 @@ describe('supabase row mapping', () => {
 
     expect(row).toMatchObject({
       user_id: 'user-1',
-      question_id: 'pc-mcq-rat-001',
+      question_id: 'test-mcq-001',
       max_score: 1,
       time_spent_seconds: 60,
     });

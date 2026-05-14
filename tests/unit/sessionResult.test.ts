@@ -1,24 +1,14 @@
-import seedQuestionSet from '../../content/questions/seed-ap-precalc.json';
-import { QuestionSetSchema } from '../../src/data/schemas/questionSchema';
 import { createSessionResult } from '../../src/domain/sessions';
-
-const questionSet = QuestionSetSchema.parse(seedQuestionSet);
+import { testFrqQuestion, testMcqQuestion, testQuestionSet } from '../fixtures/testQuestions';
 
 describe('session result helpers', () => {
   it('creates a grouped result from MCQ and FRQ responses', () => {
-    const mcqQuestion = questionSet.questions.find((question) => question.id === 'pc-mcq-rat-001');
-    const frqQuestion = questionSet.questions.find((question) => question.id === 'pc-frq-log-001');
-
-    if (!mcqQuestion || !frqQuestion) {
-      throw new Error('Expected seed questions.');
-    }
-
     const result = createSessionResult({
       id: 'session-1',
-      questionSetVersion: questionSet.version,
-      questions: [mcqQuestion, frqQuestion],
+      questionSetVersion: testQuestionSet.version,
+      questions: [testMcqQuestion, testFrqQuestion],
       responses: {
-        [mcqQuestion.id]: {
+        [testMcqQuestion.id]: {
           startedAt: '2026-05-13T10:00:00.000Z',
           submittedAt: '2026-05-13T10:01:00.000Z',
           selectedChoiceId: 'A',
@@ -26,21 +16,21 @@ describe('session result helpers', () => {
           earnedPointsByCriterion: {},
           attemptId: 'attempt-mcq-1',
         },
-        [frqQuestion.id]: {
+        [testFrqQuestion.id]: {
           startedAt: '2026-05-13T10:01:00.000Z',
           submittedAt: '2026-05-13T10:08:00.000Z',
           partResponses: {
-            a: 'B(2)=96(0.74)^2, so about 52.6%.',
+            a: 'This response states and interprets the setup.',
           },
           earnedPointsByCriterion: {
-            'pc-frq-log-001-a-setup': true,
-            'pc-frq-log-001-a-interpret': true,
+            'test-frq-001-a-setup': true,
+            'test-frq-001-a-interpret': true,
           },
           frqReviewed: true,
           attemptId: 'attempt-frq-1',
         },
       },
-      markedQuestionIds: [frqQuestion.id],
+      markedQuestionIds: [testFrqQuestion.id],
       startedAt: '2026-05-13T10:00:00.000Z',
       submittedAt: '2026-05-13T10:08:00.000Z',
       filters: {
@@ -59,11 +49,11 @@ describe('session result helpers', () => {
       maxScore: 6,
       percent: 50,
       pendingManualScoreCount: 0,
-      markedQuestionIds: [frqQuestion.id],
-      missedQuestionIds: [frqQuestion.id],
+      markedQuestionIds: [testFrqQuestion.id],
+      missedQuestionIds: [testFrqQuestion.id],
     });
     expect(result.questionResults[0]).toMatchObject({
-      questionId: mcqQuestion.id,
+      questionId: testMcqQuestion.id,
       score: 1,
       maxScore: 1,
       answered: true,
@@ -72,7 +62,7 @@ describe('session result helpers', () => {
       timeSpentSeconds: 60,
     });
     expect(result.questionResults[1]).toMatchObject({
-      questionId: frqQuestion.id,
+      questionId: testFrqQuestion.id,
       score: 2,
       maxScore: 5,
       markedForReview: true,
@@ -82,18 +72,12 @@ describe('session result helpers', () => {
   });
 
   it('marks answered unreviewed FRQs as pending manual score', () => {
-    const frqQuestion = questionSet.questions.find((question) => question.id === 'pc-frq-log-001');
-
-    if (!frqQuestion) {
-      throw new Error('Expected FRQ seed question.');
-    }
-
     const result = createSessionResult({
       id: 'session-1',
-      questionSetVersion: questionSet.version,
-      questions: [frqQuestion],
+      questionSetVersion: testQuestionSet.version,
+      questions: [testFrqQuestion],
       responses: {
-        [frqQuestion.id]: {
+        [testFrqQuestion.id]: {
           startedAt: '2026-05-13T10:00:00.000Z',
           partResponses: {
             a: 'A response waiting for self-score.',

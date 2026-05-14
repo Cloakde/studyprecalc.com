@@ -12,7 +12,7 @@ This guide is for authors creating AP Precalculus practice content through JSON 
 
 ## Shared Metadata
 
-- `id`: Stable, unique, lowercase identifier. Recommended pattern: `pc-{type}-{topic-slug}-{###}`, such as `pc-mcq-rat-001` or `pc-frq-log-001`.
+- `id`: Stable, unique, lowercase identifier. Recommended pattern: `pc-{type}-{topic-slug}-{###}`.
 - `unit`: Use the exact unit value from the taxonomy.
 - `topic`: Use the closest controlled topic value from the taxonomy.
 - `skill`: Write the specific student action, such as `Interpret exponential growth parameters`.

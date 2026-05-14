@@ -7,3 +7,5 @@ Authored educational content belongs here.
 - `media/` - content-specific media references or metadata.
 
 Do not add copyrighted AP or College Board content unless the user confirms they have rights to use it.
+
+The bundled starter question set is intentionally empty. Add owner-authored questions through the admin content manager or future Supabase publishing flow.

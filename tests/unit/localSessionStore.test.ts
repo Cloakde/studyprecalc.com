@@ -44,11 +44,11 @@ function createSession(overrides: Partial<SessionResult> = {}): SessionResult {
     markedQuestionIds: [],
     questionResults: [
       {
-        questionId: 'pc-mcq-rat-001',
+        questionId: 'test-mcq-001',
         questionType: 'mcq',
-        unit: 'Rational and Polynomial Functions',
-        topic: 'Rational function behavior',
-        skill: 'Identify removable discontinuities and intercepts',
+        unit: 'Test Unit',
+        topic: 'Test MCQ Topic',
+        skill: 'Select the correct test choice',
         difficulty: 'intro',
         calculator: 'none',
         score: 1,
