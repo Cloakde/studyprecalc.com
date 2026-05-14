@@ -26,6 +26,7 @@
 | DASH-001    | Build first student dashboard                | Codex            | Done   | Shows recent sessions, accuracy, weak units, and recommended next practice.                                                      |
 | AUTH-002    | Add production backend auth and sync         | Codex            | Done   | Supabase Free setup with Auth, Postgres tables, RLS policies, and local fallback.                                                |
 | DEPLOY-001  | Add first public web deployment setup        | Codex            | Done   | Added Vercel static deployment config and domain connection instructions for `studyprecalc.com`.                                 |
+| AUTH-004    | Block public sign-ups for invite-only beta   | Codex            | Done   | Kept signup implementation but now show an invite-only error from the sign-up UI.                                                |
 
 ## Later
 

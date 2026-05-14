@@ -4,7 +4,7 @@ Last updated: 2026-05-13
 
 ## Current Phase
 
-Public web deployment setup is complete. Actual Vercel deploy/domain connection is waiting on account access.
+Invite-only account access is complete.
 
 ## Active Ownership
 
@@ -36,6 +36,7 @@ Public web deployment setup is complete. Actual Vercel deploy/domain connection 
 - Supabase Auth/client adapters are wired into the app with browser-local fallback when env vars are missing.
 - `supabase/schema.sql` must be run in the Supabase SQL Editor before cloud attempts/sessions and image storage are fully usable.
 - Vercel is the first public deployment target for `studyprecalc.com`; see `vercel.json` and `docs/operations/deployment.md`.
+- Public sign-up is currently blocked in the UI for an invite-only beta, but the signup implementation is preserved for later.
 
 ## Last Verification
 
@@ -50,3 +51,4 @@ Public web deployment setup is complete. Actual Vercel deploy/domain connection 
 2026-05-13: Codex ran `npm run validate:content`, `npm test` (40 tests), `npm run lint`, and `npm run build`. All passed. Browser QA created a local account, submitted a grouped session, and confirmed the dashboard updated.
 2026-05-13: Codex ran `npm run validate:content`, `npm test` (42 tests), `npm run lint`, and `npm run build`. All passed. Browser QA confirmed the app boots in cloud account mode.
 2026-05-13: Codex ran `npm run build`, `npm run lint`, `npx prettier --check README.md docs/operations/deployment.md docs/decisions/0008-vercel-first-web-deploy.md docs/INDEX.md docs/planning/milestones.md .ai/status.md .ai/task-board.md vercel.json`, and `git diff --check`. All passed.
+2026-05-13: Codex ran `npm run build`, `npm run lint`, and `npm test` (42 tests). All passed. Browser QA confirmed the Sign Up control shows the invite-only alert and keeps the login form visible.

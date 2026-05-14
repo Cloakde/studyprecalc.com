@@ -7,9 +7,13 @@ type AccountAuthProps = {
   onLogin: (input: LoginInput) => Promise<unknown>;
   onSignup: (input: SignupInput) => Promise<unknown>;
   backendLabel?: string;
+  allowSignup?: boolean;
 };
 
 type AuthMode = 'login' | 'signup';
+
+const SIGNUP_DISABLED_MESSAGE =
+  'Sign ups are currently closed. Study Precalc is invite-only for now.';
 
 function isEmailConfirmationResult(result: unknown): result is { requiresEmailConfirmation: true } {
   return (
@@ -21,6 +25,7 @@ function isEmailConfirmationResult(result: unknown): result is { requiresEmailCo
 }
 
 export function AccountAuth({
+  allowSignup = false,
   backendLabel = 'Local account',
   onLogin,
   onSignup,
@@ -37,10 +42,15 @@ export function AccountAuth({
     event.preventDefault();
     setNotice('');
     setError('');
-    setIsSubmitting(true);
 
     try {
       if (mode === 'signup') {
+        if (!allowSignup) {
+          setError(SIGNUP_DISABLED_MESSAGE);
+          return;
+        }
+
+        setIsSubmitting(true);
         const result = await onSignup({ displayName, email, password });
         setNotice(
           isEmailConfirmationResult(result)
@@ -48,6 +58,7 @@ export function AccountAuth({
             : 'Account created.',
         );
       } else {
+        setIsSubmitting(true);
         await onLogin({ email, password });
       }
 
@@ -87,9 +98,14 @@ export function AccountAuth({
             aria-selected={mode === 'signup'}
             data-active={mode === 'signup'}
             onClick={() => {
-              setMode('signup');
               setError('');
               setNotice('');
+              if (allowSignup) {
+                setMode('signup');
+              } else {
+                setMode('login');
+                setError(SIGNUP_DISABLED_MESSAGE);
+              }
             }}
             role="tab"
             type="button"
@@ -100,7 +116,11 @@ export function AccountAuth({
         </div>
 
         {notice ? <div className="form-notice">{notice}</div> : null}
-        {error ? <div className="form-error">{error}</div> : null}
+        {error ? (
+          <div className="form-error" role="alert">
+            {error}
+          </div>
+        ) : null}
 
         <form className="auth-form" onSubmit={submitAuth}>
           {mode === 'signup' ? (

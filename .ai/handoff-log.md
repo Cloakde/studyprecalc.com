@@ -160,3 +160,12 @@ Use this file as an append-only record whenever an agent finishes, pauses, or ha
 - Decisions made: Use Vercel as the first public static deployment target for `studyprecalc.com`; keep Supabase as the backend and configure browser-safe Vite env vars in Vercel.
 - Blockers: No `VERCEL_TOKEN` is present and the Vercel CLI is not installed/logged in locally, so Codex cannot create the hosted project or assign the domain without user account access.
 - Next recommended step: Import the repo into Vercel or run `npx vercel login` then `npx vercel --prod`, add the Supabase env vars, and connect `studyprecalc.com` from the Vercel Domains screen.
+
+### 2026-05-13 - Codex - AUTH-004
+
+- Status: Complete.
+- Files changed: Updated `src/app/components/AccountAuth.tsx` and coordination files.
+- Verification: Ran `npm run build`, `npm run lint`, and `npm test` (42 tests). All passed. Browser QA confirmed the Sign Up control shows the red invite-only alert and keeps the login form visible.
+- Decisions made: Preserve the existing signup prop/store implementation, but default the UI to `allowSignup = false` so public users cannot reach the create-account form.
+- Blockers: This is a UI-level block. For stricter production enforcement, Supabase public signups should also be disabled or replaced with an invite/admin-created account flow.
+- Next recommended step: Disable public signups in Supabase Auth settings or build a real invite-code/admin account creation flow before inviting students.
