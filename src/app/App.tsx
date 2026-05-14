@@ -1,7 +1,12 @@
 import { LogOut, UserCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
-import { createAccountScopedStorageKey, useLocalAccountStore } from '../data/localAccountStore';
+import {
+  createAccountScopedStorageKey,
+  type LoginInput,
+  type PublicAccount,
+  useLocalAccountStore,
+} from '../data/localAccountStore';
 import { useLocalAttemptStore } from '../data/localAttemptStore';
 import { useManagedQuestionBank } from '../data/localQuestionStore';
 import { useLocalSessionStore } from '../data/localSessionStore';
@@ -19,11 +24,48 @@ import { StudentDashboard } from './components/StudentDashboard';
 
 type AppMode = 'dashboard' | 'practice' | 'session' | 'review' | 'manage';
 
+const localDevAdminEmail = 'admin@studyprecalc.local';
+const localDevAdminPassword = 'localadmin';
+const localDevAdminSessionKey = 'precalcapp.local-dev-admin.active';
+
+function createLocalDevAdminAccount(): PublicAccount {
+  return {
+    id: 'local-dev-admin',
+    email: localDevAdminEmail,
+    displayName: 'Local Admin',
+    role: 'admin',
+    createdAt: '2026-05-13T00:00:00.000Z',
+  };
+}
+
+function loadLocalDevAdminSession(): PublicAccount | null {
+  if (!import.meta.env.DEV || typeof window === 'undefined') {
+    return null;
+  }
+
+  return window.sessionStorage.getItem(localDevAdminSessionKey) === 'true'
+    ? createLocalDevAdminAccount()
+    : null;
+}
+
+function isLocalDevAdminLogin(input: LoginInput): boolean {
+  return (
+    import.meta.env.DEV &&
+    input.email.trim().toLowerCase() === localDevAdminEmail &&
+    input.password === localDevAdminPassword
+  );
+}
+
 export function App() {
   const [mode, setMode] = useState<AppMode>('dashboard');
+  const [localDevAdminAccount, setLocalDevAdminAccount] = useState<PublicAccount | null>(
+    loadLocalDevAdminSession,
+  );
   const localAccountStore = useLocalAccountStore();
   const supabaseAccountStore = useSupabaseAccountStore();
-  const accountStore = isSupabaseConfigured ? supabaseAccountStore : localAccountStore;
+  const cloudOrLocalAccountStore = isSupabaseConfigured ? supabaseAccountStore : localAccountStore;
+  const currentAccount = localDevAdminAccount ?? cloudOrLocalAccountStore.currentAccount;
+  const canManageContent = currentAccount?.role === 'admin';
   const {
     questionBank,
     customQuestions,
@@ -32,7 +74,7 @@ export function App() {
     deleteCustomQuestion,
     importCustomQuestions,
   } = useManagedQuestionBank(seedQuestionBank);
-  const accountId = accountStore.currentAccount?.id;
+  const accountId = currentAccount?.id;
   const attemptStore = useLocalAttemptStore({
     storageKey: createAccountScopedStorageKey(accountId, 'attempts'),
   });
@@ -40,23 +82,60 @@ export function App() {
     storageKey: createAccountScopedStorageKey(accountId, 'sessions'),
   });
   const cloudAttemptStore = useSupabaseAttemptStore({
-    enabled: isSupabaseConfigured,
+    enabled: isSupabaseConfigured && !localDevAdminAccount,
     userId: accountId,
   });
   const cloudSessionStore = useSupabaseSessionStore({
-    enabled: isSupabaseConfigured,
+    enabled: isSupabaseConfigured && !localDevAdminAccount,
     userId: accountId,
   });
-  const activeAttemptStore = isSupabaseConfigured ? cloudAttemptStore : attemptStore;
-  const activeSessionStore = isSupabaseConfigured ? cloudSessionStore : sessionStore;
+  const activeAttemptStore =
+    isSupabaseConfigured && !localDevAdminAccount ? cloudAttemptStore : attemptStore;
+  const activeSessionStore =
+    isSupabaseConfigured && !localDevAdminAccount ? cloudSessionStore : sessionStore;
 
   useEffect(() => {
-    if (accountStore.currentAccount) {
+    if (currentAccount) {
       setMode('dashboard');
     }
-  }, [accountStore.currentAccount?.id, accountStore.currentAccount]);
+  }, [currentAccount?.id, currentAccount]);
 
-  if (isSupabaseConfigured && supabaseAccountStore.isLoading) {
+  useEffect(() => {
+    if (!canManageContent && mode === 'manage') {
+      setMode('dashboard');
+    }
+  }, [canManageContent, mode]);
+
+  async function loginAccount(input: LoginInput) {
+    if (isLocalDevAdminLogin(input)) {
+      const account = createLocalDevAdminAccount();
+      setLocalDevAdminAccount(account);
+
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.setItem(localDevAdminSessionKey, 'true');
+      }
+
+      return account;
+    }
+
+    return cloudOrLocalAccountStore.login(input);
+  }
+
+  function logoutAccount() {
+    if (localDevAdminAccount) {
+      setLocalDevAdminAccount(null);
+
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.removeItem(localDevAdminSessionKey);
+      }
+
+      return;
+    }
+
+    cloudOrLocalAccountStore.logout();
+  }
+
+  if (!localDevAdminAccount && isSupabaseConfigured && supabaseAccountStore.isLoading) {
     return (
       <main className="auth-shell">
         <section className="auth-panel" aria-label="Loading account">
@@ -67,12 +146,17 @@ export function App() {
     );
   }
 
-  if (!accountStore.currentAccount) {
+  if (!currentAccount) {
     return (
       <AccountAuth
         backendLabel={isSupabaseConfigured ? 'Cloud account' : 'Local account'}
-        onLogin={accountStore.login}
-        onSignup={accountStore.signup}
+        onLogin={loginAccount}
+        onSignup={cloudOrLocalAccountStore.signup}
+        supportingNotice={
+          import.meta.env.DEV
+            ? `Local admin: ${localDevAdminEmail} / ${localDevAdminPassword}`
+            : undefined
+        }
       />
     );
   }
@@ -82,11 +166,12 @@ export function App() {
       <header className="account-bar">
         <div>
           <p className="eyebrow">AP Precalculus Practice</p>
-          <strong>{accountStore.currentAccount.displayName}</strong>
+          <strong>{currentAccount.displayName}</strong>
+          {currentAccount.role === 'admin' ? <span className="account-role">Admin</span> : null}
         </div>
-        <button className="ghost-button" onClick={accountStore.logout} type="button">
+        <button className="ghost-button" onClick={logoutAccount} type="button">
           <UserCircle aria-hidden="true" />
-          {accountStore.currentAccount.email}
+          {currentAccount.email}
           <LogOut aria-hidden="true" />
         </button>
       </header>
@@ -123,18 +208,20 @@ export function App() {
         >
           Review
         </button>
-        <button
-          className="mode-tabs__button"
-          data-active={mode === 'manage'}
-          onClick={() => setMode('manage')}
-          type="button"
-        >
-          Manage Content
-        </button>
+        {canManageContent ? (
+          <button
+            className="mode-tabs__button"
+            data-active={mode === 'manage'}
+            onClick={() => setMode('manage')}
+            type="button"
+          >
+            Manage Content
+          </button>
+        ) : null}
       </nav>
       {mode === 'dashboard' ? (
         <StudentDashboard
-          account={accountStore.currentAccount}
+          account={currentAccount}
           attempts={activeAttemptStore.attempts}
           onNavigate={setMode}
           questions={questionBank}
@@ -215,13 +302,15 @@ export function App() {
         />
       ) : null}
       {mode === 'manage' ? (
-        <ContentManager
-          customQuestions={customQuestions}
-          onDeleteQuestion={deleteCustomQuestion}
-          onImportQuestions={importCustomQuestions}
-          onSaveQuestion={saveCustomQuestion}
-          seedQuestionIds={seedQuestionIds}
-        />
+        canManageContent ? (
+          <ContentManager
+            customQuestions={customQuestions}
+            onDeleteQuestion={deleteCustomQuestion}
+            onImportQuestions={importCustomQuestions}
+            onSaveQuestion={saveCustomQuestion}
+            seedQuestionIds={seedQuestionIds}
+          />
+        ) : null
       ) : null}
     </>
   );

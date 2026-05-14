@@ -4,7 +4,7 @@ Last updated: 2026-05-13
 
 ## Current Phase
 
-Invite-only account access is complete.
+Local development admin account and admin-gated content management are complete.
 
 ## Active Ownership
 
@@ -37,6 +37,8 @@ Invite-only account access is complete.
 - `supabase/schema.sql` must be run in the Supabase SQL Editor before cloud attempts/sessions and image storage are fully usable.
 - Vercel is the first public deployment target for `studyprecalc.com`; see `vercel.json` and `docs/operations/deployment.md`.
 - Public sign-up is currently blocked in the UI for an invite-only beta, but the signup implementation is preserved for later.
+- Local development has a dev-only admin login: `admin@studyprecalc.local` / `localadmin`.
+- The `Manage Content` tab is now admin-only.
 
 ## Last Verification
 
@@ -52,3 +54,4 @@ Invite-only account access is complete.
 2026-05-13: Codex ran `npm run validate:content`, `npm test` (42 tests), `npm run lint`, and `npm run build`. All passed. Browser QA confirmed the app boots in cloud account mode.
 2026-05-13: Codex ran `npm run build`, `npm run lint`, `npx prettier --check README.md docs/operations/deployment.md docs/decisions/0008-vercel-first-web-deploy.md docs/INDEX.md docs/planning/milestones.md .ai/status.md .ai/task-board.md vercel.json`, and `git diff --check`. All passed.
 2026-05-13: Codex ran `npm run build`, `npm run lint`, and `npm test` (42 tests). All passed. Browser QA confirmed the Sign Up control shows the invite-only alert and keeps the login form visible.
+2026-05-13: Codex ran `npm test` (43 tests), `npm run lint`, `npm run build`, and `npm run validate:content`. All passed. Browser QA confirmed local dev admin login shows the Admin badge and Manage Content tab.

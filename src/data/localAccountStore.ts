@@ -5,10 +5,13 @@ export const accountStoreVersion = 'precalcapp.accounts.v1';
 
 export type AccountStorage = Pick<Storage, 'getItem' | 'removeItem' | 'setItem'>;
 
+export type AccountRole = 'student' | 'admin';
+
 export type LocalAccountRecord = {
   id: string;
   email: string;
   displayName: string;
+  role?: AccountRole;
   passwordSalt: string;
   passwordHash: string;
   createdAt: string;
@@ -19,6 +22,7 @@ export type PublicAccount = {
   id: string;
   email: string;
   displayName: string;
+  role: AccountRole;
   createdAt: string;
   lastLoginAt?: string;
 };
@@ -68,11 +72,16 @@ function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
+function isAccountRole(value: unknown): value is AccountRole {
+  return value === 'student' || value === 'admin';
+}
+
 function toPublicAccount(account: LocalAccountRecord): PublicAccount {
   return {
     id: account.id,
     email: account.email,
     displayName: account.displayName,
+    role: account.role ?? 'student',
     createdAt: account.createdAt,
     ...(account.lastLoginAt ? { lastLoginAt: account.lastLoginAt } : {}),
   };
@@ -137,6 +146,7 @@ function isLocalAccountRecord(candidate: unknown): candidate is LocalAccountReco
     account.email.length > 0 &&
     typeof account.displayName === 'string' &&
     account.displayName.length > 0 &&
+    (account.role === undefined || isAccountRole(account.role)) &&
     typeof account.passwordSalt === 'string' &&
     account.passwordSalt.length > 0 &&
     typeof account.passwordHash === 'string' &&
@@ -255,6 +265,7 @@ export async function signupLocalAccount(
     id: createId(),
     email: signupInput.email,
     displayName: signupInput.displayName,
+    role: 'student',
     passwordSalt: createSalt(),
     passwordHash: '',
     createdAt: now().toISOString(),

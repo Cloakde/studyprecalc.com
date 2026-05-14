@@ -169,3 +169,12 @@ Use this file as an append-only record whenever an agent finishes, pauses, or ha
 - Decisions made: Preserve the existing signup prop/store implementation, but default the UI to `allowSignup = false` so public users cannot reach the create-account form.
 - Blockers: This is a UI-level block. For stricter production enforcement, Supabase public signups should also be disabled or replaced with an invite/admin-created account flow.
 - Next recommended step: Disable public signups in Supabase Auth settings or build a real invite-code/admin account creation flow before inviting students.
+
+### 2026-05-13 - Codex - AUTH-005
+
+- Status: Complete.
+- Files changed: Updated `src/data/localAccountStore.ts`, `src/data/supabase/accountStore.ts`, `src/app/App.tsx`, `src/app/components/AccountAuth.tsx`, `src/app/styles/app.css`, `tests/unit/localAccountStore.test.ts`, `README.md`, `docs/INDEX.md`, added `docs/decisions/0009-local-dev-admin.md`, and updated coordination files.
+- Verification: Ran `npm test` (43 tests), `npm run lint`, `npm run build`, and `npm run validate:content`. All passed. Browser QA confirmed `admin@studyprecalc.local` / `localadmin` signs into the local app with an Admin badge and the Manage Content tab.
+- Decisions made: Add a Vite-development-only local admin login and role-gate Manage Content to admin accounts. Supabase `profiles.role` remains the production source of truth.
+- Blockers: Local dev admin is not a production invite system; it is intentionally available only in Vite dev builds.
+- Next recommended step: Build real production invites/admin-created accounts, then move content publishing from local browser storage to Supabase-backed admin publishing.

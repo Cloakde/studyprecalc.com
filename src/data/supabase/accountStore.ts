@@ -1,13 +1,14 @@
 import type { User } from '@supabase/supabase-js';
 import { useCallback, useEffect, useState } from 'react';
 
-import type { LoginInput, PublicAccount, SignupInput } from '../localAccountStore';
+import type { AccountRole, LoginInput, PublicAccount, SignupInput } from '../localAccountStore';
 import { isSupabaseConfigured, supabase } from './client';
 
 type ProfileRow = {
   id: string;
   email: string | null;
   display_name: string | null;
+  role: AccountRole | null;
   created_at: string;
   updated_at?: string | null;
 };
@@ -70,6 +71,7 @@ function accountFromUser(user: User, profile?: ProfileRow | null): PublicAccount
     id: user.id,
     email: profile?.email ?? user.email ?? '',
     displayName,
+    role: profile?.role ?? 'student',
     createdAt: profile?.created_at ?? user.created_at,
     ...(profile?.updated_at ? { lastLoginAt: profile.updated_at } : {}),
   };
@@ -82,7 +84,7 @@ async function loadProfileAccount(user: User): Promise<PublicAccount> {
 
   const { data, error } = await supabase
     .from('profiles')
-    .select('id,email,display_name,created_at,updated_at')
+    .select('id,email,display_name,role,created_at,updated_at')
     .eq('id', user.id)
     .maybeSingle<ProfileRow>();
 

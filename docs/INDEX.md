@@ -59,6 +59,7 @@ One-line map of every doc and folder in this repo. Update this when you add, rem
 - [docs/decisions/0006-local-accounts-and-session-results.md](decisions/0006-local-accounts-and-session-results.md) - Browser-local accounts and grouped session records before backend auth.
 - [docs/decisions/0007-supabase-cloud-backend.md](decisions/0007-supabase-cloud-backend.md) - Supabase Auth/Postgres/Storage as the first cloud backend.
 - [docs/decisions/0008-vercel-first-web-deploy.md](decisions/0008-vercel-first-web-deploy.md) - Vercel as the first public deployment target for `studyprecalc.com`.
+- [docs/decisions/0009-local-dev-admin.md](decisions/0009-local-dev-admin.md) - Local-only development admin login and admin-gated content management.
 
 ## Source Tree (`src/`)
 

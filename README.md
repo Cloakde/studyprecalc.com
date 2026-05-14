@@ -20,6 +20,15 @@ Run the web app:
 npm run dev
 ```
 
+Local-only admin login for development:
+
+```txt
+Email: admin@studyprecalc.local
+Password: localadmin
+```
+
+This development admin is available only while running the Vite dev server and is not included in production builds.
+
 Run verification:
 
 ```sh

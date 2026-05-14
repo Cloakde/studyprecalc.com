@@ -8,6 +8,7 @@ type AccountAuthProps = {
   onSignup: (input: SignupInput) => Promise<unknown>;
   backendLabel?: string;
   allowSignup?: boolean;
+  supportingNotice?: string;
 };
 
 type AuthMode = 'login' | 'signup';
@@ -29,6 +30,7 @@ export function AccountAuth({
   backendLabel = 'Local account',
   onLogin,
   onSignup,
+  supportingNotice,
 }: AccountAuthProps) {
   const [mode, setMode] = useState<AuthMode>('login');
   const [displayName, setDisplayName] = useState('');
@@ -116,6 +118,7 @@ export function AccountAuth({
         </div>
 
         {notice ? <div className="form-notice">{notice}</div> : null}
+        {supportingNotice ? <div className="form-notice">{supportingNotice}</div> : null}
         {error ? (
           <div className="form-error" role="alert">
             {error}

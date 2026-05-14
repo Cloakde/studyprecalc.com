@@ -151,6 +151,19 @@ button:disabled {
   font-size: 1.05rem;
 }
 
+.account-role {
+  display: inline-flex;
+  width: fit-content;
+  margin-top: 6px;
+  padding: 3px 8px;
+  border: 1px solid #0f766e;
+  border-radius: 999px;
+  color: #0f766e;
+  font-size: 0.74rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
 .account-bar .ghost-button {
   max-width: min(460px, 100%);
   overflow: hidden;

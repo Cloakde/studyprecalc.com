@@ -1,5 +1,6 @@
 import {
   createAccountScopedStorageKey,
+  hashPasswordForLocalAuth,
   loadAccountPayload,
   loginLocalAccount,
   logoutLocalAccount,
@@ -42,6 +43,7 @@ describe('local account store helpers', () => {
       id: 'account-1',
       email: 'student@example.com',
       displayName: 'Student One',
+      role: 'student',
     });
     expect(loadAccountPayload(storage, storageKey).activeAccountId).toBe('account-1');
 
@@ -123,6 +125,7 @@ describe('local account store helpers', () => {
             id: 'account-1',
             email: 'student@example.com',
             displayName: 'Student',
+            role: 'admin',
             passwordSalt: 'salt',
             passwordHash: 'hash',
             createdAt: '2026-05-13T10:00:00.000Z',
@@ -149,7 +152,45 @@ describe('local account store helpers', () => {
     const payload = loadAccountPayload(storage, storageKey);
 
     expect(payload.accounts).toHaveLength(1);
+    expect(payload.accounts[0].role).toBe('admin');
     expect(payload.activeAccountId).toBeUndefined();
+  });
+
+  it('treats legacy accounts without a role as student accounts', async () => {
+    const storage = createMemoryStorage();
+    const storageKey = 'test.accounts';
+
+    saveAccountPayload(
+      {
+        version: 'precalcapp.accounts.v1',
+        activeAccountId: 'account-1',
+        accounts: [
+          {
+            id: 'account-1',
+            email: 'student@example.com',
+            displayName: 'Student',
+            passwordSalt: 'salt',
+            passwordHash: await hashPasswordForLocalAuth('secret1', 'salt'),
+            createdAt: '2026-05-13T10:00:00.000Z',
+          },
+        ],
+      },
+      storage,
+      storageKey,
+    );
+
+    const login = await loginLocalAccount(
+      {
+        email: 'student@example.com',
+        password: 'secret1',
+      },
+      {
+        storage,
+        storageKey,
+      },
+    );
+
+    expect(login.account.role).toBe('student');
   });
 
   it('creates account-scoped storage keys', () => {
