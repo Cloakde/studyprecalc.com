@@ -355,6 +355,66 @@
   color: #172033;
 }
 
+/* ─── Stats band ─────────────────────────────────────── */
+.home-band {
+  position: relative;
+  background: #0f766e;
+  color: #ffffff;
+  border-top: 1px solid #0f766e;
+  border-bottom: 1px solid #0a5e58;
+  overflow: hidden;
+}
+.home-band::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.1) 1px, transparent 0);
+  background-size: 24px 24px;
+  opacity: 0.6;
+}
+.home-band__inner {
+  position: relative;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 32px 32px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 24px;
+  align-items: center;
+}
+.home-band__cell {
+  display: grid;
+  gap: 4px;
+  padding: 4px 0;
+}
+.home-band__cell + .home-band__cell {
+  border-left: 1px solid rgba(255, 255, 255, 0.18);
+  padding-left: 24px;
+}
+.home-band__num {
+  font-size: 2.4rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+  color: #ffffff;
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+.home-band__num sup {
+  color: #99f6e4;
+  font-size: 1rem;
+  font-weight: 900;
+}
+.home-band__label {
+  color: #99f6e4;
+  font-size: 0.7rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
 /* ─── Features ───────────────────────────────────────── */
 .home-features {
   max-width: 1280px;
@@ -891,6 +951,13 @@
   .home-units__grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+  .home-band__inner {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .home-band__cell:nth-child(3) {
+    border-left: 0;
+    padding-left: 0;
+  }
 }
 @media (max-width: 720px) {
   .home-nav {
@@ -973,6 +1040,13 @@
   .home-features__grid,
   .home-units__grid {
     grid-template-columns: 1fr;
+  }
+  .home-band__inner {
+    grid-template-columns: 1fr;
+  }
+  .home-band__cell + .home-band__cell {
+    border-left: 0;
+    padding-left: 0;
   }
   .home-cta {
     flex-direction: column;
