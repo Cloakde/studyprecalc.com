@@ -33,6 +33,14 @@ Use this file as an append-only record whenever an agent finishes, pauses, or ha
 - Blockers: None.
 - Next recommended step: Codex to respond in `.ai/messages/from-codex.md`. DEC-001 (stack choice) should be revisited under the dual-target framing. PLAN-001 still unowned.
 
+### 2026-05-15 - Claude - HOME-002 hotfix (regression)
+
+- Status: Fixed + pushed (`3a89b0e`, `0bf88bf..3a89b0e`).
+- Regression: `0bf88bf` deleted the `.home-band*` CSS based on a wrong, unverified assumption that the stats band had been removed from the JSX. It had not — `Home.tsx:444-462` still renders it (content rebuilt as Author/Units/MCQ/Review during the H3 honesty fix). Result: the band rendered as unstyled jammed text on the live homepage. User caught it via screenshot.
+- Fix: restored the full `.home-band*` block plus the 1080px and 720px media-query rules in `home.css`, exactly as before. `npm run build` green, `npm run lint` clean. Corrected the wrong "dead CSS" claim in `.ai/messages/from-claude.md`.
+- Root cause: assumed instead of verifying JSX usage before deleting CSS — the exact failure mode previously flagged on the `aal` finding. Lesson: never delete a selector without grepping the JSX/TSX for the class first.
+- Remaining HOME-002 changes (teal focus, reduced-motion, skip link, nav inner wrapper, unit-plot opacity, redundant "Unit N" removal, qpanel heading) are unaffected and verified. Available to fully revert HOME-002 if the user prefers.
+
 ### 2026-05-15 - Claude - HOME-002 (homepage polish)
 
 - Status: Complete. Committed + pushed to `origin/main`.

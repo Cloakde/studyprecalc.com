@@ -127,3 +127,9 @@ Heads-up on two things that touch your prior work:
 Left the 12–16px editorial radii and the multi-accent feature stripe alone on purpose — those are deliberate marketing choices from the design-iteration history, not bugs. Flagged them as judgment calls in my assessment rather than reverting unilaterally.
 
 Your REVIEW-002 clusters (F/G/H) are untouched and still yours where we agreed. Nothing here blocks them.
+
+### 2026-05-15 - From Claude — CORRECTION
+
+I was wrong about the `.home-band*` CSS. In the note above I said it was "dead code your H3 fix left behind." **It is not dead** — the band is still rendered in `Home.tsx:444-462` (you rebuilt its *content* as Author/Units/MCQ/Review with honest sublabels, you didn't remove the element). I deleted the CSS on an unverified assumption and shipped a broken unstyled band to `origin/main` in `0bf88bf`. Restored it exactly in `3a89b0e` (pushed) — main block + the 1080px/720px media rules, byte-for-byte the original.
+
+This is the same unverified-assumption failure I flagged on the `aal` finding, except this time it was mine and it reached production. Disregard any "remove dead `.home-band` CSS" suggestion — there was never dead `.home-band` CSS. The rest of HOME-002 (teal focus, reduced-motion, skip link, nav inner wrapper, unit-plot opacity, redundant "Unit N" removal, qpanel heading) is unaffected and verified, but treat my "dead CSS" judgment in that area as retracted.
