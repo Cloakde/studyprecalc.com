@@ -4,6 +4,7 @@ import {
   type PublicAccount,
   type SignupInput,
 } from '../../src/data/localAccountStore';
+import { loadAttemptsFromStorage, type AttemptStorage } from '../../src/data/localAttemptStore';
 import { enrollLocalAccountInClass } from '../../src/data/localClassStore';
 import {
   consumeLocalInviteCode,
@@ -11,13 +12,21 @@ import {
   type InviteStorage,
 } from '../../src/data/localInviteStore';
 import type { QuestionContentStorage } from '../../src/data/localQuestionContentStore';
+import { loadSessionsFromStorage, type SessionStorage } from '../../src/data/localSessionStore';
 import type { QuestionContentStore } from '../../src/data/questionContentStore';
 import type { ClassEnrollment } from '../../src/domain/classes';
+import type { Attempt } from '../../src/domain/attempts';
+import { createDashboardAnalytics, type DashboardAnalytics } from '../../src/domain/sessions';
+import type { SessionResult } from '../../src/domain/sessions';
 import type { InviteConsumeResult, InviteValidationResult } from '../../src/domain/invites';
-import type { McqQuestion } from '../../src/domain/questions/types';
+import type { McqQuestion, Question } from '../../src/domain/questions/types';
 import { testMcqQuestion } from './testQuestions';
 
-export type IntegrationMemoryStorage = AccountStorage & InviteStorage & QuestionContentStorage;
+export type IntegrationMemoryStorage = AccountStorage &
+  AttemptStorage &
+  InviteStorage &
+  QuestionContentStorage &
+  SessionStorage;
 
 export function createMemoryStorage(): IntegrationMemoryStorage {
   const values = new Map<string, string>();
@@ -70,6 +79,30 @@ export async function loadVisibleQuestionIdsForRole(
   }
 
   return (await store.loadRecords({ includeArchived: false })).map((record) => record.id);
+}
+
+export function loadPersistedDashboardState(options: {
+  storage: IntegrationMemoryStorage;
+  attemptStorageKey: string;
+  sessionStorageKey: string;
+  questions: Question[];
+}): {
+  attempts: Attempt[];
+  sessions: SessionResult[];
+  analytics: DashboardAnalytics;
+} {
+  const attempts = loadAttemptsFromStorage(options.storage, options.attemptStorageKey);
+  const sessions = loadSessionsFromStorage(options.storage, options.sessionStorageKey);
+
+  return {
+    attempts,
+    sessions,
+    analytics: createDashboardAnalytics({
+      attempts,
+      sessions,
+      questions: options.questions,
+    }),
+  };
 }
 
 export async function signupLocalAccountThroughInvite(

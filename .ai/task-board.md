@@ -60,6 +60,8 @@
 | CLASS-002   | M14 class and invite management polish                | Codex + Agent 4  | Done    | Added invite status filters, roster search/role filters, inactive invite replacement, and honest class progress readiness placeholders.                                                                        |
 | DASH-002    | M15 dashboard recommendations                         | Codex + Agent 5  | Done    | Added attempt/session analytics helpers, unit/skill trends, weak-topic detection, recommended next practice, and expandable session drill-down.                                                                |
 | AI-001      | M16 AI FRQ grading prototype                          | Codex + Agent 6  | Done    | Added disabled-by-default provider-neutral AI grading types/config/request shapes, daily limits, local feedback/usage storage, tests, ADR, and product notes. No external API calls are made.                  |
+| PROD-009    | M17 owner production activation support               | Codex + Agents   | Blocked | Repo-side readiness tooling and docs are done; full activation still requires owner to run Supabase SQL, confirm `question-images`, create smoke accounts, and optionally configure `www`.                     |
+| QA-001      | M18 live admin/student smoke support                  | Codex + Agents   | Done    | Added manual live-smoke checklist tooling and local harness coverage for invite signup, class enrollment, publish/archive visibility, image smoke expectations, and dashboard persistence.                     |
 
 ## Later
 

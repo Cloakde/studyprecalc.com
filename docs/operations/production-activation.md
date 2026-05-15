@@ -1,10 +1,79 @@
-# M8 Production Activation Checklist
+# M17/M18 Production Activation Checklist
 
 Use this checklist when the owner is ready to activate the first production deployment for
-`studyprecalc.com`. Follow the steps in order.
+`studyprecalc.com` and collect the live admin/student smoke evidence. Follow the steps in order.
 
-For the short M9/M10 owner evidence and admin content QA handoff, use
-[M9/M10 Owner Handoff](m9-m10-owner-handoff.md).
+For the short owner evidence packet and admin/student smoke handoff, use
+[M17/M18 Owner Evidence Handoff](m9-m10-owner-handoff.md).
+
+## Command Order
+
+Run owner activation in this order. The automation helps gather evidence, but the Supabase,
+Vercel, registrar, inbox, and live browser checks remain owner-owned dashboard work.
+
+1. Run local repo verification on the exact deploy commit:
+
+   ```sh
+   npm run validate:content
+   npm test
+   npm run lint
+   npm run build
+   ```
+
+2. Optionally run the repo-side production readiness helper if it is available:
+
+   ```sh
+   npm run check:production-readiness
+   ```
+
+3. Run `supabase/schema.sql` in the production Supabase SQL Editor, then run the SQL verification
+   queries in [Supabase setup](supabase-setup.md#verify-sql-setup).
+4. Configure Supabase Auth redirects, email-code template, and admin TOTP MFA.
+5. Bootstrap or verify the real owner admin account, consume the admin invite, verify email if
+   enabled, and complete TOTP MFA to `aal2`.
+6. Configure Vercel Production `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`, then redeploy.
+7. Connect or verify `studyprecalc.com` and `www.studyprecalc.com` in Vercel and DNS.
+8. Run read-only Supabase smoke:
+
+   ```sh
+   npm run smoke:supabase
+   ```
+
+9. Run admin/MFA smoke when real credentials are available:
+
+   ```sh
+   SMOKE_ADMIN_EMAIL=owner@example.com \
+   SMOKE_ADMIN_PASSWORD=replace-with-admin-password \
+   SMOKE_ADMIN_MFA_CODE=123456 \
+   npm run smoke:supabase
+   ```
+
+10. Run optional write smoke only after real admin and student smoke accounts exist:
+
+    ```sh
+    SMOKE_WRITE=1 \
+    SMOKE_ADMIN_EMAIL=owner@example.com \
+    SMOKE_ADMIN_PASSWORD=replace-with-admin-password \
+    SMOKE_ADMIN_MFA_CODE=123456 \
+    SMOKE_STUDENT_EMAIL=student@example.com \
+    SMOKE_STUDENT_PASSWORD=replace-with-student-password \
+    npm run smoke:supabase
+    ```
+
+11. Optionally print the live smoke checklist helper if it is available:
+
+    ```sh
+    npm run smoke:live-checklist
+    ```
+
+12. Complete the live browser smoke: admin creates class/invite, publishes original text and image
+    smoke questions, student signs up in a separate browser profile, sees published content, submits
+    an attempt, dashboard updates, and archived content disappears.
+
+`npm run smoke:supabase` is implemented by `scripts/smoke-supabase.ts`. If present,
+`npm run check:production-readiness` points at `scripts/check-production-readiness.ts`, and
+`npm run smoke:live-checklist` points at `scripts/live-smoke-checklist.ts`. Treat all three as
+repeatable evidence helpers, not replacements for the dashboard and live browser checks.
 
 ## Access Needed
 
@@ -45,6 +114,8 @@ Evidence to keep:
 
 - Terminal output showing all four commands passed on the deploy commit.
 - Confirmation that `.env` points at the production Supabase project when running cloud smoke checks.
+- Confirmation that `.env`, passwords, invite codes, TOTP seeds/codes, and service-role keys are not
+  committed or pasted into docs.
 
 ## 2. Run Supabase SQL
 
@@ -247,6 +318,9 @@ Evidence to keep:
 - SQL output showing linked `public.media_records` and `public.question_media` rows for
   `smoke-image-001`.
 - Screenshot/checkpoint after archive showing the student can no longer see the smoke question.
+- A note that all smoke questions, images, rubrics, and explanations are original throwaway content
+  or have explicit owner-confirmed rights.
+- A note that secrets were redacted before screenshots or logs were stored outside Git.
 
 ## 9. Roll Back If Needed
 

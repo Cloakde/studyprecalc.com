@@ -1,7 +1,7 @@
-# M9/M10 Owner Handoff
+# M17/M18 Owner Evidence Handoff
 
-Use this as the final owner-facing handoff for M9 production activation preflight and M10 admin
-content workflow QA. The detailed runbooks remain:
+Use this as the owner-facing evidence packet for M17 production activation support and M18 live
+admin/student smoke support. The detailed runbooks remain:
 
 - [Production activation](production-activation.md)
 - [Deployment](deployment.md)
@@ -9,15 +9,19 @@ content workflow QA. The detailed runbooks remain:
 
 ## Operating Contract
 
-- M9 proves the production stack is ready: local checks, Supabase schema/storage/auth/MFA, Vercel
-  env vars, deployment, domain, and smoke output.
-- M10 proves the admin content workflow is ready: draft, publish, archive, student visibility,
-  dashboard persistence, and image upload/render/deny-after-archive.
+- M17 proves the production stack is ready: local checks, Supabase schema/storage/auth/MFA, Vercel
+  env vars, deployment, apex and optional `www` domain, and smoke output.
+- M18 proves the live admin/student workflow is ready: invite signup, email-code verification when
+  enabled, admin `aal2`, class invite, draft, publish, archive, student visibility, dashboard
+  persistence, and image upload/render/deny-after-archive.
 - Codex can verify repository checks, local smoke commands, and public HTTP/DNS after deployment.
 - The owner must complete Supabase, Vercel, registrar, inbox, and production account actions that
   require dashboard access or real credentials.
 - Keep secrets, invite codes, passwords, TOTP seeds, screenshots with private values, and Supabase
   service-role keys out of Git.
+- Keep AP, College Board, and third-party copyrighted prompts, diagrams, rubrics, explanations, and
+  images out of smoke tests unless the owner has confirmed usage rights. Prefer original throwaway
+  questions and generated or hand-authored images.
 
 ## Evidence Packet
 
@@ -25,6 +29,8 @@ Keep this evidence outside the repository:
 
 - Deployed commit SHA and Vercel deployment URL.
 - Terminal output for `npm run validate:content`, `npm test`, `npm run lint`, and `npm run build`.
+- Confirmation that no `.env` file, service-role key, passwords, invite codes, TOTP seeds/codes, or
+  unredacted screenshots were committed to Git.
 - Supabase SQL Editor success for `supabase/schema.sql`.
 - Supabase verification query output for required tables, RLS policies, and the private
   `question-images` bucket.
@@ -38,9 +44,62 @@ Keep this evidence outside the repository:
   `aal2` admin session, and Admin / Manage Content / Classes visible in the deployed app.
 - `npm run smoke:supabase` output. If write smoke is run, include the `[PASS] cloud image write path`
   output.
-- M10 admin content evidence from the smoke steps below.
+- M18 admin/student smoke evidence from the smoke steps below.
+- Rights confirmation for every smoke question, image, rubric, and explanation.
 
-## M9 Activation Pass
+## Command Order
+
+1. Verify the deploy commit:
+
+   ```sh
+   npm run validate:content
+   npm test
+   npm run lint
+   npm run build
+   ```
+
+2. Run `supabase/schema.sql` in Supabase SQL Editor.
+3. Run the SQL verification queries in [Supabase setup](supabase-setup.md#verify-sql-setup).
+4. Configure Supabase Auth Site URL, redirects, email-code template, and admin TOTP MFA.
+5. Bootstrap or verify the owner admin account and complete MFA to `aal2`.
+6. Set Vercel Production env vars and redeploy:
+
+   ```txt
+   VITE_SUPABASE_URL=https://cwjmaxeaszaklbjwlvyg.supabase.co
+   VITE_SUPABASE_ANON_KEY=<Supabase publishable key or legacy anon public key>
+   ```
+
+7. Verify `studyprecalc.com` and `www.studyprecalc.com` DNS/HTTP.
+8. Optionally run the repo-side production readiness helper if it is available:
+
+   ```sh
+   npm run check:production-readiness
+   ```
+
+9. Run read-only cloud smoke:
+
+   ```sh
+   npm run smoke:supabase
+   ```
+
+10. Rerun smoke with admin credentials and the current TOTP code.
+11. Rerun with `SMOKE_WRITE=1` only after both real admin and student smoke accounts exist.
+12. Optionally print the live smoke checklist helper if it is available:
+
+    ```sh
+    npm run smoke:live-checklist
+    ```
+
+13. Complete live browser smoke in the deployed app with a real admin and a separate real student
+    session.
+
+The smoke command is backed by `scripts/smoke-supabase.ts`. If present,
+`npm run check:production-readiness` is backed by `scripts/check-production-readiness.ts`, and
+`npm run smoke:live-checklist` is backed by `scripts/live-smoke-checklist.ts`. These commands are
+useful evidence helpers, but they do not replace the manual Supabase SQL results, Vercel/DNS proof,
+inbox email-code check, or live browser admin/student screenshots.
+
+## M17 Activation Pass
 
 1. Run local verification on the deployment commit:
 
@@ -63,7 +122,7 @@ Keep this evidence outside the repository:
 7. Run `npm run smoke:supabase` against the production Supabase project. Add admin/student smoke
    credentials and `SMOKE_WRITE=1` only when the owner intentionally wants the write path tested.
 
-## M10 Admin Content Smoke
+## M18 Admin/Student Smoke
 
 Use only original throwaway content. Do not use AP, College Board, or third-party questions,
 rubrics, diagrams, or images unless the owner has confirmed usage rights.

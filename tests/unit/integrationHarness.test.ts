@@ -3,18 +3,24 @@ import {
   loadAccountPayload,
   saveAccountPayload,
 } from '../../src/data/localAccountStore';
+import { saveAttemptsToStorage } from '../../src/data/localAttemptStore';
 import { createLocalClass, loadClassPayload } from '../../src/data/localClassStore';
 import { createLocalInvite, loadInvitePayload } from '../../src/data/localInviteStore';
 import { createLocalQuestionContentStore } from '../../src/data/localQuestionContentStore';
+import { saveSessionsToStorage } from '../../src/data/localSessionStore';
 import { createQuestionContentStoreWithFallback } from '../../src/data/questionContentStore';
+import { createMcqAttempt } from '../../src/domain/attempts';
+import { createSessionResult } from '../../src/domain/sessions';
 import {
   canUseAdminSurfaces,
   createFailingQuestionContentStore,
   createIntegrationMcqQuestion,
   createMemoryStorage,
+  loadPersistedDashboardState,
   loadVisibleQuestionIdsForRole,
   signupLocalAccountThroughInvite,
 } from '../fixtures/integrationHarness';
+import { testQuestionSet } from '../fixtures/testQuestions';
 
 describe('integration harness invite signup flow', () => {
   it('validates, signs up, consumes an invite, and enrolls the student locally', async () => {
@@ -252,5 +258,185 @@ describe('integration harness local fallback and empty banks', () => {
       'saveQuestion',
       'listPublishedQuestions',
     ]);
+  });
+});
+
+describe('integration harness live smoke expectations', () => {
+  it('simulates invite enrollment, content visibility, and dashboard persistence without network access', async () => {
+    const storage = createMemoryStorage();
+    const accountStorageKey = 'integration.live.accounts';
+    const attemptStorageKey = 'integration.live.attempts';
+    const classStorageKey = 'integration.live.classes';
+    const contentStorageKey = 'integration.live.content';
+    const inviteStorageKey = 'integration.live.invites';
+    const sessionStorageKey = 'integration.live.sessions';
+    const publishedQuestion = createIntegrationMcqQuestion('live-published');
+    const draftQuestion = createIntegrationMcqQuestion('live-draft');
+    const archivedQuestion = createIntegrationMcqQuestion('live-archived');
+    const contentStore = createLocalQuestionContentStore({
+      storage,
+      storageKey: contentStorageKey,
+      now: () => new Date('2026-05-15T09:00:00.000Z'),
+    });
+
+    createLocalClass(
+      {
+        name: 'Live Smoke Period',
+        createdBy: 'admin-live',
+      },
+      {
+        storage,
+        storageKey: classStorageKey,
+        now: () => new Date('2026-05-15T08:00:00.000Z'),
+        createId: () => 'class-live',
+      },
+    );
+    createLocalInvite(
+      {
+        code: 'live-smoke',
+        email: 'smoke.student@example.com',
+        classId: 'class-live',
+        createdByAccountId: 'admin-live',
+        expiresAt: '2026-05-16T08:00:00.000Z',
+      },
+      {
+        storage,
+        storageKey: inviteStorageKey,
+        now: () => new Date('2026-05-15T08:05:00.000Z'),
+        createId: () => 'invite-live',
+      },
+    );
+
+    const signup = await signupLocalAccountThroughInvite(
+      {
+        displayName: 'Smoke Student',
+        email: 'smoke.student@example.com',
+        password: 'secret1',
+        inviteCode: 'live-smoke',
+      },
+      {
+        storage,
+        accountStorageKey,
+        classStorageKey,
+        inviteStorageKey,
+        accountId: 'student-live',
+        enrollmentId: 'enrollment-live',
+      },
+    );
+
+    await contentStore.saveQuestion({
+      question: draftQuestion,
+      status: 'draft',
+      updatedBy: 'admin-live',
+      now: '2026-05-15T09:00:00.000Z',
+    });
+    await contentStore.saveQuestion({
+      question: publishedQuestion,
+      status: 'published',
+      updatedBy: 'admin-live',
+      now: '2026-05-15T09:05:00.000Z',
+    });
+    await contentStore.saveQuestion({
+      question: archivedQuestion,
+      status: 'published',
+      updatedBy: 'admin-live',
+      now: '2026-05-15T09:10:00.000Z',
+    });
+    await contentStore.setPublicationStatus(archivedQuestion.id, 'archived', {
+      updatedBy: 'admin-live',
+      now: '2026-05-15T09:15:00.000Z',
+    });
+
+    const linkedAttempt = createMcqAttempt({
+      id: 'attempt-live-session',
+      question: publishedQuestion,
+      selectedChoiceId: 'A',
+      startedAt: '2026-05-15T10:00:00.000Z',
+      submittedAt: '2026-05-15T10:01:00.000Z',
+    });
+    const standaloneAttempt = createMcqAttempt({
+      id: 'attempt-live-standalone',
+      question: publishedQuestion,
+      selectedChoiceId: 'B',
+      startedAt: '2026-05-15T10:30:00.000Z',
+      submittedAt: '2026-05-15T10:31:00.000Z',
+    });
+    const session = createSessionResult({
+      id: 'session-live',
+      questionSetVersion: testQuestionSet.version,
+      questions: [publishedQuestion],
+      responses: {
+        [publishedQuestion.id]: {
+          startedAt: '2026-05-15T10:00:00.000Z',
+          submittedAt: '2026-05-15T10:01:00.000Z',
+          selectedChoiceId: 'A',
+          partResponses: {},
+          earnedPointsByCriterion: {},
+          attemptId: linkedAttempt.id,
+        },
+      },
+      markedQuestionIds: [],
+      startedAt: '2026-05-15T10:00:00.000Z',
+      submittedAt: '2026-05-15T10:01:00.000Z',
+      filters: {
+        type: 'mcq',
+        unit: 'all',
+        difficulty: 'all',
+        calculator: 'all',
+      },
+    });
+
+    saveAttemptsToStorage([linkedAttempt, standaloneAttempt], storage, attemptStorageKey);
+    saveSessionsToStorage([session], storage, sessionStorageKey);
+
+    expect(signup).toMatchObject({
+      validation: { status: 'valid' },
+      account: { id: 'student-live', role: 'student' },
+      consumedInvite: {
+        status: 'consumed',
+        invite: {
+          code: 'LIVE-SMOKE',
+          consumedByAccountId: 'student-live',
+        },
+      },
+      enrollment: {
+        id: 'enrollment-live',
+        classId: 'class-live',
+        accountId: 'student-live',
+      },
+    });
+    await expect(loadVisibleQuestionIdsForRole(contentStore, 'student')).resolves.toEqual([
+      publishedQuestion.id,
+    ]);
+    await expect(loadVisibleQuestionIdsForRole(contentStore, 'admin')).resolves.toEqual([
+      draftQuestion.id,
+      publishedQuestion.id,
+    ]);
+
+    const reloadedDashboard = loadPersistedDashboardState({
+      storage,
+      attemptStorageKey,
+      sessionStorageKey,
+      questions: [publishedQuestion],
+    });
+
+    expect(reloadedDashboard.attempts.map((attempt) => attempt.id)).toEqual([
+      standaloneAttempt.id,
+      linkedAttempt.id,
+    ]);
+    expect(reloadedDashboard.sessions.map((storedSession) => storedSession.id)).toEqual([
+      session.id,
+    ]);
+    expect(reloadedDashboard.analytics.unitTrends[0]).toMatchObject({
+      label: publishedQuestion.unit,
+      questionCount: 2,
+      score: 1,
+      maxScore: 2,
+      missedCount: 1,
+    });
+    expect(reloadedDashboard.analytics.recommendedNext).toMatchObject({
+      availableQuestionIds: [publishedQuestion.id],
+      skill: publishedQuestion.skill,
+    });
   });
 });

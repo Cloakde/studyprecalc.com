@@ -2,8 +2,8 @@
 
 Use this runbook to prepare the production Supabase project for Study Precalc.
 
-For the ordered owner-facing M8 launch flow, start with
-[M8 Production Activation Checklist](production-activation.md).
+For the ordered owner-facing M17/M18 launch flow, start with
+[M17/M18 Production Activation Checklist](production-activation.md).
 
 ## Project Values
 
@@ -15,6 +15,11 @@ For the ordered owner-facing M8 launch flow, start with
 
 The frontend uses only browser-safe Supabase keys. Never put a `service_role` key in `.env`,
 Vercel environment variables, frontend code, or docs examples.
+
+For M17/M18, save Supabase evidence outside Git and redact private values before sharing screenshots
+or terminal output. Required owner evidence includes schema success, verification query output,
+Auth redirect/email-code settings, owner admin role, verified TOTP MFA, invite consumption, and
+admin/student smoke results.
 
 ## Environment Variables
 
@@ -102,6 +107,10 @@ class access, media metadata, and `question-images` storage objects. Admin-manag
 should require both `profiles.role = 'admin'` and an `aal2` Supabase session.
 
 Save these three query results with the activation evidence.
+
+These SQL checks come before any app smoke. If any table, policy, RPC, or the `question-images`
+bucket is missing, stop and rerun the full `supabase/schema.sql` before creating production smoke
+accounts or content.
 
 ## Configure Auth
 
@@ -214,6 +223,14 @@ When a smoke failure is caused by missing production setup, the command also pri
 `Next owner action(s):` with the likely dashboard-side fix, such as rerunning
 `supabase/schema.sql`, confirming the private `question-images` bucket, bootstrapping a real admin,
 or adding the current admin TOTP code.
+
+The CLI smoke path is implemented in `scripts/smoke-supabase.ts` and exposed as
+`npm run smoke:supabase`. It supplements the manual SQL and live browser evidence; it does not
+replace owner verification in the Supabase dashboard or the deployed app.
+
+If present, `npm run smoke:live-checklist` prints a manual M18 checklist from
+`scripts/live-smoke-checklist.ts`. Use it as a worksheet for evidence capture, not as proof that the
+browser smoke passed.
 
 ## Bootstrap The First Admin
 
@@ -441,12 +458,17 @@ Expected result: one row for the class-scoped invite.
 Evidence to keep: SQL output for the invalid invite, mismatch invite, consumed invite, reused
 invite, and class enrollment checks.
 
+Do not save raw invite codes in Git. Store activation invite codes and screenshots with visible codes
+only in the owner's private evidence packet.
+
 Signup without an invite should fail at the database trigger. The normal app UI does not expose a
 no-invite submit path, so treat any successful no-invite account creation as a production blocker.
 
 ## Content Publishing Smoke Test
 
 Use only original throwaway content for this test.
+Do not use AP, College Board, or third-party copyrighted prompts, rubrics, diagrams, explanations, or
+images unless the owner has confirmed usage rights.
 
 1. Log in as an admin.
 2. Complete the MFA gate if the current session is not already `aal2`.

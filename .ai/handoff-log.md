@@ -504,3 +504,12 @@ Use this file as an append-only record whenever an agent finishes, pauses, or ha
 - Decisions made: Keep AI FRQ grading disabled by default and provider-neutral; require explicit Gemini model configuration before enabling; no external AI API calls or browser-exposed provider keys were added.
 - Browser note: Bundled Playwright automation was unavailable because the local runtime package is missing `playwright-core`; unit accessibility coverage, build checks, and HTTP smoke passed.
 - Next recommended step: Owner completes the Supabase/DNS/account activation blockers, then continue with live admin/student smoke and question authoring only when the owner is ready to add original content.
+
+### 2026-05-15 - Codex + Agents - M17/M18 Execution
+
+- Status: Repo-side M17/M18 support complete. M17 production activation remains blocked on owner-side Supabase SQL/bucket/account setup and optional `www` DNS. M18 live-smoke support is ready for the owner to run manually after activation.
+- Files changed: Added `scripts/check-production-readiness.ts`, `scripts/live-smoke-checklist.ts`, tests for both scripts, integration-harness coverage for live-smoke expectations, package scripts, and updated owner runbooks/docs.
+- Verification: Ran `npm test` (167 tests), `npm run lint`, `npm run build`, `npm run validate:content`, `git diff --check`, `npm run check:production-readiness`, optional `www` readiness check, `npm run smoke:live-checklist -- --base-url https://studyprecalc.com --run-label "M18 integrated smoke" --no-cleanup`, targeted M17/M18 tests, and `npm run smoke:supabase`.
+- Production findings: `studyprecalc.com` passes env/DNS/HTTPS readiness. `www.studyprecalc.com` fails when explicitly checked because no DNS exists. `npm run smoke:supabase` still fails on missing `public.validate_invite`, missing/inaccessible `public.questions`, and missing `question-images` bucket.
+- Decisions made: Keep live smoke as a manual evidence checklist rather than browser automation, because production account creation, email inboxes, MFA, and smoke content require owner-controlled access and evidence.
+- Next recommended step: Owner runs `supabase/schema.sql`, verifies the Storage bucket/Auth settings, creates real admin/student smoke accounts, optionally configures `www`, then runs `npm run smoke:supabase`, `npm run check:production-readiness`, and `npm run smoke:live-checklist`.

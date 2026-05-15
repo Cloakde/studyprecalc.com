@@ -44,8 +44,8 @@ One-line map of every doc and folder in this repo. Update this when you add, rem
 
 ## Operations (`docs/operations/`)
 
-- [docs/operations/production-activation.md](operations/production-activation.md) - owner-facing M8 checklist for local verification, Supabase activation, admin MFA, Vercel deployment, domain connection, smoke tests, and rollback.
-- [docs/operations/m9-m10-owner-handoff.md](operations/m9-m10-owner-handoff.md) - concise M9/M10 owner handoff for activation evidence, admin content lifecycle QA, image smoke, and owner-only blockers.
+- [docs/operations/production-activation.md](operations/production-activation.md) - owner-facing M17/M18 checklist for command order, Supabase activation, admin MFA, Vercel deployment, domain connection, live smoke tests, evidence, and rollback.
+- [docs/operations/m9-m10-owner-handoff.md](operations/m9-m10-owner-handoff.md) - concise M17/M18 owner evidence handoff for activation evidence, live admin/student workflow QA, image smoke, command order, and owner-only blockers.
 - [docs/operations/deployment.md](operations/deployment.md) - Vercel deployment, environment variables, `studyprecalc.com` domain setup, deploy checks, and rollback.
 - [docs/operations/supabase-setup.md](operations/supabase-setup.md) - Supabase SQL, environment variables, Auth/MFA, Storage, first admin bootstrap, invite setup, and content publishing smoke tests.
 
@@ -94,4 +94,4 @@ One-line map of every doc and folder in this repo. Update this when you add, rem
 - `tests/unit/` — unit tests.
 - `tests/integration/` — integration tests.
 - `tests/fixtures/` — shared test fixtures.
-- `scripts/` — project automation scripts.
+- `scripts/` — project automation scripts, including content validation, Supabase smoke, optional production readiness, and optional live smoke checklist helpers.

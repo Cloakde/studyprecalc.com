@@ -2,8 +2,8 @@
 
 First public deployment target: Vercel.
 
-For the ordered owner-facing M8 launch flow, start with
-[M8 Production Activation Checklist](production-activation.md).
+For the ordered owner-facing M17/M18 launch flow, start with
+[M17/M18 Production Activation Checklist](production-activation.md).
 
 Complete [Supabase setup](supabase-setup.md) before relying on production accounts, invites,
 published content, question image uploads, saved attempts, or dashboard persistence.
@@ -33,6 +33,19 @@ npm run build
 Do not treat a build as ready for students until these pass on the branch or commit being deployed.
 
 Evidence to keep: terminal output showing these commands passed on the exact commit deployed.
+
+Do this before any Vercel deploy or redeploy. After the deploy is live, continue with Supabase smoke
+and browser checks in [M17/M18 Production Activation Checklist](production-activation.md). Keep
+secrets out of terminal captures and never commit `.env`.
+
+Optional helper if present:
+
+```sh
+npm run check:production-readiness
+```
+
+This checks production env shape plus DNS/HTTP reachability. It supplements, but does not replace,
+the Vercel dashboard, registrar, and live browser evidence.
 
 ## Vercel Environment Variables
 
@@ -157,6 +170,9 @@ Expected result: each URL resolves and returns HTTP 200 after redirects.
 
 Evidence to keep: DNS command output and HTTP status output.
 
+If `www.studyprecalc.com` is intentionally deferred, record that explicitly in the owner evidence
+packet. Otherwise treat a missing `www` DNS/HTTP result as an unresolved launch blocker.
+
 App-level checks:
 
 1. Open `https://studyprecalc.com`.
@@ -181,6 +197,11 @@ admin writes unless the Supabase session is `aal2`.
 Evidence to keep: admin MFA checkpoint, admin UI checkpoint, student private-window checkpoint,
 Supabase smoke script output, SQL query results from the linked Supabase smoke tests, and dashboard
 persistence checkpoint.
+
+Use only original smoke questions and original or owner-approved images. Do not use AP, College
+Board, or third-party copyrighted questions, images, rubrics, or explanations unless the owner has
+confirmed rights. Do not include passwords, invite codes, TOTP seeds/codes, or Supabase service-role
+keys in the saved evidence.
 
 Supabase Auth domain checks:
 
