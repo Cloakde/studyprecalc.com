@@ -1,8 +1,10 @@
 import { createInvite, type InviteCodeRecord } from '../../src/domain/invites';
 import {
+  checkSupabaseInviteCode,
   inviteFromSupabaseRow,
   inviteToSupabaseInsertRow,
   inviteToSupabaseRow,
+  publicInviteValidationFromSupabaseRpc,
 } from '../../src/data/supabase/inviteStore';
 
 function createInviteRecord(overrides: Partial<InviteCodeRecord> = {}): InviteCodeRecord {
@@ -76,5 +78,76 @@ describe('supabase invite row mapping', () => {
       email: 'student@example.com',
       class_id: 'class-1',
     });
+  });
+});
+
+describe('supabase public invite validation', () => {
+  it('maps the validate_invite RPC response into a public validation result', () => {
+    expect(publicInviteValidationFromSupabaseRpc([{ is_valid: true, reason: null }])).toEqual({
+      status: 'valid',
+    });
+    expect(publicInviteValidationFromSupabaseRpc([{ is_valid: false, reason: 'used' }])).toEqual({
+      status: 'used',
+      reason: 'used',
+    });
+    expect(
+      publicInviteValidationFromSupabaseRpc([{ is_valid: false, reason: 'email-mismatch' }]),
+    ).toEqual({
+      status: 'invalid',
+      reason: 'email-mismatch',
+    });
+  });
+
+  it('checks invite availability through the public Supabase RPC with normalized inputs', async () => {
+    const rpcCalls: unknown[] = [];
+    const client = {
+      async rpc(functionName: string, parameters: Record<string, string | null>) {
+        rpcCalls.push({ functionName, parameters });
+
+        return {
+          data: [{ is_valid: true, reason: null }],
+          error: null,
+        };
+      },
+    };
+
+    await expect(
+      checkSupabaseInviteCode(
+        {
+          code: ' cloud-2026 ',
+          email: ' Student@Example.com ',
+        },
+        client,
+      ),
+    ).resolves.toEqual({ status: 'valid' });
+    expect(rpcCalls).toEqual([
+      {
+        functionName: 'validate_invite',
+        parameters: {
+          p_code: 'CLOUD-2026',
+          p_email: 'student@example.com',
+        },
+      },
+    ]);
+  });
+
+  it('rejects invalid invite code formats before calling Supabase', async () => {
+    const rpcCalls: unknown[] = [];
+    const client = {
+      async rpc() {
+        rpcCalls.push({});
+
+        return {
+          data: [{ is_valid: true, reason: null }],
+          error: null,
+        };
+      },
+    };
+
+    await expect(checkSupabaseInviteCode('a', client)).resolves.toEqual({
+      status: 'invalid',
+      reason: 'invalid-code',
+    });
+    expect(rpcCalls).toEqual([]);
   });
 });

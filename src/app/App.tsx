@@ -23,7 +23,7 @@ import { useSupabaseInviteStore } from '../data/supabase/inviteStore';
 import { uploadSupabaseImage } from '../data/supabase/mediaStore';
 import { useSupabaseQuestionContentStore } from '../data/supabase/questionContentStore';
 import { useSupabaseSessionStore } from '../data/supabase/sessionStore';
-import { AccountAuth } from './components/AccountAuth';
+import { AccountAuth, type SignupInviteValidationInput } from './components/AccountAuth';
 import { AdminClassManager } from './components/AdminClassManager';
 import { AdminMfaGate, type AdminMfaRequirement } from './components/AdminMfaGate';
 import { AttemptReview } from './components/AttemptReview';
@@ -110,6 +110,27 @@ function isLocalDevAdminLogin(input: LoginInput): boolean {
     input.email.trim().toLowerCase() === localDevAdminEmail &&
     input.password === localDevAdminPassword
   );
+}
+
+function getInviteValidationMessage(reason?: string): string {
+  switch (reason) {
+    case 'empty-code':
+    case 'missing':
+      return 'Enter an invite code to continue.';
+    case 'invalid-code':
+      return 'Invite code format is not valid.';
+    case 'email-mismatch':
+      return 'Invite code does not match this email address.';
+    case 'expired':
+      return 'Invite code has expired.';
+    case 'used':
+      return 'Invite code has already been used.';
+    case 'revoked':
+      return 'Invite code has been revoked.';
+    case 'not-found':
+    default:
+      return 'Invite code is not available.';
+  }
 }
 
 function filenameToAltText(fileName: string): string {
@@ -370,6 +391,19 @@ export function App() {
     return account;
   }
 
+  async function validateSignupInvite(input: SignupInviteValidationInput) {
+    const validation = await activeInviteStore.validateInviteCode({
+      code: input.code,
+      email: input.email,
+    });
+
+    if (validation.status !== 'valid') {
+      throw new Error(getInviteValidationMessage(validation.reason));
+    }
+
+    return validation;
+  }
+
   function logoutAccount() {
     setUnauthView('home');
 
@@ -411,6 +445,7 @@ export function App() {
         onLogin={loginAccount}
         onResendEmailCode={isSupabaseConfigured ? supabaseAccountStore.resendEmailCode : undefined}
         onSignup={signupAccount}
+        onValidateInviteCode={validateSignupInvite}
         onVerifyEmailCode={isSupabaseConfigured ? supabaseAccountStore.verifyEmailCode : undefined}
         supportingNotice={
           import.meta.env.DEV

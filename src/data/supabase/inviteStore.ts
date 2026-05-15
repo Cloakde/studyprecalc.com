@@ -12,6 +12,7 @@ import {
   validateInviteCode as validateInviteCodeInDomain,
   type InviteCodeRecord,
   type InviteConsumeResult,
+  type InvalidInviteReason,
   type InviteRole,
   type InviteValidationResult,
 } from '../../domain/invites';
@@ -35,6 +36,27 @@ export type InviteInsertRow = Omit<InviteRow, 'id'>;
 
 export type SupabaseInviteCodeLookup = string | { code: string; email?: string };
 
+export type PublicInviteValidationResult =
+  | {
+      status: 'valid';
+    }
+  | {
+      status: 'invalid';
+      reason: InvalidInviteReason;
+    }
+  | {
+      status: 'expired';
+      reason: 'expired';
+    }
+  | {
+      status: 'used';
+      reason: 'used';
+    }
+  | {
+      status: 'revoked';
+      reason: 'revoked';
+    };
+
 export type ConsumeSupabaseInviteInput = {
   code: string;
   accountId: string;
@@ -54,6 +76,21 @@ export type UseSupabaseInviteStoreOptions = {
   now?: () => Date;
   createId?: () => string;
   createCode?: () => string;
+};
+
+type SupabaseValidateInviteRow = {
+  is_valid: boolean;
+  reason: string | null;
+};
+
+type SupabaseInviteRpcClient = {
+  rpc: (
+    functionName: string,
+    parameters: Record<string, string | null>,
+  ) => PromiseLike<{
+    data: unknown;
+    error: { message: string } | null;
+  }>;
 };
 
 function createBrowserId(prefix: string): string {
@@ -83,6 +120,65 @@ function createBrowserInviteCode(): string {
 
 function normalizeLookup(input: SupabaseInviteCodeLookup): { code: string; email?: string } {
   return typeof input === 'string' ? { code: input } : input;
+}
+
+function normalizeRpcReason(reason: string | null | undefined): PublicInviteValidationResult {
+  switch (reason) {
+    case 'missing':
+    case 'empty-code':
+      return {
+        status: 'invalid',
+        reason: 'empty-code',
+      };
+    case 'invalid-code':
+    case 'not-found':
+    case 'email-mismatch':
+      return {
+        status: 'invalid',
+        reason: reason as InvalidInviteReason,
+      };
+    case 'expired':
+      return {
+        status: 'expired',
+        reason: 'expired',
+      };
+    case 'used':
+      return {
+        status: 'used',
+        reason: 'used',
+      };
+    case 'revoked':
+      return {
+        status: 'revoked',
+        reason: 'revoked',
+      };
+    default:
+      return {
+        status: 'invalid',
+        reason: 'not-found',
+      };
+  }
+}
+
+export function publicInviteValidationFromSupabaseRpc(data: unknown): PublicInviteValidationResult {
+  const row = Array.isArray(data) ? data[0] : data;
+
+  if (!row || typeof row !== 'object') {
+    return {
+      status: 'invalid',
+      reason: 'not-found',
+    };
+  }
+
+  const result = row as Partial<SupabaseValidateInviteRow>;
+
+  if (result.is_valid === true) {
+    return {
+      status: 'valid',
+    };
+  }
+
+  return normalizeRpcReason(result.reason);
 }
 
 export function inviteFromSupabaseRow(row: InviteRow): InviteCodeRecord {
@@ -239,6 +335,39 @@ export async function validateSupabaseInviteCode(
   });
 }
 
+export async function checkSupabaseInviteCode(
+  input: SupabaseInviteCodeLookup,
+  client: SupabaseInviteRpcClient | undefined = supabase as unknown as
+    | SupabaseInviteRpcClient
+    | undefined,
+): Promise<PublicInviteValidationResult> {
+  if (!client) {
+    throw new Error('Supabase is not configured.');
+  }
+
+  const lookup = normalizeLookup(input);
+  const code = normalizeInviteCode(lookup.code);
+
+  if (!code || !isInviteCodeFormatValid(code)) {
+    return validateInviteCodeInDomain({
+      code,
+      invites: [],
+      ...(lookup.email ? { email: lookup.email } : {}),
+    });
+  }
+
+  const { data, error } = await client.rpc('validate_invite', {
+    p_code: code,
+    p_email: lookup.email?.trim() ? lookup.email.trim().toLowerCase() : null,
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return publicInviteValidationFromSupabaseRpc(data);
+}
+
 export async function consumeSupabaseInviteCode(
   input: ConsumeSupabaseInviteInput,
   options: Pick<UseSupabaseInviteStoreOptions, 'now'> = {},
@@ -375,8 +504,8 @@ export function useSupabaseInviteStore({
   );
 
   const validateCode = useCallback(
-    (input: SupabaseInviteCodeLookup) => validateSupabaseInviteCode(input, { now }),
-    [now],
+    (input: SupabaseInviteCodeLookup) => checkSupabaseInviteCode(input),
+    [],
   );
 
   const consumeCode = useCallback(

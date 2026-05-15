@@ -438,3 +438,11 @@ Use this file as an append-only record whenever an agent finishes, pauses, or ha
 - Verification: Ran `npm test -- supabaseAccountStore`, targeted ESLint for auth files, `npx tsc --noEmit --pretty false`, `npm run validate:content`, `npm test` (124 tests), `npm run lint`, and `npm run build`. All passed.
 - Decisions made: Preserved invite-only signup. The verification step appears only after an accepted invite and a Supabase signup result that requires email confirmation; resend uses Supabase's signup resend endpoint.
 - Next recommended step: In Supabase, enable email confirmation and edit Auth -> Email Templates -> Confirm signup so the email visibly includes the `{{ .Token }}` six-digit code, then test one invite signup.
+
+### 2026-05-15 - Codex - AUTH-009
+
+- Status: Complete for pre-signup invite validation. Random non-empty invite codes no longer unlock the account creation form.
+- Files changed: Updated `src/app/components/AccountAuth.tsx`, `src/app/App.tsx`, `src/data/supabase/inviteStore.ts`, `tests/unit/supabaseInviteMapping.test.ts`, and coordination files.
+- Verification: Ran `npm test -- supabaseInviteMapping localInviteStore`, targeted ESLint for auth/invite files, `npx tsc --noEmit --pretty false`, `npm run validate:content`, `npm test` (127 tests), `npm run lint`, and `npm run build`. All passed.
+- Decisions made: The invite unlock screen now asks for email plus invite code so email-bound invites can be checked before the account form opens. Supabase pre-validation uses the public `validate_invite` RPC; the final database trigger remains the source of truth during signup.
+- Browser note: DOM smoke confirmed the invite screen has Email and Invite Code before unlock. Browser automation could not submit the form because the plugin still cannot type into `type=email` inputs.

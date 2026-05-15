@@ -4,9 +4,15 @@ import { type FormEvent, useState } from 'react';
 import type { LoginInput, SignupInput } from '../../data/localAccountStore';
 import type { EmailVerificationInput } from '../../data/supabase/accountStore';
 
+export type SignupInviteValidationInput = {
+  code: string;
+  email: string;
+};
+
 type AccountAuthProps = {
   onLogin: (input: LoginInput) => Promise<unknown>;
   onSignup: (input: SignupInput) => Promise<unknown>;
+  onValidateInviteCode: (input: SignupInviteValidationInput) => Promise<unknown> | unknown;
   onVerifyEmailCode?: (input: EmailVerificationInput) => Promise<unknown>;
   onResendEmailCode?: (email: string) => Promise<unknown>;
   backendLabel?: string;
@@ -51,6 +57,7 @@ export function AccountAuth({
   onLogin,
   onResendEmailCode,
   onSignup,
+  onValidateInviteCode,
   onVerifyEmailCode,
   supportingNotice,
 }: AccountAuthProps) {
@@ -157,7 +164,7 @@ export function AccountAuth({
     }
   }
 
-  function submitInviteCode(event: FormEvent<HTMLFormElement>) {
+  async function submitInviteCode(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setNotice('');
     setError('');
@@ -167,10 +174,26 @@ export function AccountAuth({
       return;
     }
 
-    setIsInviteSignupUnlocked(true);
-    setAcceptedInviteCode(inviteCode.trim().toUpperCase());
-    setInviteCode('');
-    setNotice(INVITE_SIGNUP_UNLOCKED_MESSAGE);
+    if (!email.trim()) {
+      setError('Enter the email address the invite was sent to.');
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      await onValidateInviteCode({
+        code: inviteCode,
+        email,
+      });
+      setIsInviteSignupUnlocked(true);
+      setAcceptedInviteCode(inviteCode.trim().toUpperCase());
+      setInviteCode('');
+      setNotice(INVITE_SIGNUP_UNLOCKED_MESSAGE);
+    } catch (authError) {
+      setError(authError instanceof Error ? authError.message : 'Invite code is not available.');
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   const authHeading =
@@ -277,6 +300,16 @@ export function AccountAuth({
         ) : mode === 'signup' && !canUseSignup ? (
           <form className="auth-form auth-form--invite" onSubmit={submitInviteCode}>
             <label>
+              Email
+              <input
+                autoComplete="email"
+                onChange={(event) => setEmail(event.target.value)}
+                required
+                type="email"
+                value={email}
+              />
+            </label>
+            <label>
               Invite Code
               <input
                 autoComplete="one-time-code"
@@ -286,9 +319,9 @@ export function AccountAuth({
                 value={inviteCode}
               />
             </label>
-            <button className="primary-button" type="submit">
+            <button className="primary-button" disabled={isSubmitting} type="submit">
               <KeyRound aria-hidden="true" />
-              Unlock Sign Up
+              {isSubmitting ? 'Checking...' : 'Unlock Sign Up'}
             </button>
           </form>
         ) : (
