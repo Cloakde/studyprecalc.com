@@ -20,6 +20,8 @@ describe('practice accessibility semantics', () => {
     expect(markup).toContain('Your response for part a');
     expect(markup).toContain('Your response for part b');
     expect(markup).toContain('<section class="frq-part"');
+    expect(markup).toContain('Press Ctrl+Enter or Command+Enter');
+    expect(markup).toContain('aria-describedby=');
   });
 
   it('exposes question navigation and explanation reveal state', () => {
@@ -45,5 +47,18 @@ describe('practice accessibility semantics', () => {
     expect(markup).toContain('aria-current="true"');
     expect(markup).toContain('aria-expanded="false"');
     expect(markup).toContain('2 questions match the current filters.');
+  });
+
+  it('uses FRQ-specific full explanation language before answer reveal', () => {
+    const markup = renderToStaticMarkup(
+      createElement(QuestionPractice, {
+        questions: [testFrqQuestion],
+        questionSetVersion: 'test',
+      }),
+    );
+
+    expect(markup).toContain('<h2>Full Explanation</h2>');
+    expect(markup).toContain('Show Full Explanation');
+    expect(markup).toContain('sample responses and expected work');
   });
 });

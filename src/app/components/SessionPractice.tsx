@@ -9,7 +9,7 @@ import {
   RotateCcw,
   XCircle,
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 
 import type { Attempt } from '../../domain/attempts/types';
 import type { FrqQuestion, McqChoice, McqQuestion, Question } from '../../domain/questions/types';
@@ -42,6 +42,7 @@ type SessionPracticeProps = {
 
 type SessionPhase = 'setup' | 'running' | 'summary';
 type SessionTypeFilter = 'mixed' | Question['type'];
+type SessionReviewFilter = 'all' | 'needs-review';
 type SessionResponse = {
   startedAt: Date;
   submittedAt?: Date;
@@ -58,6 +59,9 @@ type QuestionScore = {
   answered: boolean;
   needsManualScore?: boolean;
   isCorrect?: boolean;
+};
+export type SessionReviewQuestion = QuestionScore & {
+  question: Question;
 };
 
 const countOptions = [3, 5, 10, 15, 20];
@@ -146,6 +150,69 @@ function getQuestionLabel(question: Question, index: number): string {
   return `${index + 1}. ${question.type.toUpperCase()} - ${question.topic}`;
 }
 
+function formatQuestionCount(count: number): string {
+  return `${count} question${count === 1 ? '' : 's'}`;
+}
+
+function countQuestionTypes(questions: Question[]): { mcq: number; frq: number } {
+  return questions.reduce(
+    (counts, question) => ({
+      mcq: counts.mcq + (question.type === 'mcq' ? 1 : 0),
+      frq: counts.frq + (question.type === 'frq' ? 1 : 0),
+    }),
+    { mcq: 0, frq: 0 },
+  );
+}
+
+function questionNeedsReview(questionScore: SessionReviewQuestion): boolean {
+  return questionScore.needsManualScore === true || questionScore.score < questionScore.maxScore;
+}
+
+function getSessionReviewItems(
+  questionScores: SessionReviewQuestion[],
+  filter: SessionReviewFilter,
+): SessionReviewQuestion[] {
+  return filter === 'needs-review' ? questionScores.filter(questionNeedsReview) : questionScores;
+}
+
+function getMistakePracticeAction({
+  missedQuestionCount,
+  pendingManualScoreCount,
+}: {
+  missedQuestionCount: number;
+  pendingManualScoreCount: number;
+}): { disabled: boolean; label: string; detail: string } {
+  if (pendingManualScoreCount > 0) {
+    return {
+      disabled: true,
+      label: 'Practice Mistakes',
+      detail: `Self-score ${formatQuestionCount(pendingManualScoreCount)} before starting a mistakes-only session.`,
+    };
+  }
+
+  if (missedQuestionCount === 0) {
+    return {
+      disabled: true,
+      label: 'Practice Mistakes',
+      detail: 'No scored mistakes are ready for a follow-up session.',
+    };
+  }
+
+  return {
+    disabled: false,
+    label: `Practice ${missedQuestionCount} Mistake${missedQuestionCount === 1 ? '' : 's'}`,
+    detail: `Start a new session with only the ${formatQuestionCount(missedQuestionCount)} that need another attempt.`,
+  };
+}
+
+const sessionPracticeViewModel = {
+  getMistakePracticeAction,
+  getSessionReviewItems,
+} as const;
+
+// eslint-disable-next-line react-refresh/only-export-components
+export { sessionPracticeViewModel };
+
 export function SessionPractice({
   questions,
   questionSetVersion,
@@ -153,6 +220,8 @@ export function SessionPractice({
   onSaveFrqAttempt,
   onSaveSessionResult,
 }: SessionPracticeProps) {
+  const setupStatusId = useId();
+  const summaryActionStatusId = useId();
   const [phase, setPhase] = useState<SessionPhase>('setup');
   const [typeFilter, setTypeFilter] = useState<SessionTypeFilter>('mixed');
   const [unitFilter, setUnitFilter] = useState('all');
@@ -168,7 +237,10 @@ export function SessionPractice({
   const [sessionStartedAt, setSessionStartedAt] = useState<Date | null>(null);
   const [sessionSubmittedAt, setSessionSubmittedAt] = useState<Date | null>(null);
   const [clockNow, setClockNow] = useState(() => Date.now());
+  const [summaryReviewFilter, setSummaryReviewFilter] = useState<SessionReviewFilter>('all');
   const submitSessionRef = useRef<() => void>(() => undefined);
+
+  const questionTypeCounts = useMemo(() => countQuestionTypes(questions), [questions]);
 
   const filterOptions = useMemo(
     () => ({
@@ -191,6 +263,10 @@ export function SessionPractice({
       return matchesType && matchesUnit && matchesDifficulty && matchesCalculator;
     });
   }, [calculatorFilter, difficultyFilter, questions, typeFilter, unitFilter]);
+  const matchingTypeCounts = useMemo(
+    () => countQuestionTypes(matchingQuestions),
+    [matchingQuestions],
+  );
 
   const plannedQuestionCount =
     matchingQuestions.length === 0
@@ -206,7 +282,7 @@ export function SessionPractice({
     timeLimitSeconds > 0 ? Math.max(0, timeLimitSeconds - elapsedSeconds) : null;
 
   const summary = useMemo(() => {
-    const questionScores = sessionQuestions.map((question) => ({
+    const questionScores: SessionReviewQuestion[] = sessionQuestions.map((question) => ({
       question,
       ...scoreSessionQuestion(question, responses[question.id]),
     }));
@@ -236,6 +312,15 @@ export function SessionPractice({
       score,
     };
   }, [responses, sessionQuestions]);
+
+  const summaryReviewItems = useMemo(
+    () => getSessionReviewItems(summary.questionScores, summaryReviewFilter),
+    [summary.questionScores, summaryReviewFilter],
+  );
+  const mistakePracticeAction = getMistakePracticeAction({
+    missedQuestionCount: summary.missedQuestions.length,
+    pendingManualScoreCount: summary.pendingManualScoreCount,
+  });
 
   useEffect(() => {
     if (phase !== 'running') {
@@ -277,6 +362,10 @@ export function SessionPractice({
   function startSession(
     questionsForSession = shuffleQuestions(matchingQuestions).slice(0, plannedQuestionCount),
   ) {
+    if (questionsForSession.length === 0) {
+      return;
+    }
+
     const startedAt = new Date();
     const firstQuestion = questionsForSession[0];
 
@@ -287,6 +376,7 @@ export function SessionPractice({
     setMarkedQuestionIds(new Set());
     setSessionStartedAt(startedAt);
     setSessionSubmittedAt(null);
+    setSummaryReviewFilter('all');
     setClockNow(startedAt.getTime());
     setPhase('running');
   }
@@ -300,6 +390,14 @@ export function SessionPractice({
     setSessionRunId(null);
     setSessionStartedAt(null);
     setSessionSubmittedAt(null);
+    setSummaryReviewFilter('all');
+  }
+
+  function resetFilters() {
+    setTypeFilter('mixed');
+    setUnitFilter('all');
+    setDifficultyFilter('all');
+    setCalculatorFilter('all');
   }
 
   function updateMcqResponse(questionId: string, selectedChoiceId: McqChoice['id']) {
@@ -448,6 +546,7 @@ export function SessionPractice({
     saveGroupedSessionResult(nextResponses, submittedAt);
     setSessionSubmittedAt(submittedAt);
     setClockNow(submittedAt.getTime());
+    setSummaryReviewFilter('all');
     setPhase('summary');
   }, [saveGroupedSessionResult, saveSessionAttempts]);
 
@@ -665,6 +764,24 @@ export function SessionPractice({
   }
 
   if (phase === 'setup') {
+    if (questions.length === 0) {
+      return (
+        <main className="empty-shell" aria-labelledby="session-empty-heading">
+          <p className="eyebrow">AP-Style Practice</p>
+          <h1 id="session-empty-heading">Session Mode</h1>
+          <p>No published questions are available for sessions.</p>
+          <p>Questions need to be published before students can build timed MCQ or FRQ sets.</p>
+        </main>
+      );
+    }
+
+    const setupStatusText =
+      matchingQuestions.length === 0
+        ? 'No questions match the current filters.'
+        : `${formatQuestionCount(plannedQuestionCount)} will be selected from ${formatQuestionCount(
+            matchingQuestions.length,
+          )}.`;
+
     return (
       <main className="session-shell">
         <header className="session-header">
@@ -674,6 +791,8 @@ export function SessionPractice({
           </div>
           <div className="summary-strip" aria-label="Question bank summary">
             <span>{questions.length} questions</span>
+            <span>{questionTypeCounts.mcq} MCQ</span>
+            <span>{questionTypeCounts.frq} FRQ</span>
             <span>{matchingQuestions.length} match filters</span>
             <span>v{questionSetVersion}</span>
           </div>
@@ -684,13 +803,19 @@ export function SessionPractice({
             <ListChecks aria-hidden="true" />
             <div>
               <h2>Build a Practice Set</h2>
-              <p>Choose a section style, filters, length, and optional timer.</p>
+              <p>{setupStatusText}</p>
             </div>
+          </div>
+          <div className="summary-strip" aria-label="Current session setup">
+            <span>{matchingTypeCounts.mcq} matching MCQ</span>
+            <span>{matchingTypeCounts.frq} matching FRQ</span>
+            <span>{timeLimitMinutes === 0 ? 'Untimed' : `${timeLimitMinutes} min timer`}</span>
+            <span>{formatQuestionCount(plannedQuestionCount)} planned</span>
           </div>
 
           <div className="form-grid form-grid--four">
             <label>
-              Session Type
+              Question Type
               <select
                 onChange={(event) => setTypeFilter(event.target.value as SessionTypeFilter)}
                 value={typeFilter}
@@ -774,24 +899,44 @@ export function SessionPractice({
             </label>
           </div>
 
+          {matchingQuestions.length === 0 ? (
+            <p className="session-review-note" id={setupStatusId} role="status">
+              No questions match these filters.
+            </p>
+          ) : (
+            <p className="visually-hidden" id={setupStatusId} aria-live="polite">
+              {setupStatusText}
+            </p>
+          )}
+
           <div className="session-setup__footer">
             <div>
               <strong>{plannedQuestionCount}</strong>
               <span>
-                question{plannedQuestionCount === 1 ? '' : 's'} will be used from{' '}
-                {matchingQuestions.length} matching question
-                {matchingQuestions.length === 1 ? '' : 's'}.
+                {matchingQuestions.length === 0
+                  ? 'No questions are available with the selected filters.'
+                  : `${formatQuestionCount(plannedQuestionCount)} will be used from ${formatQuestionCount(
+                      matchingQuestions.length,
+                    )} that match.`}
               </span>
             </div>
-            <button
-              className="primary-button"
-              disabled={plannedQuestionCount === 0}
-              onClick={() => startSession()}
-              type="button"
-            >
-              <Play aria-hidden="true" />
-              Start Session
-            </button>
+            <div className="manager-actions">
+              {matchingQuestions.length === 0 ? (
+                <button className="ghost-button" onClick={resetFilters} type="button">
+                  Reset filters
+                </button>
+              ) : null}
+              <button
+                aria-describedby={setupStatusId}
+                className="primary-button"
+                disabled={plannedQuestionCount === 0}
+                onClick={() => startSession()}
+                type="button"
+              >
+                <Play aria-hidden="true" />
+                Start Session
+              </button>
+            </div>
           </div>
         </section>
       </main>
@@ -813,11 +958,13 @@ export function SessionPractice({
             </button>
             <button
               className="primary-button"
-              disabled={summary.missedQuestions.length === 0 || summary.pendingManualScoreCount > 0}
+              aria-describedby={summaryActionStatusId}
+              disabled={mistakePracticeAction.disabled}
               onClick={retryMissedQuestions}
               type="button"
             >
-              Review Missed Only
+              <Play aria-hidden="true" />
+              {mistakePracticeAction.label}
             </button>
           </div>
         </header>
@@ -846,14 +993,51 @@ export function SessionPractice({
         </section>
 
         {summary.pendingManualScoreCount > 0 ? (
-          <p className="session-review-note">
+          <p className="session-review-note" id={summaryActionStatusId} role="status">
             Self-score {summary.pendingManualScoreCount} FRQ response
             {summary.pendingManualScoreCount === 1 ? '' : 's'} before retrying missed questions.
           </p>
-        ) : null}
+        ) : (
+          <p className="session-review-note" id={summaryActionStatusId}>
+            {mistakePracticeAction.detail}
+          </p>
+        )}
+
+        <div className="manager-actions" aria-label="Review filter">
+          <button
+            aria-pressed={summaryReviewFilter === 'all'}
+            className="ghost-button"
+            data-active={summaryReviewFilter === 'all'}
+            onClick={() => setSummaryReviewFilter('all')}
+            type="button"
+          >
+            All Questions
+          </button>
+          <button
+            aria-pressed={summaryReviewFilter === 'needs-review'}
+            className="ghost-button"
+            data-active={summaryReviewFilter === 'needs-review'}
+            onClick={() => setSummaryReviewFilter('needs-review')}
+            type="button"
+          >
+            Needs Review ({getSessionReviewItems(summary.questionScores, 'needs-review').length})
+          </button>
+        </div>
 
         <section className="session-review-list" aria-label="Session question review">
-          {sessionQuestions.map((question, index) => renderQuestionReview(question, index))}
+          {summaryReviewItems.length === 0 ? (
+            <section className="review-empty" role="status">
+              <h2>No mistakes to review</h2>
+              <p>All scored questions are complete.</p>
+            </section>
+          ) : null}
+          {summaryReviewItems.map((questionScore) => {
+            const originalIndex = sessionQuestions.findIndex(
+              (question) => question.id === questionScore.question.id,
+            );
+
+            return renderQuestionReview(questionScore.question, Math.max(0, originalIndex));
+          })}
         </section>
       </main>
     );
@@ -887,6 +1071,10 @@ export function SessionPractice({
 
           return (
             <button
+              aria-current={index === currentIndex ? 'step' : undefined}
+              aria-label={`Question ${index + 1}: ${question.type.toUpperCase()}, ${
+                answered ? 'answered' : 'not answered'
+              }${markedQuestionIds.has(question.id) ? ', marked for review' : ''}`}
               className="session-progress__item"
               data-active={index === currentIndex}
               data-answered={answered}
@@ -900,6 +1088,17 @@ export function SessionPractice({
           );
         })}
       </nav>
+
+      {!currentQuestion ? (
+        <section className="review-empty" role="status">
+          <h2>No questions in this session</h2>
+          <p>Return to setup to build a new practice set.</p>
+          <button className="ghost-button" onClick={resetToSetup} type="button">
+            <RotateCcw aria-hidden="true" />
+            Back to Setup
+          </button>
+        </section>
+      ) : null}
 
       {currentQuestion ? (
         <>

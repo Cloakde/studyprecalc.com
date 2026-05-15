@@ -29,6 +29,7 @@ import {
   saveLocalVideoFile,
 } from '../../data/localVideoStore';
 import { QuestionSchema, QuestionSetSchema } from '../../data/schemas/questionSchema';
+import { buildContentReadinessReport } from '../../domain/questions/contentReadiness';
 import type { QuestionPublicationStatus } from '../../domain/questions/publication';
 import type {
   CalculatorPolicy,
@@ -41,6 +42,14 @@ import type {
   QuestionSection,
   VideoExplanation as VideoExplanationData,
 } from '../../domain/questions/types';
+import {
+  clearContentManagerDraftAutosave,
+  createContentManagerDraftFingerprint,
+  getContentManagerDraftAutosaveStorage,
+  hasContentManagerDraftUnsavedChanges,
+  loadContentManagerDraftAutosave,
+  saveContentManagerDraftAutosave,
+} from '../contentManagerDraftAutosave';
 import { MathText } from './MathText';
 import { QuestionAssetGallery } from './QuestionAssetGallery';
 import { VideoExplanation } from './VideoExplanation';
@@ -123,6 +132,12 @@ type ReadinessCheck = {
   id: string;
   label: string;
   complete: boolean;
+};
+
+export type ContentManagerDestructiveActionTarget = {
+  id: string;
+  label: string;
+  workflowState: QuestionPublicationStatus;
 };
 
 type QuestionDraft = {
@@ -215,6 +230,211 @@ function createBlankDraft(): QuestionDraft {
       { ...defaultFrqPart, rubric: defaultFrqPart.rubric.map((criterion) => ({ ...criterion })) },
     ],
   };
+}
+
+function isQuestionDraftRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isDraftWorkflowState(value: unknown): value is DraftWorkflowState {
+  return value === 'draft' || value === 'published' || value === 'archived';
+}
+
+function isQuestionDraftType(value: unknown): value is QuestionDraft['type'] {
+  return value === 'mcq' || value === 'frq';
+}
+
+function isDraftDifficulty(value: unknown): value is Difficulty {
+  return value === 'intro' || value === 'medium' || value === 'advanced';
+}
+
+function isDraftCalculatorPolicy(value: unknown): value is CalculatorPolicy {
+  return value === 'none' || value === 'graphing';
+}
+
+function isDraftQuestionSection(value: unknown): value is QuestionSection {
+  return (
+    value === 'practice' ||
+    value === 'mcq-a' ||
+    value === 'mcq-b' ||
+    value === 'frq-a' ||
+    value === 'frq-b'
+  );
+}
+
+function isDraftChoiceId(value: unknown): value is McqChoice['id'] {
+  return value === 'A' || value === 'B' || value === 'C' || value === 'D';
+}
+
+function isChoiceDraft(value: unknown): value is ChoiceDraft {
+  if (!isQuestionDraftRecord(value)) {
+    return false;
+  }
+
+  return (
+    isDraftChoiceId(value.id) &&
+    typeof value.text === 'string' &&
+    typeof value.explanation === 'string'
+  );
+}
+
+function isRubricDraft(value: unknown): value is RubricDraft {
+  if (!isQuestionDraftRecord(value)) {
+    return false;
+  }
+
+  return (
+    typeof value.id === 'string' &&
+    typeof value.description === 'string' &&
+    typeof value.points === 'string'
+  );
+}
+
+function isFrqPartDraft(value: unknown): value is FrqPartDraft {
+  if (!isQuestionDraftRecord(value)) {
+    return false;
+  }
+
+  return (
+    typeof value.id === 'string' &&
+    typeof value.prompt === 'string' &&
+    typeof value.sampleResponse === 'string' &&
+    typeof value.expectedWork === 'string' &&
+    Array.isArray(value.rubric) &&
+    value.rubric.every(isRubricDraft)
+  );
+}
+
+function isAssetDraft(value: unknown): value is AssetDraft {
+  if (!isQuestionDraftRecord(value)) {
+    return false;
+  }
+
+  return (
+    typeof value.id === 'string' &&
+    (value.type === 'image' || value.type === 'graph' || value.type === 'table') &&
+    typeof value.path === 'string' &&
+    typeof value.alt === 'string' &&
+    typeof value.caption === 'string'
+  );
+}
+
+function isQuestionDraft(value: unknown): value is QuestionDraft {
+  if (!isQuestionDraftRecord(value)) {
+    return false;
+  }
+
+  return (
+    typeof value.id === 'string' &&
+    isDraftWorkflowState(value.workflowState) &&
+    isQuestionDraftType(value.type) &&
+    typeof value.unit === 'string' &&
+    typeof value.topic === 'string' &&
+    typeof value.skill === 'string' &&
+    isDraftDifficulty(value.difficulty) &&
+    isDraftCalculatorPolicy(value.calculator) &&
+    isDraftQuestionSection(value.section) &&
+    typeof value.tags === 'string' &&
+    typeof value.prompt === 'string' &&
+    Array.isArray(value.questionAssets) &&
+    value.questionAssets.every(isAssetDraft) &&
+    typeof value.explanationSummary === 'string' &&
+    typeof value.explanationSteps === 'string' &&
+    typeof value.commonMistakes === 'string' &&
+    Array.isArray(value.solutionAssets) &&
+    value.solutionAssets.every(isAssetDraft) &&
+    typeof value.videoUrl === 'string' &&
+    typeof value.videoThumbnailPath === 'string' &&
+    typeof value.videoTranscriptPath === 'string' &&
+    typeof value.videoDurationSeconds === 'string' &&
+    Array.isArray(value.choices) &&
+    value.choices.every(isChoiceDraft) &&
+    isDraftChoiceId(value.correctChoiceId) &&
+    Array.isArray(value.frqParts) &&
+    value.frqParts.every(isFrqPartDraft)
+  );
+}
+
+function hasMeaningfulDraftId(draft: QuestionDraft): boolean {
+  return hasText(draft.id) && !/^user-\d+$/.test(draft.id.trim());
+}
+
+function isMeaningfulQuestionDraft(draft: QuestionDraft): boolean {
+  const textFields = [
+    draft.unit,
+    draft.topic,
+    draft.skill,
+    draft.tags,
+    draft.prompt,
+    draft.explanationSummary,
+    draft.explanationSteps,
+    draft.commonMistakes,
+    draft.videoUrl,
+    draft.videoThumbnailPath,
+    draft.videoTranscriptPath,
+    draft.videoDurationSeconds,
+  ];
+
+  return (
+    hasMeaningfulDraftId(draft) ||
+    textFields.some(hasText) ||
+    draft.questionAssets.some((asset) =>
+      [asset.path, asset.alt, asset.caption].some((value) => value.trim().length > 0),
+    ) ||
+    draft.solutionAssets.some((asset) =>
+      [asset.path, asset.alt, asset.caption].some((value) => value.trim().length > 0),
+    ) ||
+    draft.choices.some((choice) => hasText(choice.text) || hasText(choice.explanation)) ||
+    draft.frqParts.some(
+      (part) =>
+        hasText(part.prompt) ||
+        hasText(part.sampleResponse) ||
+        hasText(part.expectedWork) ||
+        part.rubric.some(
+          (criterion) => hasText(criterion.description) || criterion.points.trim() !== '1',
+        ),
+    )
+  );
+}
+
+function getQuestionDraftFingerprintInput(
+  draft: QuestionDraft,
+  selectedQuestionId: string | null,
+): {
+  draft: Omit<QuestionDraft, 'workflowState'>;
+  selectedQuestionId: string | null;
+} {
+  const { workflowState, ...draftContent } = draft;
+
+  void workflowState;
+
+  return {
+    draft: draftContent,
+    selectedQuestionId,
+  };
+}
+
+function createQuestionDraftChangeFingerprint(
+  draft: QuestionDraft,
+  selectedQuestionId: string | null,
+): string {
+  return createContentManagerDraftFingerprint(
+    getQuestionDraftFingerprintInput(draft, selectedQuestionId),
+  );
+}
+
+function hasQuestionDraftUnsavedChanges(
+  draft: QuestionDraft,
+  selectedQuestionId: string | null,
+  lastSavedFingerprint: string,
+): boolean {
+  return (
+    isMeaningfulQuestionDraft(draft) &&
+    hasContentManagerDraftUnsavedChanges(
+      getQuestionDraftFingerprintInput(draft, selectedQuestionId),
+      lastSavedFingerprint,
+    )
+  );
 }
 
 function linesToList(value: string): string[] {
@@ -458,6 +678,76 @@ function getWorkflowStateLabel(workflowState: DraftWorkflowState): string {
   return 'Draft';
 }
 
+function getQuestionActionLabel(question: Question): string {
+  return question.skill.trim() || question.topic.trim() || question.id;
+}
+
+function getQuestionTargetDisplay(target: ContentManagerDestructiveActionTarget): string {
+  if (target.label === target.id) {
+    return `"${target.id}"`;
+  }
+
+  return `"${target.label}" (ID: ${target.id})`;
+}
+
+function createDestructiveQuestionActionTarget(
+  question: Question,
+  workflowState: DraftWorkflowState,
+): ContentManagerDestructiveActionTarget {
+  return {
+    id: question.id,
+    label: getQuestionActionLabel(question),
+    workflowState,
+  };
+}
+
+function getArchiveQuestionConfirmationMessage(
+  target: ContentManagerDestructiveActionTarget,
+): string {
+  return [
+    `Archive ${getQuestionTargetDisplay(target)}?`,
+    '',
+    'Archive hides the question from students and keeps it in Manage Content so it can be reviewed, restored, or republished later.',
+    `Current status: ${getWorkflowStateLabel(target.workflowState)}.`,
+    '',
+    'Use permanent delete only for mistaken or duplicate records.',
+  ].join('\n');
+}
+
+function getPermanentDeleteQuestionConfirmationPhrase(questionId: string): string {
+  return `DELETE ${questionId}`;
+}
+
+function getPermanentDeleteQuestionPrompt(target: ContentManagerDestructiveActionTarget): string {
+  const confirmationPhrase = getPermanentDeleteQuestionConfirmationPhrase(target.id);
+
+  return [
+    `Permanently delete ${getQuestionTargetDisplay(target)}?`,
+    '',
+    'This permanently removes the question record from Manage Content. This cannot be undone.',
+    'If you only need to hide it from students, cancel and use Archive from Students instead.',
+    '',
+    `Type ${confirmationPhrase} to permanently delete.`,
+  ].join('\n');
+}
+
+function isPermanentDeleteQuestionConfirmation(
+  confirmationText: string | null,
+  questionId: string,
+): boolean {
+  return confirmationText === getPermanentDeleteQuestionConfirmationPhrase(questionId);
+}
+
+const contentManagerDestructiveActionSafety = {
+  getArchiveQuestionConfirmationMessage,
+  getPermanentDeleteQuestionConfirmationPhrase,
+  getPermanentDeleteQuestionPrompt,
+  isPermanentDeleteQuestionConfirmation,
+} as const;
+
+// eslint-disable-next-line react-refresh/only-export-components
+export { contentManagerDestructiveActionSafety };
+
 function getQuestionSearchText(question: Question, workflowState: DraftWorkflowState): string {
   return [
     question.id,
@@ -599,11 +889,21 @@ export function ContentManager({
   onRefreshContent,
   onUploadImageFile,
 }: ContentManagerProps) {
-  const [draft, setDraft] = useState<QuestionDraft>(() => createBlankDraft());
+  const initialDraftRef = useRef<QuestionDraft | null>(null);
+  const [draft, setDraft] = useState<QuestionDraft>(() => {
+    const initialDraft = createBlankDraft();
+    initialDraftRef.current = initialDraft;
+    return initialDraft;
+  });
   const [selectedQuestionId, setSelectedQuestionId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string>('');
   const [error, setError] = useState<string>('');
   const [previewMode, setPreviewMode] = useState<PreviewMode>('student');
+  const [lastSavedDraftFingerprint, setLastSavedDraftFingerprint] = useState<string>(() =>
+    createQuestionDraftChangeFingerprint(initialDraftRef.current ?? createBlankDraft(), null),
+  );
+  const [isDraftAutosaveReady, setIsDraftAutosaveReady] = useState(false);
+  const [draftAutosaveMessage, setDraftAutosaveMessage] = useState('');
   const [librarySearchText, setLibrarySearchText] = useState('');
   const [libraryTypeFilter, setLibraryTypeFilter] = useState<LibraryTypeFilter>('all');
   const [libraryStatusFilter, setLibraryStatusFilter] = useState<LibraryStatusFilter>('all');
@@ -625,9 +925,27 @@ export function ContentManager({
     () => customQuestions.find((question) => question.id === selectedQuestionId) ?? null,
     [customQuestions, selectedQuestionId],
   );
+  const selectedQuestionWorkflowState = selectedQuestion
+    ? (workflowStatesByQuestionId[selectedQuestion.id] ?? getQuestionStatus(selectedQuestion.id))
+    : null;
+  const hasUnsavedDraftChanges = hasQuestionDraftUnsavedChanges(
+    draft,
+    selectedQuestionId,
+    lastSavedDraftFingerprint,
+  );
   const readinessChecks = useMemo(() => getReadinessChecks(draft), [draft]);
   const firstIncompleteReadinessCheck = readinessChecks.find((check) => !check.complete);
   const isReadyToPublish = readinessChecks.every((check) => check.complete);
+  const contentReadinessReport = useMemo(
+    () =>
+      buildContentReadinessReport(customQuestions, {
+        disallowLocalMedia: Boolean(onUploadImageFile),
+        getStatus: (question) =>
+          workflowStatesByQuestionId[question.id] ?? getQuestionStatus(question.id),
+      }),
+    [customQuestions, getQuestionStatus, onUploadImageFile, workflowStatesByQuestionId],
+  );
+  const topContentReadinessIssues = contentReadinessReport.issues.slice(0, 6);
   const previewVideo = useMemo(() => draftToVideoExplanation(draft), [draft]);
   const displayedQuestions = useMemo(() => {
     const normalizedSearchText = librarySearchText.trim().toLowerCase();
@@ -691,6 +1009,128 @@ export function ContentManager({
     activeDraftIdRef.current = draft.id;
   }, [draft.id]);
 
+  useEffect(() => {
+    const storage = getContentManagerDraftAutosaveStorage();
+
+    if (!storage) {
+      setIsDraftAutosaveReady(true);
+      return;
+    }
+
+    const autosavedDraft = loadContentManagerDraftAutosave(storage, isQuestionDraft);
+
+    if (!autosavedDraft) {
+      clearContentManagerDraftAutosave(storage);
+      setIsDraftAutosaveReady(true);
+      return;
+    }
+
+    if (
+      window.confirm(
+        `Restore the admin question draft autosaved at ${autosavedDraft.savedAt}? Cancel discards this recovery copy.`,
+      )
+    ) {
+      setDraft(autosavedDraft.draft);
+      setSelectedQuestionId(autosavedDraft.selectedQuestionId);
+      setPreviewMode(autosavedDraft.previewMode);
+      setLastSavedDraftFingerprint(autosavedDraft.lastSavedFingerprint);
+      setDraftAutosaveMessage('Unsaved changes were restored from this browser.');
+      setNotice(`Restored autosaved draft from ${autosavedDraft.savedAt}.`);
+      setError('');
+    } else {
+      clearContentManagerDraftAutosave(storage);
+    }
+
+    setIsDraftAutosaveReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isDraftAutosaveReady) {
+      return;
+    }
+
+    const storage = getContentManagerDraftAutosaveStorage();
+
+    if (!hasUnsavedDraftChanges) {
+      if (storage) {
+        clearContentManagerDraftAutosave(storage);
+      }
+      setDraftAutosaveMessage('');
+      return;
+    }
+
+    if (!storage) {
+      setDraftAutosaveMessage(
+        'Autosave is unavailable in this browser. Save or publish before leaving.',
+      );
+      return;
+    }
+
+    const result = saveContentManagerDraftAutosave({
+      storage,
+      draft,
+      selectedQuestionId,
+      previewMode,
+      lastSavedFingerprint: lastSavedDraftFingerprint,
+    });
+
+    setDraftAutosaveMessage(
+      result.ok
+        ? `Unsaved changes autosaved locally at ${result.savedAt}.`
+        : 'Autosave could not write to this browser. Save or publish before leaving.',
+    );
+  }, [
+    draft,
+    hasUnsavedDraftChanges,
+    isDraftAutosaveReady,
+    lastSavedDraftFingerprint,
+    previewMode,
+    selectedQuestionId,
+  ]);
+
+  useEffect(() => {
+    if (!hasUnsavedDraftChanges) {
+      return;
+    }
+
+    function warnBeforeUnload(event: BeforeUnloadEvent) {
+      event.preventDefault();
+      event.returnValue = '';
+    }
+
+    window.addEventListener('beforeunload', warnBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', warnBeforeUnload);
+    };
+  }, [hasUnsavedDraftChanges]);
+
+  function markDraftAsSaved(nextDraft: QuestionDraft, nextSelectedQuestionId: string | null) {
+    setLastSavedDraftFingerprint(
+      createQuestionDraftChangeFingerprint(nextDraft, nextSelectedQuestionId),
+    );
+  }
+
+  function clearStoredDraftAutosave() {
+    const storage = getContentManagerDraftAutosaveStorage();
+
+    if (storage) {
+      clearContentManagerDraftAutosave(storage);
+    }
+
+    setDraftAutosaveMessage('');
+  }
+
+  function confirmDiscardUnsavedDraft(): boolean {
+    if (!hasUnsavedDraftChanges) {
+      return true;
+    }
+
+    return window.confirm(
+      'You have unsaved question draft changes. Save Draft or Publish before leaving this editor, or continue to discard the in-form changes.',
+    );
+  }
+
   function updateDraft<Field extends keyof QuestionDraft>(
     field: Field,
     value: QuestionDraft[Field],
@@ -701,40 +1141,64 @@ export function ContentManager({
     }));
   }
 
-  function startNewQuestion(type: 'mcq' | 'frq' = 'mcq') {
-    setDraft({
+  function startNewQuestion(
+    type: 'mcq' | 'frq' = 'mcq',
+    options: { skipUnsavedWarning?: boolean } = {},
+  ) {
+    if (!options.skipUnsavedWarning && !confirmDiscardUnsavedDraft()) {
+      return;
+    }
+
+    const nextDraft = {
       ...createBlankDraft(),
       type,
-    });
+    };
+
+    setDraft(nextDraft);
     setSelectedQuestionId(null);
+    setPreviewMode('student');
+    markDraftAsSaved(nextDraft, null);
+    clearStoredDraftAutosave();
     setNotice('');
     setError('');
   }
 
   function loadQuestionIntoEditor(question: Question) {
+    if (!confirmDiscardUnsavedDraft()) {
+      return;
+    }
+
     const workflowState = workflowStatesByQuestionId[question.id] ?? getQuestionStatus(question.id);
+    const nextDraft = questionToDraft(question, workflowState);
 
     setSelectedQuestionId(question.id);
-    setDraft(questionToDraft(question, workflowState));
+    setDraft(nextDraft);
+    markDraftAsSaved(nextDraft, question.id);
+    clearStoredDraftAutosave();
     setNotice('');
     setError('');
   }
 
   function duplicateQuestion(question: Question) {
+    if (!confirmDiscardUnsavedDraft()) {
+      return;
+    }
+
     const existingQuestionIds = new Set([
       ...customQuestions.map((customQuestion) => customQuestion.id),
       ...seedQuestionIds,
     ]);
     const duplicateId = createDuplicateQuestionId(question.id, existingQuestionIds);
     const duplicateDraft = questionToDraft(question, 'draft');
-
-    setSelectedQuestionId(null);
-    setDraft({
+    const nextDraft: QuestionDraft = {
       ...duplicateDraft,
       id: duplicateId,
       skill: duplicateDraft.skill ? `${duplicateDraft.skill} Copy` : duplicateDraft.skill,
       workflowState: 'draft',
-    });
+    };
+
+    setSelectedQuestionId(null);
+    setDraft(nextDraft);
     setPreviewMode('student');
     setError('');
     setNotice('Duplicated as an unsaved draft. Review it, then save or publish.');
@@ -812,6 +1276,7 @@ export function ContentManager({
     try {
       const question = draftToQuestion(draft);
       const parsed = QuestionSchema.parse(question);
+      const savedDraft = questionToDraft(parsed, workflowState);
 
       onSaveQuestion(parsed, workflowState);
       setWorkflowStatesByQuestionId((current) => ({
@@ -819,7 +1284,9 @@ export function ContentManager({
         [parsed.id]: workflowState,
       }));
       setSelectedQuestionId(parsed.id);
-      setDraft(questionToDraft(parsed, workflowState));
+      setDraft(savedDraft);
+      markDraftAsSaved(savedDraft, parsed.id);
+      clearStoredDraftAutosave();
       setNotice(
         workflowState === 'published' ? 'Question saved and marked publish-ready.' : 'Draft saved.',
       );
@@ -828,32 +1295,63 @@ export function ContentManager({
     }
   }
 
-  function deleteQuestion(questionId: string) {
-    onDeleteQuestion(questionId);
+  function deleteQuestion(question: Question, workflowState: DraftWorkflowState) {
+    setNotice('');
+    setError('');
+
+    const target = createDestructiveQuestionActionTarget(question, workflowState);
+    const confirmationText = window.prompt(getPermanentDeleteQuestionPrompt(target));
+
+    if (!isPermanentDeleteQuestionConfirmation(confirmationText, question.id)) {
+      if (confirmationText !== null) {
+        setError(
+          `Permanent delete canceled. Type ${getPermanentDeleteQuestionConfirmationPhrase(
+            question.id,
+          )} exactly to delete this question.`,
+        );
+      }
+      return;
+    }
+
+    onDeleteQuestion(question.id);
     setWorkflowStatesByQuestionId((current) => {
       const nextStates = { ...current };
-      delete nextStates[questionId];
+      delete nextStates[question.id];
       return nextStates;
     });
 
-    if (selectedQuestionId === questionId) {
-      startNewQuestion();
+    if (selectedQuestionId === question.id) {
+      startNewQuestion('mcq', { skipUnsavedWarning: true });
     }
 
-    setNotice('Question deleted.');
+    setNotice('Question permanently deleted.');
   }
 
-  function archiveQuestion(questionId: string) {
-    onSetQuestionStatus(questionId, 'archived');
+  function archiveQuestion(question: Question, workflowState: DraftWorkflowState) {
+    setNotice('');
+    setError('');
+
+    if (workflowState === 'archived') {
+      setNotice('Question is already archived and hidden from students.');
+      return;
+    }
+
+    const target = createDestructiveQuestionActionTarget(question, workflowState);
+
+    if (!window.confirm(getArchiveQuestionConfirmationMessage(target))) {
+      return;
+    }
+
+    onSetQuestionStatus(question.id, 'archived');
     setWorkflowStatesByQuestionId((current) => ({
       ...current,
-      [questionId]: 'archived',
+      [question.id]: 'archived',
     }));
     setDraft((current) => ({
       ...current,
       workflowState: 'archived',
     }));
-    setNotice('Question archived. Students will not see it.');
+    setNotice('Question archived. Students will not see it; the record remains in Manage Content.');
   }
 
   function exportQuestions() {
@@ -1304,6 +1802,85 @@ export function ContentManager({
         ) : null}
       </section>
 
+      <section
+        className="editor-section publish-readiness-panel"
+        aria-label="Content readiness report"
+      >
+        <div className="section-heading-row">
+          <div>
+            <h3>Content Readiness Report</h3>
+            <p>
+              Saved questions are checked for explanation, rubric, image, metadata, and publish
+              blockers.
+            </p>
+          </div>
+          {contentReadinessReport.summary.publishBlockerCount === 0 ? (
+            <CheckCircle2 aria-hidden="true" />
+          ) : (
+            <CircleAlert aria-hidden="true" />
+          )}
+        </div>
+        <div className="manager-sync-panel">
+          <div className="sync-card">
+            <CheckCircle2 aria-hidden="true" />
+            <div>
+              <strong>{contentReadinessReport.summary.readyQuestionCount} ready</strong>
+              <span>{contentReadinessReport.summary.questionCount} saved question(s) scanned</span>
+            </div>
+          </div>
+          <div className="sync-card">
+            <CircleAlert aria-hidden="true" />
+            <div>
+              <strong>{contentReadinessReport.summary.publishBlockerCount} publish blockers</strong>
+              <span>
+                {contentReadinessReport.summary.blockedQuestionCount} question(s) need required
+                fixes
+              </span>
+            </div>
+          </div>
+          <div className="sync-card">
+            <CircleAlert aria-hidden="true" />
+            <div>
+              <strong>{contentReadinessReport.summary.warningCount} warnings</strong>
+              <span>
+                {contentReadinessReport.summary.warningOnlyQuestionCount} question(s) have quality
+                warnings only
+              </span>
+            </div>
+          </div>
+        </div>
+        {customQuestions.length === 0 ? (
+          <p className="empty-list-copy">No authored questions to scan yet.</p>
+        ) : topContentReadinessIssues.length === 0 ? (
+          <ul className="publish-check-list" aria-label="Content readiness warnings">
+            <li data-complete={true}>
+              <CheckCircle2 aria-hidden="true" />
+              <span>No readiness warnings found in saved authored questions.</span>
+            </li>
+          </ul>
+        ) : (
+          <>
+            <ul className="publish-check-list" aria-label="Content readiness warnings">
+              {topContentReadinessIssues.map((issue, issueIndex) => (
+                <li data-complete={false} key={`${issue.questionId}-${issue.code}-${issueIndex}`}>
+                  <CircleAlert aria-hidden="true" />
+                  <span>
+                    <strong>{issue.severity === 'blocker' ? 'Blocker' : 'Warning'}:</strong>{' '}
+                    {issue.questionId} - {issue.message}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            {contentReadinessReport.summary.issueCount > topContentReadinessIssues.length ? (
+              <p className="asset-editor-note">
+                Showing first {topContentReadinessIssues.length} of{' '}
+                {contentReadinessReport.summary.issueCount} readiness item(s).
+              </p>
+            ) : null}
+          </>
+        )}
+      </section>
+
       <div className="manager-layout">
         <aside className="managed-list" aria-label="Authored questions">
           <h2>Authored Questions</h2>
@@ -1436,19 +2013,30 @@ export function ContentManager({
                   </button>
                   <button
                     className="ghost-button"
-                    onClick={() => archiveQuestion(selectedQuestion.id)}
+                    disabled={selectedQuestionWorkflowState === 'archived'}
+                    onClick={() =>
+                      archiveQuestion(selectedQuestion, selectedQuestionWorkflowState ?? 'draft')
+                    }
+                    title={
+                      selectedQuestionWorkflowState === 'archived'
+                        ? 'This question is already hidden from students.'
+                        : 'Hide this question from students while keeping it recoverable.'
+                    }
                     type="button"
                   >
                     <Archive aria-hidden="true" />
-                    Archive
+                    Archive from Students
                   </button>
                   <button
                     className="danger-button"
-                    onClick={() => deleteQuestion(selectedQuestion.id)}
+                    onClick={() =>
+                      deleteQuestion(selectedQuestion, selectedQuestionWorkflowState ?? 'draft')
+                    }
+                    title="Permanently remove this question record. Use Archive from Students to hide without deleting."
                     type="button"
                   >
                     <Trash2 aria-hidden="true" />
-                    Delete
+                    Permanently Delete
                   </button>
                 </>
               ) : null}
@@ -1485,6 +2073,14 @@ export function ContentManager({
                   : firstIncompleteReadinessCheck
                     ? `Next: ${firstIncompleteReadinessCheck.label}`
                     : 'Complete checks before publish'}
+              </span>
+            </div>
+            <div className="publish-status-row" aria-live="polite">
+              <span>
+                {hasUnsavedDraftChanges
+                  ? draftAutosaveMessage ||
+                    'Unsaved changes are waiting for local browser autosave.'
+                  : 'No unsaved draft changes.'}
               </span>
             </div>
             <ul className="publish-check-list" aria-label="Publish readiness checks">

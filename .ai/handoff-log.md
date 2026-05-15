@@ -513,3 +513,11 @@ Use this file as an append-only record whenever an agent finishes, pauses, or ha
 - Production findings: `studyprecalc.com` passes env/DNS/HTTPS readiness. `www.studyprecalc.com` fails when explicitly checked because no DNS exists. `npm run smoke:supabase` still fails on missing `public.validate_invite`, missing/inaccessible `public.questions`, and missing `question-images` bucket.
 - Decisions made: Keep live smoke as a manual evidence checklist rather than browser automation, because production account creation, email inboxes, MFA, and smoke content require owner-controlled access and evidence.
 - Next recommended step: Owner runs `supabase/schema.sql`, verifies the Storage bucket/Auth settings, creates real admin/student smoke accounts, optionally configures `www`, then runs `npm run smoke:supabase`, `npm run check:production-readiness`, and `npm run smoke:live-checklist`.
+
+### 2026-05-15 - Codex + Six Agents - M19/M20 Execution
+
+- Status: Repo-side M19/M20 execution complete.
+- Files changed: Added admin draft autosave helpers, content readiness domain helpers, Content Manager draft/destructive/readiness UI, student mobile CSS polish, Session Practice UX improvements, FRQ self-score/reveal improvements, and focused unit/accessibility tests.
+- Verification: Ran `npm run lint`, `npm test` (182 tests), `npm run validate:content`, `git diff --check`, `npm run build`, and an HTTP smoke for `http://127.0.0.1:5173/`. All passed; build still prints the existing large-chunk warning.
+- Decisions made: Keep autosave browser-local for admin authoring safety, require explicit typed confirmation for permanent question deletion, and keep FRQ sample/expected-work reveal behind self-score controls rather than exposing it before submission.
+- Next recommended step: Continue with M21/M22 for admin AI configuration, Gemini proxy planning, student AI placeholders, import templates, content QA dashboard, and first-pack launch checklist.

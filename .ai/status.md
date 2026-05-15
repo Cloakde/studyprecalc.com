@@ -4,8 +4,8 @@ Last updated: 2026-05-15
 
 ## Current Phase
 
-M17/M18 repo-side execution is complete. Production activation and live admin/student smoke remain
-blocked on owner-side Supabase SQL/bucket/account setup and optional `www` DNS configuration.
+M19/M20 repo-side execution is complete. Production activation still remains blocked on owner-side
+Supabase SQL/bucket/account setup and optional `www` DNS configuration.
 
 ## Active Ownership
 
@@ -76,6 +76,9 @@ blocked on owner-side Supabase SQL/bucket/account setup and optional `www` DNS c
 - M17/M18 repo-side support added `npm run check:production-readiness`,
   `npm run smoke:live-checklist`, owner evidence docs, and local harness coverage for invite,
   class enrollment, publish/archive visibility, and dashboard persistence.
+- M19/M20 added admin draft autosave/restore and unsaved-change protection, safer archive/delete
+  confirmations, a content readiness report, mobile overflow polish, clearer session setup/review
+  states, and improved FRQ self-scoring/reveal controls.
 
 ## Last Verification
 
@@ -126,3 +129,4 @@ Prettier/ESLint for the touched tests, and `npx tsc --noEmit --pretty false`. Al
 2026-05-15: Codex integrated M9/M10 and ran `npm test -- questionContentStore supabaseMediaStore supabaseSmoke` (40 tests), `npx tsc --noEmit --pretty false`, `npm run validate:content`, `npm test` (134 tests), `npm run lint`, `npm run build`, and `git diff --check`. All repo checks passed. Live `npm run smoke:supabase` is blocked by missing `public.validate_invite`, `public.questions`, and `question-images` bucket in the configured Supabase project; `studyprecalc.com` returns HTTP 200 and `www.studyprecalc.com` is not configured.
 2026-05-15: Codex integrated M11-M16 and ran `npm test` (151 tests), `npm run lint`, `npm run build`, `npm run validate:content`, `git diff --check`, `npm test -- aiGrading` (9 tests), and `npm run smoke:supabase`. Repo checks passed. Live `npm run smoke:supabase` still fails as expected until the owner applies `supabase/schema.sql`, confirms the `question-images` bucket, and creates real admin/student smoke accounts. Local dev server returned HTTP 200 at `http://127.0.0.1:5173/`; bundled Playwright browser automation was unavailable because the runtime package is missing `playwright-core`.
 2026-05-15: Codex integrated M17/M18 and ran `npm test` (167 tests), `npm run lint`, `npm run build`, `npm run validate:content`, `git diff --check`, `npm run check:production-readiness`, `READINESS_WWW_DOMAIN=www.studyprecalc.com npm run check:production-readiness`, `npm run smoke:live-checklist -- --base-url https://studyprecalc.com --run-label "M18 integrated smoke" --no-cleanup`, `npm test -- productionReadiness liveSmokeChecklist integrationHarness` (21 tests), and `npm run smoke:supabase`. Repo checks passed. Apex readiness passes for `studyprecalc.com`; optional `www` readiness fails because `www.studyprecalc.com` has no DNS. Live Supabase smoke still fails until the owner applies SQL, confirms `question-images`, and creates real smoke accounts.
+2026-05-15: Codex integrated M19/M20 and ran `npm run lint`, `npm test` (182 tests), `npm run validate:content`, `git diff --check`, `npm run build`, and an HTTP smoke for `http://127.0.0.1:5173/`. All passed. Vite still reports the existing large-chunk warning during build.

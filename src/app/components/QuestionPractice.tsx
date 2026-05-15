@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight, Eye, EyeOff, ListChecks, Shuffle, Video } from 'lucide-react';
-import { useEffect, useId, useMemo, useState, type KeyboardEvent } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 
 import type { Attempt } from '../../domain/attempts/types';
 import type { FrqQuestion, McqChoice, McqQuestion, Question } from '../../domain/questions/types';
@@ -42,6 +42,7 @@ export function QuestionPractice({
   const solutionBodyId = useId();
   const videoPanelId = useId();
   const filterStatusId = useId();
+  const solutionBodyRef = useRef<HTMLDivElement | null>(null);
   const [selectedQuestionId, setSelectedQuestionId] = useState<string | null>(
     questions[0]?.id ?? null,
   );
@@ -110,6 +111,10 @@ export function QuestionPractice({
     ? revealedExplanationQuestionId === currentQuestion.id
     : false;
   const isVideoVisible = currentQuestion ? visibleVideoQuestionId === currentQuestion.id : false;
+  const isCurrentFrq = currentQuestion?.type === 'frq';
+  const explanationHeading = isCurrentFrq ? 'Full Explanation' : 'Explanation';
+  const showExplanationLabel = isCurrentFrq ? 'Show Full Explanation' : 'Show Answer Explanation';
+  const hideExplanationLabel = isCurrentFrq ? 'Hide Full Explanation' : 'Hide Answer Explanation';
 
   useEffect(() => {
     if (!currentQuestion) {
@@ -126,6 +131,12 @@ export function QuestionPractice({
     setRevealedExplanationQuestionId(null);
     setVisibleVideoQuestionId(null);
   }, [currentQuestion?.id]);
+
+  useEffect(() => {
+    if (isExplanationVisible) {
+      solutionBodyRef.current?.focus();
+    }
+  }, [isExplanationVisible]);
 
   function goToQuestion(index: number) {
     const question = filteredQuestions[Math.min(Math.max(index, 0), filteredQuestions.length - 1)];
@@ -384,7 +395,7 @@ export function QuestionPractice({
 
               <section className="solution-panel" id={solutionPanelId}>
                 <div className="solution-panel__header">
-                  <h2>Explanation</h2>
+                  <h2>{explanationHeading}</h2>
                   <button
                     className="ghost-button"
                     aria-controls={solutionBodyId}
@@ -405,12 +416,17 @@ export function QuestionPractice({
                     ) : (
                       <Eye aria-hidden="true" />
                     )}
-                    {isExplanationVisible ? 'Hide Answer Explanation' : 'Show Answer Explanation'}
+                    {isExplanationVisible ? hideExplanationLabel : showExplanationLabel}
                   </button>
                 </div>
 
                 {isExplanationVisible ? (
-                  <div className="solution-panel__body" id={solutionBodyId}>
+                  <div
+                    className="solution-panel__body"
+                    id={solutionBodyId}
+                    ref={solutionBodyRef}
+                    tabIndex={-1}
+                  >
                     <MathText block text={currentQuestion.explanation.summary} />
                     <ol>
                       {currentQuestion.explanation.steps.map((step) => (
@@ -452,7 +468,9 @@ export function QuestionPractice({
                   </div>
                 ) : (
                   <p className="solution-panel__placeholder" id={solutionBodyId}>
-                    Reveal the answer explanation when you are ready to compare your work.
+                    {isCurrentFrq
+                      ? 'Use the FRQ self-score panel for sample responses and expected work, then reveal the full explanation when you are ready to compare your solution.'
+                      : 'Reveal the answer explanation when you are ready to compare your work.'}
                   </p>
                 )}
               </section>
