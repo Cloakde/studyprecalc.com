@@ -10,6 +10,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "test": "vitest run",
+    "check:first-pack": "tsx scripts/check-first-pack-readiness.ts",
     "check:production-readiness": "tsx scripts/check-production-readiness.ts",
     "smoke:live-checklist": "tsx scripts/live-smoke-checklist.ts",
     "smoke:supabase": "tsx scripts/smoke-supabase.ts",

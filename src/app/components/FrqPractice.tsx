@@ -4,10 +4,15 @@ import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 
 import type { Attempt } from '../../domain/attempts/types';
 import type { FrqQuestion } from '../../domain/questions/types';
 import { scoreFrqChecklist } from '../../domain/scoring/scoreFrq';
+import {
+  FrqAiFeedbackPlaceholder,
+  type FrqAiFeedbackPlaceholderProps,
+} from './FrqAiFeedbackPlaceholder';
 import { MathText } from './MathText';
 
 type FrqPracticeProps = {
   question: FrqQuestion;
+  aiFeedback?: FrqAiFeedbackPlaceholderProps;
   onSubmitAttempt?: (
     partResponses: Record<string, string>,
     earnedPointsByCriterion: Record<string, boolean>,
@@ -17,7 +22,7 @@ type FrqPracticeProps = {
   ) => Attempt | undefined;
 };
 
-export function FrqPractice({ question, onSubmitAttempt }: FrqPracticeProps) {
+export function FrqPractice({ question, aiFeedback, onSubmitAttempt }: FrqPracticeProps) {
   const reviewPanelRef = useRef<HTMLElement | null>(null);
   const controlIdPrefix = useId();
   const [responses, setResponses] = useState<Record<string, string>>({});
@@ -360,6 +365,8 @@ export function FrqPractice({ question, onSubmitAttempt }: FrqPracticeProps) {
               );
             })}
           </div>
+
+          <FrqAiFeedbackPlaceholder {...aiFeedback} />
         </section>
       ) : null}
     </div>

@@ -4,6 +4,7 @@ import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 
 import type { Attempt } from '../../domain/attempts/types';
 import type { FrqQuestion, McqChoice, McqQuestion, Question } from '../../domain/questions/types';
 import { CalculatorPanel } from './CalculatorPanel';
+import type { FrqAiFeedbackPlaceholderProps } from './FrqAiFeedbackPlaceholder';
 import { FrqPractice } from './FrqPractice';
 import { MathText } from './MathText';
 import { McqPractice } from './McqPractice';
@@ -15,6 +16,7 @@ type QuestionPracticeProps = {
   questions: Question[];
   questionSetVersion: string;
   attemptsByQuestionId?: Map<string, Attempt[]>;
+  frqAiFeedback?: FrqAiFeedbackPlaceholderProps;
   onSaveMcqAttempt?: (
     question: McqQuestion,
     selectedChoiceId: McqChoice['id'],
@@ -34,6 +36,7 @@ export function QuestionPractice({
   questions,
   questionSetVersion,
   attemptsByQuestionId,
+  frqAiFeedback,
   onSaveMcqAttempt,
   onSaveFrqAttempt,
 }: QuestionPracticeProps) {
@@ -372,6 +375,7 @@ export function QuestionPractice({
                 />
               ) : (
                 <FrqPractice
+                  aiFeedback={frqAiFeedback}
                   key={currentQuestion.id}
                   onSubmitAttempt={(
                     partResponses,

@@ -521,3 +521,12 @@ Use this file as an append-only record whenever an agent finishes, pauses, or ha
 - Verification: Ran `npm run lint`, `npm test` (182 tests), `npm run validate:content`, `git diff --check`, `npm run build`, and an HTTP smoke for `http://127.0.0.1:5173/`. All passed; build still prints the existing large-chunk warning.
 - Decisions made: Keep autosave browser-local for admin authoring safety, require explicit typed confirmation for permanent question deletion, and keep FRQ sample/expected-work reveal behind self-score controls rather than exposing it before submission.
 - Next recommended step: Continue with M21/M22 for admin AI configuration, Gemini proxy planning, student AI placeholders, import templates, content QA dashboard, and first-pack launch checklist.
+
+### 2026-05-15 - Codex + Six Agents - M21/M22 Execution
+
+- Status: Repo-side M21/M22 execution complete.
+- Files changed: Added `AdminAiSettings`, `FrqAiFeedbackPlaceholder`, first-pack readiness tooling, original question-pack templates, Gemini proxy docs, launch QA dashboard helpers/UI, content import docs, and focused unit tests.
+- Verification: Ran `npm run lint`, `npm test` (196 tests), `npm run validate:content`, `npm run check:first-pack -- --help`, `npm run check:first-pack`, `git diff --check`, `npm run build`, an expected-failure template placeholder check, and an HTTP smoke for `http://127.0.0.1:5173/`.
+- Expected failures: `npm run check:first-pack` fails on the intentionally empty starter bank until owner-authored questions are added. The template placeholder check fails while `OWNER_TODO` fields remain, which is now intentional launch-blocking behavior.
+- Decisions made: Keep live AI grading behind a future server-side Gemini proxy; expose admin/student AI surfaces as status/placeholder only; block first-pack launch when template placeholders remain.
+- Next recommended step: Owner writes original questions in the no-code manager or template, replaces every placeholder, runs `npm run check:first-pack -- <pack>`, publishes, then reruns with `--require-published`.

@@ -1,0 +1,173 @@
+{
+  "version": "owner-original-pack-template-v1",
+  "questions": [
+    {
+      "id": "owner-mcq-template-001",
+      "type": "mcq",
+      "unit": "Polynomial and Rational Functions",
+      "topic": "Function transformations",
+      "skill": "OWNER_TODO: Replace with the specific original MCQ skill.",
+      "difficulty": "intro",
+      "calculator": "none",
+      "section": "practice",
+      "publicationStatus": "draft",
+      "tags": ["mcq", "no-calculator", "transformations"],
+      "prompt": "OWNER_TODO: Write an original multiple-choice prompt. Include all needed graph, table, or context details here.",
+      "assets": [
+        {
+          "id": "mcq-001-prompt-visual",
+          "type": "graph",
+          "path": "https://example.com/original-assets/mcq-001-prompt-visual.png",
+          "alt": "OWNER_TODO: Describe the prompt visual and the information a student must use.",
+          "caption": "OWNER_TODO: Short prompt visual caption."
+        }
+      ],
+      "choices": [
+        {
+          "id": "A",
+          "text": "OWNER_TODO: Correct answer choice text.",
+          "explanation": "OWNER_TODO: Explain why this choice is correct."
+        },
+        {
+          "id": "B",
+          "text": "OWNER_TODO: Plausible distractor choice text.",
+          "explanation": "OWNER_TODO: Name the misconception or error behind this distractor."
+        },
+        {
+          "id": "C",
+          "text": "OWNER_TODO: Plausible distractor choice text.",
+          "explanation": "OWNER_TODO: Name the misconception or error behind this distractor."
+        },
+        {
+          "id": "D",
+          "text": "OWNER_TODO: Plausible distractor choice text.",
+          "explanation": "OWNER_TODO: Name the misconception or error behind this distractor."
+        }
+      ],
+      "correctChoiceId": "A",
+      "explanation": {
+        "summary": "OWNER_TODO: Summarize the central idea for this original MCQ.",
+        "steps": [
+          "OWNER_TODO: Step 1 of the solution in student-readable language.",
+          "OWNER_TODO: Step 2 of the solution in student-readable language."
+        ],
+        "commonMistakes": [
+          "OWNER_TODO: Describe a common mistake or misconception this question is meant to surface."
+        ],
+        "assets": [
+          {
+            "id": "mcq-001-solution-visual",
+            "type": "graph",
+            "path": "https://example.com/original-assets/mcq-001-solution-visual.png",
+            "alt": "OWNER_TODO: Describe the solution visual and what it shows.",
+            "caption": "OWNER_TODO: Short solution visual caption."
+          }
+        ],
+        "video": {
+          "url": "https://example.com/original-videos/mcq-001-explanation",
+          "thumbnailPath": "https://example.com/original-assets/mcq-001-video-thumbnail.png",
+          "transcriptPath": "https://example.com/original-transcripts/mcq-001-transcript.md",
+          "durationSeconds": 180
+        }
+      }
+    },
+    {
+      "id": "owner-frq-template-001",
+      "type": "frq",
+      "unit": "Exponential and Logarithmic Functions",
+      "topic": "Exponential models",
+      "skill": "OWNER_TODO: Replace with the specific original FRQ skill.",
+      "difficulty": "medium",
+      "calculator": "graphing",
+      "section": "frq-a",
+      "publicationStatus": "draft",
+      "tags": ["frq", "graphing-calculator", "models", "interpretation"],
+      "prompt": "OWNER_TODO: Write an original free-response setup. Include all needed context, table values, graph details, or model definitions.",
+      "assets": [
+        {
+          "id": "frq-001-prompt-visual",
+          "type": "table",
+          "path": "https://example.com/original-assets/frq-001-prompt-table.png",
+          "alt": "OWNER_TODO: Describe the table, graph, or image data students need for the FRQ.",
+          "caption": "OWNER_TODO: Short FRQ prompt visual caption."
+        }
+      ],
+      "parts": [
+        {
+          "id": "a",
+          "prompt": "OWNER_TODO: Write part (a).",
+          "sampleResponse": "OWNER_TODO: Write a complete sample response for part (a).",
+          "expectedWork": [
+            "OWNER_TODO: Expected setup or representation for part (a).",
+            "OWNER_TODO: Expected computation or reasoning for part (a)."
+          ],
+          "rubric": [
+            {
+              "id": "owner-frq-template-001-a-setup",
+              "description": "OWNER_TODO: Award for a correct setup or representation.",
+              "points": 1
+            },
+            {
+              "id": "owner-frq-template-001-a-reasoning",
+              "description": "OWNER_TODO: Award for correct reasoning, computation, or interpretation.",
+              "points": 1
+            }
+          ]
+        },
+        {
+          "id": "b",
+          "prompt": "OWNER_TODO: Write part (b).",
+          "sampleResponse": "OWNER_TODO: Write a complete sample response for part (b).",
+          "expectedWork": [
+            "OWNER_TODO: Expected setup or representation for part (b).",
+            "OWNER_TODO: Expected computation or reasoning for part (b).",
+            "OWNER_TODO: Expected interpretation for part (b)."
+          ],
+          "rubric": [
+            {
+              "id": "owner-frq-template-001-b-setup",
+              "description": "OWNER_TODO: Award for a correct setup or representation.",
+              "points": 1
+            },
+            {
+              "id": "owner-frq-template-001-b-solution",
+              "description": "OWNER_TODO: Award for a correct solution process.",
+              "points": 1
+            },
+            {
+              "id": "owner-frq-template-001-b-interpretation",
+              "description": "OWNER_TODO: Award for a correct contextual interpretation.",
+              "points": 1
+            }
+          ]
+        }
+      ],
+      "explanation": {
+        "summary": "OWNER_TODO: Summarize the central idea for this original FRQ.",
+        "steps": [
+          "OWNER_TODO: Step 1 for solving the full FRQ.",
+          "OWNER_TODO: Step 2 for solving the full FRQ.",
+          "OWNER_TODO: Step 3 for interpreting the result."
+        ],
+        "commonMistakes": [
+          "OWNER_TODO: Describe a common FRQ setup, computation, or interpretation mistake."
+        ],
+        "assets": [
+          {
+            "id": "frq-001-solution-visual",
+            "type": "graph",
+            "path": "https://example.com/original-assets/frq-001-solution-visual.png",
+            "alt": "OWNER_TODO: Describe the solution visual and what it confirms.",
+            "caption": "OWNER_TODO: Short FRQ solution visual caption."
+          }
+        ],
+        "video": {
+          "url": "https://example.com/original-videos/frq-001-explanation",
+          "thumbnailPath": "https://example.com/original-assets/frq-001-video-thumbnail.png",
+          "transcriptPath": "https://example.com/original-transcripts/frq-001-transcript.md",
+          "durationSeconds": 300
+        }
+      }
+    }
+  ]
+}

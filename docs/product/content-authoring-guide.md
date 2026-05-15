@@ -2,6 +2,10 @@
 
 This guide is for authors creating AP Precalculus practice content through JSON imports, exports, or the no-code content manager. Keep every question original and use the taxonomy in `docs/product/content-taxonomy.md` for units, topics, and tags.
 
+For an owner-friendly pack shell and import checklist, start with
+`docs/product/content-import-template.md` and
+`content/templates/original-question-pack-template.json`.
+
 ## Authoring Workflow
 
 1. Choose `type`, `unit`, `topic`, `skill`, `difficulty`, `calculator`, and `section` before writing the prompt.

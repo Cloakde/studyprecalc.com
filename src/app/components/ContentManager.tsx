@@ -29,7 +29,18 @@ import {
   saveLocalVideoFile,
 } from '../../data/localVideoStore';
 import { QuestionSchema, QuestionSetSchema } from '../../data/schemas/questionSchema';
-import { buildContentReadinessReport } from '../../domain/questions/contentReadiness';
+import {
+  buildContentReadinessDashboard,
+  buildContentReadinessReport,
+  contentReadinessIssueCategories,
+  contentReadinessIssueCategoryLabels,
+} from '../../domain/questions/contentReadiness';
+import type {
+  ContentReadinessCategoryFilter,
+  ContentReadinessDashboardGroupBy,
+  ContentReadinessSeverityFilter,
+  ContentReadinessStatusFilter,
+} from '../../domain/questions/contentReadiness';
 import type { QuestionPublicationStatus } from '../../domain/questions/publication';
 import type {
   CalculatorPolicy,
@@ -127,6 +138,10 @@ type LibraryTypeFilter = 'all' | QuestionDraft['type'];
 type LibraryStatusFilter = 'all' | DraftWorkflowState;
 
 type LibrarySortMode = 'skill' | 'unit' | 'status' | 'type';
+
+type ReadinessStatusFilter = ContentReadinessStatusFilter;
+
+type ReadinessGroupMode = ContentReadinessDashboardGroupBy;
 
 type ReadinessCheck = {
   id: string;
@@ -908,6 +923,12 @@ export function ContentManager({
   const [libraryTypeFilter, setLibraryTypeFilter] = useState<LibraryTypeFilter>('all');
   const [libraryStatusFilter, setLibraryStatusFilter] = useState<LibraryStatusFilter>('all');
   const [librarySortMode, setLibrarySortMode] = useState<LibrarySortMode>('skill');
+  const [readinessSeverityFilter, setReadinessSeverityFilter] =
+    useState<ContentReadinessSeverityFilter>('all');
+  const [readinessStatusFilter, setReadinessStatusFilter] = useState<ReadinessStatusFilter>('all');
+  const [readinessCategoryFilter, setReadinessCategoryFilter] =
+    useState<ContentReadinessCategoryFilter>('all');
+  const [readinessGroupMode, setReadinessGroupMode] = useState<ReadinessGroupMode>('severity');
   const [workflowStatesByQuestionId, setWorkflowStatesByQuestionId] = useState<
     Record<string, DraftWorkflowState>
   >({});
@@ -945,7 +966,22 @@ export function ContentManager({
       }),
     [customQuestions, getQuestionStatus, onUploadImageFile, workflowStatesByQuestionId],
   );
-  const topContentReadinessIssues = contentReadinessReport.issues.slice(0, 6);
+  const contentReadinessDashboard = useMemo(
+    () =>
+      buildContentReadinessDashboard(contentReadinessReport, {
+        severity: readinessSeverityFilter,
+        status: readinessStatusFilter,
+        category: readinessCategoryFilter,
+        groupBy: readinessGroupMode,
+      }),
+    [
+      contentReadinessReport,
+      readinessCategoryFilter,
+      readinessGroupMode,
+      readinessSeverityFilter,
+      readinessStatusFilter,
+    ],
+  );
   const previewVideo = useMemo(() => draftToVideoExplanation(draft), [draft]);
   const displayedQuestions = useMemo(() => {
     const normalizedSearchText = librarySearchText.trim().toLowerCase();
@@ -1849,35 +1885,141 @@ export function ContentManager({
             </div>
           </div>
         </div>
-        {customQuestions.length === 0 ? (
-          <p className="empty-list-copy">No authored questions to scan yet.</p>
-        ) : topContentReadinessIssues.length === 0 ? (
-          <ul className="publish-check-list" aria-label="Content readiness warnings">
-            <li data-complete={true}>
-              <CheckCircle2 aria-hidden="true" />
-              <span>No readiness warnings found in saved authored questions.</span>
+        <div className="readiness-dashboard-controls" aria-label="Launch QA dashboard controls">
+          <label>
+            Severity
+            <select
+              onChange={(event) =>
+                setReadinessSeverityFilter(event.target.value as ContentReadinessSeverityFilter)
+              }
+              value={readinessSeverityFilter}
+            >
+              <option value="all">
+                All issues ({contentReadinessDashboard.counts.severity.all})
+              </option>
+              <option value="blocker">
+                Blockers ({contentReadinessDashboard.counts.severity.blocker})
+              </option>
+              <option value="warning">
+                Warnings ({contentReadinessDashboard.counts.severity.warning})
+              </option>
+            </select>
+          </label>
+          <label>
+            Status
+            <select
+              onChange={(event) =>
+                setReadinessStatusFilter(event.target.value as ReadinessStatusFilter)
+              }
+              value={readinessStatusFilter}
+            >
+              <option value="all">
+                All statuses ({contentReadinessDashboard.counts.status.all})
+              </option>
+              <option value="published">
+                Published ({contentReadinessDashboard.counts.status.published})
+              </option>
+              <option value="draft">Draft ({contentReadinessDashboard.counts.status.draft})</option>
+              <option value="archived">
+                Archived ({contentReadinessDashboard.counts.status.archived})
+              </option>
+            </select>
+          </label>
+          <label>
+            Category
+            <select
+              onChange={(event) =>
+                setReadinessCategoryFilter(event.target.value as ContentReadinessCategoryFilter)
+              }
+              value={readinessCategoryFilter}
+            >
+              <option value="all">
+                All categories ({contentReadinessDashboard.counts.category.all})
+              </option>
+              {contentReadinessIssueCategories.map((category) => (
+                <option key={category} value={category}>
+                  {contentReadinessIssueCategoryLabels[category]} (
+                  {contentReadinessDashboard.counts.category[category]})
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Group by
+            <select
+              onChange={(event) => setReadinessGroupMode(event.target.value as ReadinessGroupMode)}
+              value={readinessGroupMode}
+            >
+              <option value="severity">Blocker or warning</option>
+              <option value="status">Publishing status</option>
+              <option value="category">Issue category</option>
+            </select>
+          </label>
+        </div>
+
+        <p className="readiness-filter-summary" aria-live="polite">
+          Showing {contentReadinessDashboard.visibleIssueCount} of{' '}
+          {contentReadinessDashboard.totalIssueCount} readiness item(s) across{' '}
+          {contentReadinessDashboard.visibleQuestionCount} question(s).
+        </p>
+
+        {contentReadinessDashboard.groups.length === 0 ? (
+          <ul className="publish-check-list" aria-label="Content readiness status">
+            <li data-complete={contentReadinessDashboard.totalIssueCount === 0}>
+              {contentReadinessDashboard.totalIssueCount === 0 ? (
+                <CheckCircle2 aria-hidden="true" />
+              ) : (
+                <CircleAlert aria-hidden="true" />
+              )}
+              <span>{contentReadinessDashboard.emptyMessage}</span>
             </li>
           </ul>
         ) : (
-          <>
-            <ul className="publish-check-list" aria-label="Content readiness warnings">
-              {topContentReadinessIssues.map((issue, issueIndex) => (
-                <li data-complete={false} key={`${issue.questionId}-${issue.code}-${issueIndex}`}>
-                  <CircleAlert aria-hidden="true" />
-                  <span>
-                    <strong>{issue.severity === 'blocker' ? 'Blocker' : 'Warning'}:</strong>{' '}
-                    {issue.questionId} - {issue.message}
-                  </span>
-                </li>
-              ))}
-            </ul>
-            {contentReadinessReport.summary.issueCount > topContentReadinessIssues.length ? (
-              <p className="asset-editor-note">
-                Showing first {topContentReadinessIssues.length} of{' '}
-                {contentReadinessReport.summary.issueCount} readiness item(s).
-              </p>
-            ) : null}
-          </>
+          <div className="readiness-dashboard-groups" aria-label="Filtered launch QA issues">
+            {contentReadinessDashboard.groups.map((group) => (
+              <section className="readiness-group" key={group.key}>
+                <div className="readiness-group__header">
+                  <div>
+                    <h4>{group.label}</h4>
+                    <span>
+                      {group.issueCount} item(s) across {group.questionCount} question(s)
+                    </span>
+                  </div>
+                  <div className="readiness-group__counts">
+                    <span>{group.blockerCount} blocker(s)</span>
+                    <span>{group.warningCount} warning(s)</span>
+                  </div>
+                </div>
+                <ul className="readiness-issue-list">
+                  {group.issues.map((issue, issueIndex) => (
+                    <li
+                      data-severity={issue.severity}
+                      key={`${group.key}-${issue.questionId}-${issue.code}-${issueIndex}`}
+                    >
+                      <CircleAlert aria-hidden="true" />
+                      <div>
+                        <div className="readiness-issue-list__meta">
+                          <span className="status-pill" data-status={issue.status}>
+                            {getWorkflowStateLabel(issue.status)}
+                          </span>
+                          <span>{issue.questionType.toUpperCase()}</span>
+                          <span>{contentReadinessIssueCategoryLabels[issue.category]}</span>
+                          <span>{issue.fieldPath}</span>
+                        </div>
+                        <strong>
+                          {issue.questionLabel} <span>ID: {issue.questionId}</span>
+                        </strong>
+                        <p>{issue.message}</p>
+                        <p className="readiness-issue-list__action">
+                          Action: {issue.actionMessage}
+                        </p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ))}
+          </div>
         )}
       </section>
 

@@ -10,6 +10,33 @@ export type ContentReadinessIssueCategory =
   | 'metadata'
   | 'publishing';
 
+export const contentReadinessIssueCategories: ContentReadinessIssueCategory[] = [
+  'publishing',
+  'metadata',
+  'explanation',
+  'frq',
+  'accessibility',
+];
+
+export const contentReadinessIssueCategoryLabels: Record<ContentReadinessIssueCategory, string> = {
+  accessibility: 'Accessibility',
+  explanation: 'Explanation',
+  frq: 'FRQ scoring',
+  metadata: 'Metadata',
+  publishing: 'Publishing',
+};
+
+export const contentReadinessStatusLabels: Record<QuestionPublicationStatus, string> = {
+  archived: 'Archived',
+  draft: 'Draft',
+  published: 'Published',
+};
+
+export const contentReadinessSeverityLabels: Record<ContentReadinessIssueSeverity, string> = {
+  blocker: 'Blockers',
+  warning: 'Warnings',
+};
+
 export type ContentReadinessIssueCode =
   | 'duplicate-question-id'
   | 'duplicate-tag'
@@ -37,6 +64,7 @@ export type ContentReadinessIssueCode =
   | 'missing-topic'
   | 'missing-unit'
   | 'missing-video-transcript'
+  | 'template-placeholder'
   | 'weak-image-alt-text'
   | 'weak-tags';
 
@@ -77,6 +105,56 @@ export type ContentReadinessReport = {
   issues: ContentReadinessIssue[];
 };
 
+export type ContentReadinessSeverityFilter = 'all' | ContentReadinessIssueSeverity;
+
+export type ContentReadinessStatusFilter = 'all' | QuestionPublicationStatus;
+
+export type ContentReadinessCategoryFilter = 'all' | ContentReadinessIssueCategory;
+
+export type ContentReadinessDashboardGroupBy = 'category' | 'severity' | 'status';
+
+export type ContentReadinessDashboardFilters = {
+  severity?: ContentReadinessSeverityFilter;
+  status?: ContentReadinessStatusFilter;
+  category?: ContentReadinessCategoryFilter;
+  groupBy?: ContentReadinessDashboardGroupBy;
+};
+
+export type ContentReadinessDashboardIssue = ContentReadinessIssue & {
+  questionReportKey: string;
+  questionLabel: string;
+  questionType: Question['type'];
+  status: QuestionPublicationStatus;
+  actionMessage: string;
+};
+
+export type ContentReadinessDashboardGroup = {
+  key: string;
+  label: string;
+  issueCount: number;
+  blockerCount: number;
+  warningCount: number;
+  questionCount: number;
+  issues: ContentReadinessDashboardIssue[];
+};
+
+export type ContentReadinessDashboardCounts = {
+  severity: Record<ContentReadinessSeverityFilter, number>;
+  status: Record<ContentReadinessStatusFilter, number>;
+  category: Record<ContentReadinessCategoryFilter, number>;
+};
+
+export type ContentReadinessDashboard = {
+  filters: Required<ContentReadinessDashboardFilters>;
+  counts: ContentReadinessDashboardCounts;
+  groups: ContentReadinessDashboardGroup[];
+  visibleIssues: ContentReadinessDashboardIssue[];
+  visibleIssueCount: number;
+  visibleQuestionCount: number;
+  totalIssueCount: number;
+  emptyMessage: string;
+};
+
 export type ContentReadinessOptions = {
   getStatus?: (question: Question, questionIndex: number) => QuestionPublicationStatus;
   disallowLocalMedia?: boolean;
@@ -112,6 +190,56 @@ const weakAltTextValues = new Set([
   'uploaded image',
 ]);
 
+const contentReadinessActionMessages: Record<ContentReadinessIssueCode, string> = {
+  'duplicate-question-id': 'Rename one of the duplicate IDs so each saved question is stable.',
+  'duplicate-tag': 'Remove repeated tags and keep one canonical spelling.',
+  'generic-metadata': 'Replace placeholder metadata with AP Precalculus-specific language.',
+  'invalid-correct-choice': 'Select a correct answer ID that matches one of the MCQ choices.',
+  'invalid-frq-rubric-points':
+    'Enter positive whole-number point values for each rubric criterion.',
+  'invalid-video-duration': 'Enter the video duration as a positive whole number of seconds.',
+  'local-media-publish-blocker':
+    'Replace browser-local media with cloud image references or an external video link.',
+  'missing-choice-explanation':
+    'Add choice-level feedback explaining why the answer is correct or incorrect.',
+  'missing-choice-text': 'Add visible answer text for each MCQ choice.',
+  'missing-common-mistakes': 'Add at least one likely mistake students should review.',
+  'missing-explanation-steps': 'Add worked solution steps for the explanation panel.',
+  'missing-explanation-summary': 'Add a concise solution summary before launch review.',
+  'missing-frq-expected-work':
+    'List the expected work steps students should show for each FRQ part.',
+  'missing-frq-part': 'Add at least one FRQ part before this question can launch.',
+  'missing-frq-part-prompt': 'Add the student-facing prompt for each FRQ part.',
+  'missing-frq-rubric': 'Add rubric criteria so FRQ self-scoring is possible.',
+  'missing-frq-rubric-description':
+    'Describe what earns each rubric point in student-facing language.',
+  'missing-frq-sample-response':
+    'Add a sample response for students to compare after attempting the FRQ.',
+  'missing-image-alt-text': 'Write alt text that communicates the image, graph, or table content.',
+  'missing-prompt': 'Add the student-facing question prompt.',
+  'missing-question-id': 'Add a stable, unique question ID.',
+  'missing-skill': 'Add the assessed AP Precalculus skill.',
+  'missing-tags': 'Add searchable tags for review, assignment, and import QA.',
+  'missing-topic': 'Add the topic used for practice filters and dashboard reporting.',
+  'missing-unit': 'Add the AP Precalculus unit or local course unit.',
+  'missing-video-transcript': 'Add a transcript path for every attached video explanation.',
+  'template-placeholder': 'Replace every OWNER_TODO template placeholder with final content.',
+  'weak-image-alt-text':
+    'Replace generic alt text with the specific math information shown in the image.',
+  'weak-tags': 'Add another searchable tag that captures the topic or skill.',
+};
+
+const contentReadinessStatusOrder: QuestionPublicationStatus[] = ['published', 'draft', 'archived'];
+
+const contentReadinessSeverityOrder: ContentReadinessIssueSeverity[] = ['blocker', 'warning'];
+
+const defaultDashboardFilters: Required<ContentReadinessDashboardFilters> = {
+  severity: 'all',
+  status: 'all',
+  category: 'all',
+  groupBy: 'severity',
+};
+
 function trimText(value: string | undefined): string {
   return value?.trim() ?? '';
 }
@@ -143,6 +271,33 @@ function isWeakMetadataValue(value: string | undefined): boolean {
   const normalized = trimText(value).toLowerCase();
 
   return normalized.length > 0 && genericMetadataValues.has(normalized);
+}
+
+function hasTemplatePlaceholder(value: string | undefined): boolean {
+  return /\bOWNER_TODO\b/i.test(value ?? '');
+}
+
+function checkTemplatePlaceholder(
+  value: string | undefined,
+  fieldPath: string,
+  questionId: string,
+  issues: MutableIssueList,
+) {
+  if (!hasTemplatePlaceholder(value)) {
+    return;
+  }
+
+  addIssue(
+    issues,
+    {
+      code: 'template-placeholder',
+      category: 'publishing',
+      severity: 'blocker',
+      fieldPath,
+      message: 'Replace the owner template placeholder before launch review.',
+    },
+    questionId,
+  );
 }
 
 function getPathLabel(path: string | undefined): string {
@@ -282,6 +437,8 @@ function checkMetadata(
         questionId,
       );
     }
+
+    checkTemplatePlaceholder(question[fieldPath], fieldPath, questionId, issues);
   });
 
   const tags = cleanedList(question.tags);
@@ -316,6 +473,7 @@ function checkMetadata(
 
   tags.forEach((tag, tagIndex) => {
     const normalized = normalizedTag(tag);
+    const fieldPath = `tags[${tagIndex}]`;
 
     if (seenTags.has(normalized)) {
       addIssue(
@@ -324,13 +482,14 @@ function checkMetadata(
           code: 'duplicate-tag',
           category: 'metadata',
           severity: 'warning',
-          fieldPath: `tags[${tagIndex}]`,
+          fieldPath,
           message: `Remove duplicate tag "${tag}".`,
         },
         questionId,
       );
     }
 
+    checkTemplatePlaceholder(tag, fieldPath, questionId, issues);
     seenTags.add(normalized);
   });
 }
@@ -350,6 +509,8 @@ function checkExplanation(question: Question, questionId: string, issues: Mutabl
     );
   }
 
+  checkTemplatePlaceholder(question.explanation.summary, 'explanation.summary', questionId, issues);
+
   if (cleanedList(question.explanation.steps).length === 0) {
     addIssue(
       issues,
@@ -364,6 +525,10 @@ function checkExplanation(question: Question, questionId: string, issues: Mutabl
     );
   }
 
+  question.explanation.steps.forEach((step, stepIndex) =>
+    checkTemplatePlaceholder(step, `explanation.steps[${stepIndex}]`, questionId, issues),
+  );
+
   if (cleanedList(question.explanation.commonMistakes).length === 0) {
     addIssue(
       issues,
@@ -377,6 +542,15 @@ function checkExplanation(question: Question, questionId: string, issues: Mutabl
       questionId,
     );
   }
+
+  question.explanation.commonMistakes?.forEach((mistake, mistakeIndex) =>
+    checkTemplatePlaceholder(
+      mistake,
+      `explanation.commonMistakes[${mistakeIndex}]`,
+      questionId,
+      issues,
+    ),
+  );
 
   const video = question.explanation.video;
 
@@ -450,6 +624,14 @@ function checkAssets(
         questionId,
       );
     }
+
+    checkTemplatePlaceholder(asset.alt, fieldPath, questionId, issues);
+    checkTemplatePlaceholder(
+      asset.caption,
+      `${fieldPathPrefix}[${assetIndex}].caption`,
+      questionId,
+      issues,
+    );
   });
 }
 
@@ -477,6 +659,8 @@ function checkMcq(
       );
     }
 
+    checkTemplatePlaceholder(choice.text, `choices[${choiceIndex}].text`, questionId, issues);
+
     if (!hasText(choice.explanation)) {
       addIssue(
         issues,
@@ -490,6 +674,13 @@ function checkMcq(
         questionId,
       );
     }
+
+    checkTemplatePlaceholder(
+      choice.explanation,
+      `choices[${choiceIndex}].explanation`,
+      questionId,
+      issues,
+    );
   });
 
   if (!choiceIds.has(question.correctChoiceId)) {
@@ -528,6 +719,13 @@ function checkRubricCriterion(
     );
   }
 
+  checkTemplatePlaceholder(
+    criterion.description,
+    `parts[${partIndex}].rubric[${criterionIndex}].description`,
+    questionId,
+    issues,
+  );
+
   if (!Number.isInteger(criterion.points) || criterion.points <= 0) {
     addIssue(
       issues,
@@ -563,6 +761,8 @@ function checkFrqPart(
     );
   }
 
+  checkTemplatePlaceholder(part.prompt, `parts[${partIndex}].prompt`, questionId, issues);
+
   if (!hasText(part.sampleResponse)) {
     addIssue(
       issues,
@@ -577,6 +777,13 @@ function checkFrqPart(
     );
   }
 
+  checkTemplatePlaceholder(
+    part.sampleResponse,
+    `parts[${partIndex}].sampleResponse`,
+    questionId,
+    issues,
+  );
+
   if (cleanedList(part.expectedWork).length === 0) {
     addIssue(
       issues,
@@ -590,6 +797,15 @@ function checkFrqPart(
       questionId,
     );
   }
+
+  part.expectedWork.forEach((step, stepIndex) =>
+    checkTemplatePlaceholder(
+      step,
+      `parts[${partIndex}].expectedWork[${stepIndex}]`,
+      questionId,
+      issues,
+    ),
+  );
 
   if (!part.rubric || part.rubric.length === 0) {
     addIssue(
@@ -759,5 +975,229 @@ export function buildContentReadinessReport(
     },
     questionReports,
     issues,
+  };
+}
+
+export function getContentReadinessActionMessage(issue: ContentReadinessIssue): string {
+  return contentReadinessActionMessages[issue.code] ?? issue.message;
+}
+
+function normalizeDashboardFilters(
+  filters: ContentReadinessDashboardFilters,
+): Required<ContentReadinessDashboardFilters> {
+  return {
+    severity: filters.severity ?? defaultDashboardFilters.severity,
+    status: filters.status ?? defaultDashboardFilters.status,
+    category: filters.category ?? defaultDashboardFilters.category,
+    groupBy: filters.groupBy ?? defaultDashboardFilters.groupBy,
+  };
+}
+
+function createDashboardIssues(report: ContentReadinessReport): ContentReadinessDashboardIssue[] {
+  return report.questionReports.flatMap((questionReport, questionReportIndex) =>
+    questionReport.issues.map((issue) => ({
+      ...issue,
+      questionReportKey: `${questionReport.questionId}:${questionReportIndex}`,
+      questionLabel: questionReport.questionLabel,
+      questionType: questionReport.questionType,
+      status: questionReport.status,
+      actionMessage: getContentReadinessActionMessage(issue),
+    })),
+  );
+}
+
+function createDashboardCounts(
+  issues: readonly ContentReadinessDashboardIssue[],
+): ContentReadinessDashboardCounts {
+  const severity: Record<ContentReadinessSeverityFilter, number> = {
+    all: issues.length,
+    blocker: 0,
+    warning: 0,
+  };
+  const status: Record<ContentReadinessStatusFilter, number> = {
+    all: issues.length,
+    archived: 0,
+    draft: 0,
+    published: 0,
+  };
+  const category: Record<ContentReadinessCategoryFilter, number> = {
+    all: issues.length,
+    accessibility: 0,
+    explanation: 0,
+    frq: 0,
+    metadata: 0,
+    publishing: 0,
+  };
+
+  issues.forEach((issue) => {
+    severity[issue.severity] += 1;
+    status[issue.status] += 1;
+    category[issue.category] += 1;
+  });
+
+  return {
+    severity,
+    status,
+    category,
+  };
+}
+
+function dashboardIssueMatchesFilters(
+  issue: ContentReadinessDashboardIssue,
+  filters: Required<ContentReadinessDashboardFilters>,
+): boolean {
+  const matchesSeverity = filters.severity === 'all' || issue.severity === filters.severity;
+  const matchesStatus = filters.status === 'all' || issue.status === filters.status;
+  const matchesCategory = filters.category === 'all' || issue.category === filters.category;
+
+  return matchesSeverity && matchesStatus && matchesCategory;
+}
+
+function compareDashboardIssues(
+  leftIssue: ContentReadinessDashboardIssue,
+  rightIssue: ContentReadinessDashboardIssue,
+): number {
+  const leftSeverityIndex = contentReadinessSeverityOrder.indexOf(leftIssue.severity);
+  const rightSeverityIndex = contentReadinessSeverityOrder.indexOf(rightIssue.severity);
+
+  if (leftSeverityIndex !== rightSeverityIndex) {
+    return leftSeverityIndex - rightSeverityIndex;
+  }
+
+  const leftStatusIndex = contentReadinessStatusOrder.indexOf(leftIssue.status);
+  const rightStatusIndex = contentReadinessStatusOrder.indexOf(rightIssue.status);
+
+  if (leftStatusIndex !== rightStatusIndex) {
+    return leftStatusIndex - rightStatusIndex;
+  }
+
+  const leftCategoryIndex = contentReadinessIssueCategories.indexOf(leftIssue.category);
+  const rightCategoryIndex = contentReadinessIssueCategories.indexOf(rightIssue.category);
+
+  if (leftCategoryIndex !== rightCategoryIndex) {
+    return leftCategoryIndex - rightCategoryIndex;
+  }
+
+  return `${leftIssue.questionId} ${leftIssue.fieldPath}`.localeCompare(
+    `${rightIssue.questionId} ${rightIssue.fieldPath}`,
+  );
+}
+
+function getDashboardGroupKey(
+  issue: ContentReadinessDashboardIssue,
+  groupBy: ContentReadinessDashboardGroupBy,
+): string {
+  if (groupBy === 'status') {
+    return issue.status;
+  }
+
+  if (groupBy === 'category') {
+    return issue.category;
+  }
+
+  return issue.severity;
+}
+
+function getDashboardGroupLabel(key: string, groupBy: ContentReadinessDashboardGroupBy): string {
+  if (groupBy === 'status') {
+    return contentReadinessStatusLabels[key as QuestionPublicationStatus] ?? key;
+  }
+
+  if (groupBy === 'category') {
+    return contentReadinessIssueCategoryLabels[key as ContentReadinessIssueCategory] ?? key;
+  }
+
+  return contentReadinessSeverityLabels[key as ContentReadinessIssueSeverity] ?? key;
+}
+
+function getDashboardGroupOrder(key: string, groupBy: ContentReadinessDashboardGroupBy): number {
+  if (groupBy === 'status') {
+    return contentReadinessStatusOrder.indexOf(key as QuestionPublicationStatus);
+  }
+
+  if (groupBy === 'category') {
+    return contentReadinessIssueCategories.indexOf(key as ContentReadinessIssueCategory);
+  }
+
+  return contentReadinessSeverityOrder.indexOf(key as ContentReadinessIssueSeverity);
+}
+
+function createDashboardGroups(
+  issues: readonly ContentReadinessDashboardIssue[],
+  groupBy: ContentReadinessDashboardGroupBy,
+): ContentReadinessDashboardGroup[] {
+  const groupsByKey = new Map<string, ContentReadinessDashboardIssue[]>();
+
+  issues.forEach((issue) => {
+    const groupKey = getDashboardGroupKey(issue, groupBy);
+    const existingIssues = groupsByKey.get(groupKey);
+
+    if (existingIssues) {
+      existingIssues.push(issue);
+      return;
+    }
+
+    groupsByKey.set(groupKey, [issue]);
+  });
+
+  return [...groupsByKey.entries()]
+    .map(([key, groupIssues]) => {
+      const uniqueQuestionIds = new Set(groupIssues.map((issue) => issue.questionReportKey));
+      const blockerCount = groupIssues.filter((issue) => issue.severity === 'blocker').length;
+
+      return {
+        key,
+        label: getDashboardGroupLabel(key, groupBy),
+        issueCount: groupIssues.length,
+        blockerCount,
+        warningCount: groupIssues.length - blockerCount,
+        questionCount: uniqueQuestionIds.size,
+        issues: groupIssues,
+      };
+    })
+    .sort((leftGroup, rightGroup) => {
+      const leftIndex = getDashboardGroupOrder(leftGroup.key, groupBy);
+      const rightIndex = getDashboardGroupOrder(rightGroup.key, groupBy);
+
+      if (leftIndex !== rightIndex) {
+        return leftIndex - rightIndex;
+      }
+
+      return leftGroup.label.localeCompare(rightGroup.label);
+    });
+}
+
+function getDashboardEmptyMessage(report: ContentReadinessReport, totalIssueCount: number): string {
+  if (report.summary.questionCount === 0) {
+    return 'No authored questions to scan yet.';
+  }
+
+  if (totalIssueCount === 0) {
+    return 'No launch QA issues found in saved authored questions.';
+  }
+
+  return 'No readiness items match the selected filters.';
+}
+
+export function buildContentReadinessDashboard(
+  report: ContentReadinessReport,
+  filters: ContentReadinessDashboardFilters = {},
+): ContentReadinessDashboard {
+  const normalizedFilters = normalizeDashboardFilters(filters);
+  const allIssues = createDashboardIssues(report).sort(compareDashboardIssues);
+  const visibleIssues = allIssues.filter((issue) =>
+    dashboardIssueMatchesFilters(issue, normalizedFilters),
+  );
+  const visibleQuestionCount = new Set(visibleIssues.map((issue) => issue.questionReportKey)).size;
+
+  return {
+    filters: normalizedFilters,
+    counts: createDashboardCounts(allIssues),
+    groups: createDashboardGroups(visibleIssues, normalizedFilters.groupBy),
+    visibleIssues,
+    visibleIssueCount: visibleIssues.length,
+    visibleQuestionCount,
+    totalIssueCount: allIssues.length,
+    emptyMessage: getDashboardEmptyMessage(report, allIssues.length),
   };
 }

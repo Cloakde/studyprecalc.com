@@ -24,6 +24,7 @@ import { uploadSupabaseImage } from '../data/supabase/mediaStore';
 import { useSupabaseQuestionContentStore } from '../data/supabase/questionContentStore';
 import { useSupabaseSessionStore } from '../data/supabase/sessionStore';
 import { AccountAuth, type SignupInviteValidationInput } from './components/AccountAuth';
+import { AdminAiSettings } from './components/AdminAiSettings';
 import { AdminClassManager } from './components/AdminClassManager';
 import { AdminMfaGate, type AdminMfaRequirement } from './components/AdminMfaGate';
 import { AttemptReview } from './components/AttemptReview';
@@ -33,7 +34,14 @@ import { QuestionPractice } from './components/QuestionPractice';
 import { SessionPractice } from './components/SessionPractice';
 import { StudentDashboard } from './components/StudentDashboard';
 
-type AppMode = 'dashboard' | 'practice' | 'session' | 'review' | 'manage' | 'classes';
+type AppMode =
+  | 'dashboard'
+  | 'practice'
+  | 'session'
+  | 'review'
+  | 'manage'
+  | 'classes'
+  | 'ai-settings';
 
 const localDevAdminEmail = 'admin@studyprecalc.local';
 const localDevAdminPassword = 'localadmin';
@@ -339,7 +347,7 @@ export function App() {
   }, [adminMfaStore.requirement.isSatisfied, isCloudAdminAccount, refreshContent]);
 
   useEffect(() => {
-    if (!canManageContent && (mode === 'manage' || mode === 'classes')) {
+    if (!canManageContent && (mode === 'manage' || mode === 'classes' || mode === 'ai-settings')) {
       setMode('dashboard');
     }
   }, [canManageContent, mode]);
@@ -553,6 +561,14 @@ export function App() {
             >
               Classes
             </button>
+            <button
+              className="mode-tabs__button"
+              data-active={mode === 'ai-settings'}
+              onClick={() => setMode('ai-settings')}
+              type="button"
+            >
+              AI Settings
+            </button>
           </>
         ) : null}
       </nav>
@@ -684,6 +700,7 @@ export function App() {
           />
         ) : null
       ) : null}
+      {mode === 'ai-settings' && canManageContent ? <AdminAiSettings /> : null}
     </>
   );
 }

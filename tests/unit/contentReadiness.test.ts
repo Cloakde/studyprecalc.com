@@ -1,5 +1,7 @@
 import {
+  buildContentReadinessDashboard,
   buildContentReadinessReport,
+  getContentReadinessActionMessage,
   getContentReadinessIssues,
 } from '../../src/domain/questions/contentReadiness';
 import type { FrqQuestion, McqQuestion, Question } from '../../src/domain/questions/types';
@@ -180,6 +182,148 @@ describe('content readiness report', () => {
       expect.arrayContaining([
         expect.objectContaining({ code: 'duplicate-question-id', questionId: duplicateId }),
       ]),
+    );
+  });
+
+  it('builds filtered launch QA dashboard groups with issue counts', () => {
+    const report = buildContentReadinessReport([
+      makeReadyMcq({
+        id: 'published-blocker',
+        publicationStatus: 'published',
+        explanation: {
+          ...testMcqQuestion.explanation,
+          summary: '',
+        },
+      }),
+      makeReadyMcq({
+        id: 'draft-warning',
+        publicationStatus: 'draft',
+        unit: 'Unit',
+      }),
+      makeReadyFrq({
+        id: 'archived-blocker',
+        publicationStatus: 'archived',
+        prompt: '',
+      }),
+    ]);
+
+    const dashboard = buildContentReadinessDashboard(report, {
+      severity: 'blocker',
+      status: 'published',
+      category: 'explanation',
+      groupBy: 'category',
+    });
+
+    expect(dashboard.counts.severity).toMatchObject({
+      all: 3,
+      blocker: 2,
+      warning: 1,
+    });
+    expect(dashboard.counts.status).toMatchObject({
+      published: 1,
+      draft: 1,
+      archived: 1,
+    });
+    expect(dashboard.visibleIssueCount).toBe(1);
+    expect(dashboard.visibleQuestionCount).toBe(1);
+    expect(dashboard.groups).toEqual([
+      expect.objectContaining({
+        key: 'explanation',
+        label: 'Explanation',
+        issueCount: 1,
+        blockerCount: 1,
+        warningCount: 0,
+      }),
+    ]);
+    expect(dashboard.visibleIssues[0]).toMatchObject({
+      code: 'missing-explanation-summary',
+      questionId: 'published-blocker',
+      status: 'published',
+      actionMessage: 'Add a concise solution summary before launch review.',
+    });
+  });
+
+  it('groups launch QA issues by status and category for admin review', () => {
+    const report = buildContentReadinessReport([
+      makeReadyMcq({
+        id: 'published-metadata-warning',
+        publicationStatus: 'published',
+        unit: 'Unit',
+      }),
+      makeReadyFrq({
+        id: 'draft-frq-blocker',
+        publicationStatus: 'draft',
+        parts: [
+          {
+            ...testFrqQuestion.parts[0],
+            rubric: [],
+          },
+        ],
+      }),
+    ]);
+
+    const byStatusDashboard = buildContentReadinessDashboard(report, { groupBy: 'status' });
+    const byCategoryDashboard = buildContentReadinessDashboard(report, { groupBy: 'category' });
+
+    expect(byStatusDashboard.groups.map((group) => group.label)).toEqual(['Published', 'Draft']);
+    expect(byCategoryDashboard.groups.map((group) => group.label)).toEqual([
+      'Metadata',
+      'FRQ scoring',
+    ]);
+  });
+
+  it('blocks launch when owner template placeholders remain', () => {
+    const report = buildContentReadinessReport([
+      makeReadyMcq({
+        id: 'placeholder-mcq',
+        prompt: 'OWNER_TODO: write an original prompt.',
+        explanation: {
+          ...testMcqQuestion.explanation,
+          steps: ['Use the given table.', 'OWNER_TODO: replace this solution step.'],
+        },
+      }),
+    ]);
+
+    expect(report.summary.publishBlockerCount).toBeGreaterThan(0);
+    expect(report.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: 'template-placeholder',
+          fieldPath: 'prompt',
+          severity: 'blocker',
+        }),
+        expect.objectContaining({
+          code: 'template-placeholder',
+          fieldPath: 'explanation.steps[1]',
+          severity: 'blocker',
+        }),
+      ]),
+    );
+  });
+
+  it('returns actionable fallback copy for readiness issue codes', () => {
+    const issue = getContentReadinessIssues(
+      makeReadyMcq({
+        assets: [
+          {
+            id: 'local-image',
+            type: 'image',
+            path: 'local-image:abc123',
+            alt: 'Graph showing an increasing function',
+          },
+        ],
+      }),
+      { disallowLocalMedia: true },
+    ).find((readinessIssue) => readinessIssue.code === 'local-media-publish-blocker');
+
+    expect(issue).toBeDefined();
+
+    if (!issue) {
+      throw new Error('Expected local media publish blocker issue.');
+    }
+
+    expect(getContentReadinessActionMessage(issue)).toBe(
+      'Replace browser-local media with cloud image references or an external video link.',
     );
   });
 });
