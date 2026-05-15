@@ -4,8 +4,9 @@ Last updated: 2026-05-15
 
 ## Current Phase
 
-AUTH-009 is complete: invite codes are validated before the signup form unlocks, so a random
-non-empty code no longer opens account creation.
+M9/M10 execution is complete for repo-side work. M10 admin content workflow QA passed locally and
+gained stronger lifecycle/media coverage. M9 production activation remains blocked on owner-side
+Supabase SQL/bucket setup and optional `www` DNS configuration.
 
 ## Active Ownership
 
@@ -63,6 +64,9 @@ non-empty code no longer opens account creation.
 - AUTH-009 validates invite code and email before opening the account creation form. Supabase
   pre-validation uses the public `validate_invite` RPC, while final signup remains enforced by the
   database trigger.
+- M9/M10 repo-side execution added an owner handoff, content lifecycle/media coverage, and a
+  lifecycle timestamp persistence fix. Production activation cannot fully pass until Supabase has
+  `validate_invite`, `questions`, and the `question-images` bucket installed.
 
 ## Last Verification
 
@@ -102,3 +106,12 @@ non-empty code no longer opens account creation.
 2026-05-14: Agent MFA-3 ran scoped `rg` checks for Supabase admin/MFA helpers and `git diff --check -- supabase/schema.sql supabase/README.md`. Checks passed; diff check reported CRLF warnings only for the touched Supabase files.
 2026-05-14: Agent MFA-5 ran `npx prettier --write` and scoped `npx prettier --check` for the admin MFA ADR/runbook/index/message/status docs, plus scoped `git diff --check`. All passed.
 2026-05-14: Agent MFA-4 ran `npm test -- supabaseSmoke`, `npx prettier --check scripts/smoke-supabase.ts tests/unit/supabaseSmoke.test.ts`, scoped `npx eslint scripts/smoke-supabase.ts tests/unit/supabaseSmoke.test.ts`, and scoped `npx tsc --noEmit --pretty false ... scripts/smoke-supabase.ts tests/unit/supabaseSmoke.test.ts`. All passed. Repo-wide `npx tsc --noEmit --pretty false` is currently blocked by concurrent `tests/unit/supabaseAdminMfaStore.test.ts` typing work outside MFA-4 scope.
+2026-05-15: Agent M10-4 added the concise M9/M10 owner handoff docs and ran scoped Prettier and diff checks for the touched docs/coordination files. All passed. Live Supabase/Vercel/registrar checks remain owner-dashboard work outside this docs-only scope.
+2026-05-15: Agent M10-2 inspected media/image workflow test coverage and added focused coverage
+for browser-local prompt/explanation image and local-video publish rejection, missing cloud media
+metadata before `question_media` linkage, and signed URL rejection/error paths. Ran
+`npm test -- questionContentStore supabaseMediaStore`, `npm test` (134 tests), scoped
+Prettier/ESLint for the touched tests, and `npx tsc --noEmit --pretty false`. All passed.
+2026-05-15: Agent M10-1 added focused content lifecycle coverage and a lifecycle timestamp persistence fix, then ran `npm test -- questionContentStore`, `npx vitest run tests/unit/questionContentStore.test.ts tests/unit/publication.test.ts`, targeted ESLint/Prettier checks, `npm test` (134 tests), `npm run lint`, and `npm run build`. All passed.
+2026-05-15: Agent M10-3 ran a headless Chrome local-admin browser smoke for Manage Content: original MCQ and FRQ creation, local image uploads, Save Draft, Publish, Archive, and archived-question hiding from Practice all passed. Also ran `npx eslint src/app/components/ContentManager.tsx`, `npm test -- publication questionContentStore` (28 tests), `npm run validate:content`, and `npm run build`. All passed. No source fix was needed.
+2026-05-15: Codex integrated M9/M10 and ran `npm test -- questionContentStore supabaseMediaStore supabaseSmoke` (40 tests), `npx tsc --noEmit --pretty false`, `npm run validate:content`, `npm test` (134 tests), `npm run lint`, `npm run build`, and `git diff --check`. All repo checks passed. Live `npm run smoke:supabase` is blocked by missing `public.validate_invite`, `public.questions`, and `question-images` bucket in the configured Supabase project; `studyprecalc.com` returns HTTP 200 and `www.studyprecalc.com` is not configured.

@@ -106,18 +106,21 @@ export function createQuestionContentRecord(
   const updatedAt = getCurrentTimestamp(options.updatedAt ?? options.now);
   const createdAt = getCurrentTimestamp(options.createdAt ?? updatedAt);
   const status = options.status ?? 'draft';
-  const metadata = withLifecycleDates({
+  const metadata = withLifecycleDates(
+    {
+      status,
+      questionSetVersion: options.questionSetVersion ?? 'local',
+      createdAt,
+      updatedAt,
+      ...(cleanOptionalString(options.createdBy) ? { createdBy: options.createdBy?.trim() } : {}),
+      ...(cleanOptionalString(options.updatedBy) ? { updatedBy: options.updatedBy?.trim() } : {}),
+      ...(options.publishedAt
+        ? { publishedAt: toQuestionContentTimestamp(options.publishedAt) }
+        : {}),
+      ...(options.archivedAt ? { archivedAt: toQuestionContentTimestamp(options.archivedAt) } : {}),
+    },
     status,
-    questionSetVersion: options.questionSetVersion ?? 'local',
-    createdAt,
-    updatedAt,
-    ...(cleanOptionalString(options.createdBy) ? { createdBy: options.createdBy?.trim() } : {}),
-    ...(cleanOptionalString(options.updatedBy) ? { updatedBy: options.updatedBy?.trim() } : {}),
-    ...(options.publishedAt
-      ? { publishedAt: toQuestionContentTimestamp(options.publishedAt) }
-      : {}),
-    ...(options.archivedAt ? { archivedAt: toQuestionContentTimestamp(options.archivedAt) } : {}),
-  });
+  );
 
   return {
     id: question.id,

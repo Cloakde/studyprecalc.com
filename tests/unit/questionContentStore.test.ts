@@ -234,7 +234,7 @@ describe('local question content store', () => {
     });
   });
 
-  it('saves records locally and returns only published questions for student-facing reads', async () => {
+  it('persists the draft to publish to archive lifecycle and returns only published student questions', async () => {
     const storage = createMemoryStorage();
     const store = createLocalQuestionContentStore({
       storage,
@@ -249,6 +249,7 @@ describe('local question content store', () => {
       now: '2026-05-13T10:00:00.000Z',
     });
     expect(await store.listPublishedQuestions()).toEqual([]);
+    expect(await store.loadRecords({ publishedOnly: true })).toEqual([]);
 
     await store.setPublicationStatus(testMcqQuestion.id, 'published', {
       now: '2026-05-13T10:05:00.000Z',
@@ -256,13 +257,85 @@ describe('local question content store', () => {
     });
 
     const publishedQuestions = await store.listPublishedQuestions();
-    const storedRecords = await store.loadRecords();
+    const publishedRecords = await store.loadRecords({ publishedOnly: true });
+    const activeRecords = await store.loadRecords({ includeArchived: false });
 
     expect(publishedQuestions).toEqual([testMcqQuestion]);
-    expect(storedRecords[0].publication).toMatchObject({
+    expect(publishedRecords.map((record) => record.id)).toEqual([testMcqQuestion.id]);
+    expect(activeRecords.map((record) => record.id)).toEqual([testMcqQuestion.id]);
+    expect(publishedRecords[0].publication).toMatchObject({
       status: 'published',
       questionSetVersion: 'local-v1',
       publishedAt: '2026-05-13T10:05:00.000Z',
+    });
+
+    await store.setPublicationStatus(testMcqQuestion.id, 'archived', {
+      now: '2026-05-13T10:10:00.000Z',
+      updatedBy: 'admin-1',
+    });
+
+    const archivedRecords = await store.loadRecords();
+
+    expect(await store.listPublishedQuestions()).toEqual([]);
+    expect(await store.loadRecords({ publishedOnly: true })).toEqual([]);
+    expect(await store.loadRecords({ includeArchived: false })).toEqual([]);
+    expect(archivedRecords[0].publication).toMatchObject({
+      status: 'archived',
+      questionSetVersion: 'local-v1',
+      publishedAt: '2026-05-13T10:05:00.000Z',
+      archivedAt: '2026-05-13T10:10:00.000Z',
+    });
+  });
+
+  it('persists updates to published questions without resetting lifecycle metadata', async () => {
+    const storage = createMemoryStorage();
+    const storageKey = 'question-content-update-persistence';
+    const store = createLocalQuestionContentStore({
+      storage,
+      storageKey,
+      defaultQuestionSetVersion: 'local-v1',
+    });
+    const updatedQuestion: Question = {
+      ...testMcqQuestion,
+      prompt: 'Updated prompt for a published question.',
+      tags: [...testMcqQuestion.tags, 'updated'],
+    };
+
+    await store.saveQuestion({
+      question: testMcqQuestion,
+      status: 'draft',
+      updatedBy: 'admin-1',
+      now: '2026-05-13T10:00:00.000Z',
+    });
+    await store.setPublicationStatus(testMcqQuestion.id, 'published', {
+      now: '2026-05-13T10:05:00.000Z',
+      updatedBy: 'admin-1',
+    });
+    await store.saveQuestion({
+      question: updatedQuestion,
+      updatedBy: 'admin-2',
+      now: '2026-05-13T10:08:00.000Z',
+    });
+
+    const reloadedStore = createLocalQuestionContentStore({
+      storage,
+      storageKey,
+      defaultQuestionSetVersion: 'local-v1',
+    });
+    const storedRecords = await reloadedStore.loadRecords();
+
+    expect(await reloadedStore.listPublishedQuestions()).toEqual([updatedQuestion]);
+    expect(storedRecords[0]).toMatchObject({
+      question: updatedQuestion,
+      publication: {
+        status: 'published',
+        questionSetVersion: 'local-v1',
+        createdAt: '2026-05-13T10:00:00.000Z',
+        updatedAt: '2026-05-13T10:08:00.000Z',
+        createdBy: 'admin-1',
+        updatedBy: 'admin-2',
+        publishedAt: '2026-05-13T10:05:00.000Z',
+      },
     });
   });
 
@@ -480,33 +553,72 @@ describe('Supabase question media links', () => {
     ).toBe(false);
   });
 
-  it('rejects publishing browser-local media to the cloud store', async () => {
-    const { client, operations } = createMockSupabaseClient();
-    const store = createSupabaseQuestionContentStore({
-      enabled: true,
-      client: client as never,
-      userId: 'admin-1',
-    });
-    const question: Question = {
-      ...testMcqQuestion,
-      assets: [
-        {
-          id: 'local-image',
-          type: 'image',
-          path: 'local-image:local_1',
-          alt: 'Local image',
+  const browserLocalMediaQuestions: Array<[string, Question]> = [
+    [
+      'question image',
+      {
+        ...testMcqQuestion,
+        assets: [
+          {
+            id: 'local-image',
+            type: 'image',
+            path: 'local-image:local_1',
+            alt: 'Local image',
+          },
+        ],
+      },
+    ],
+    [
+      'explanation image',
+      {
+        ...testMcqQuestion,
+        explanation: {
+          ...testMcqQuestion.explanation,
+          assets: [
+            {
+              id: 'local-explanation-image',
+              type: 'image',
+              path: 'local-image:local_2',
+              alt: 'Local explanation image',
+            },
+          ],
         },
-      ],
-    };
+      },
+    ],
+    [
+      'explanation video',
+      {
+        ...testMcqQuestion,
+        explanation: {
+          ...testMcqQuestion.explanation,
+          video: {
+            url: 'local-video:video_1',
+            transcriptPath: 'transcripts/local-video.txt',
+          },
+        },
+      },
+    ],
+  ];
 
-    await expect(
-      store.saveQuestion({
-        question,
-        status: 'published',
-      }),
-    ).rejects.toThrow('Cloud-published questions cannot use browser-local images or videos');
-    expect(operations.some((operation) => operation.table === 'questions')).toBe(false);
-  });
+  it.each(browserLocalMediaQuestions)(
+    'rejects publishing browser-local %s to the cloud store',
+    async (_label, question) => {
+      const { client, operations } = createMockSupabaseClient();
+      const store = createSupabaseQuestionContentStore({
+        enabled: true,
+        client: client as never,
+        userId: 'admin-1',
+      });
+
+      await expect(
+        store.saveQuestion({
+          question,
+          status: 'published',
+        }),
+      ).rejects.toThrow('Cloud-published questions cannot use browser-local images or videos');
+      expect(operations.some((operation) => operation.table === 'questions')).toBe(false);
+    },
+  );
 
   it('resolves media records and syncs cloud image links after saving a question', async () => {
     const { client, operations } = createMockSupabaseClient({
@@ -579,6 +691,44 @@ describe('Supabase question media links', () => {
         sort_order: 0,
       },
     ]);
+  });
+
+  it('requires media records before linking cloud question images', async () => {
+    const { client, operations } = createMockSupabaseClient();
+    const store = createSupabaseQuestionContentStore({
+      enabled: true,
+      client: client as never,
+      userId: 'admin-1',
+    });
+    const question: Question = {
+      ...testMcqQuestion,
+      assets: [
+        {
+          id: 'prompt-image',
+          type: 'image',
+          path: 'supabase-image:questions/test/missing.png',
+          alt: 'Question cloud image',
+        },
+      ],
+    };
+
+    await expect(
+      store.saveQuestion({
+        question,
+        status: 'published',
+      }),
+    ).rejects.toThrow('Missing media records for question image(s): questions/test/missing.png');
+    expect(operations).toContainEqual({
+      table: 'questions',
+      action: 'upsert',
+      values: expect.any(Object),
+    });
+    expect(operations).toContainEqual({ table: 'media_records', action: 'select' });
+    expect(
+      operations.some(
+        (operation) => operation.table === 'question_media' && operation.action === 'upsert',
+      ),
+    ).toBe(false);
   });
 
   it('surfaces media link sync failures after the question row is saved', async () => {
@@ -700,5 +850,51 @@ describe('question content store fallback', () => {
     expect(savedRecord.publication.status).toBe('published');
     expect(await store.listPublishedQuestions()).toEqual([testMcqQuestion]);
     expect(fallbackEvents).toEqual(['saveQuestion', 'listPublishedQuestions']);
+  });
+
+  it('uses the local store for lifecycle status changes when the primary store fails', async () => {
+    const fallbackEvents: string[] = [];
+    const localStore = createLocalQuestionContentStore({
+      storage: createMemoryStorage(),
+      now: () => new Date('2026-05-13T10:00:00.000Z'),
+    });
+    const store = createQuestionContentStoreWithFallback(
+      createFailingStore(),
+      localStore,
+      (operation) => fallbackEvents.push(operation),
+    );
+
+    await store.saveQuestion({
+      question: testMcqQuestion,
+      status: 'draft',
+      now: '2026-05-13T10:00:00.000Z',
+    });
+    await store.setPublicationStatus(testMcqQuestion.id, 'published', {
+      now: '2026-05-13T10:05:00.000Z',
+      updatedBy: 'admin-1',
+    });
+
+    expect(await store.listPublishedQuestions()).toEqual([testMcqQuestion]);
+
+    await store.setPublicationStatus(testMcqQuestion.id, 'archived', {
+      now: '2026-05-13T10:10:00.000Z',
+      updatedBy: 'admin-1',
+    });
+
+    const localRecords = await localStore.loadRecords();
+
+    expect(await store.listPublishedQuestions()).toEqual([]);
+    expect(localRecords[0].publication).toMatchObject({
+      status: 'archived',
+      publishedAt: '2026-05-13T10:05:00.000Z',
+      archivedAt: '2026-05-13T10:10:00.000Z',
+    });
+    expect(fallbackEvents).toEqual([
+      'saveQuestion',
+      'setPublicationStatus',
+      'listPublishedQuestions',
+      'setPublicationStatus',
+      'listPublishedQuestions',
+    ]);
   });
 });

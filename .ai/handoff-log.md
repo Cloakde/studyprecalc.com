@@ -446,3 +446,51 @@ Use this file as an append-only record whenever an agent finishes, pauses, or ha
 - Verification: Ran `npm test -- supabaseInviteMapping localInviteStore`, targeted ESLint for auth/invite files, `npx tsc --noEmit --pretty false`, `npm run validate:content`, `npm test` (127 tests), `npm run lint`, and `npm run build`. All passed.
 - Decisions made: The invite unlock screen now asks for email plus invite code so email-bound invites can be checked before the account form opens. Supabase pre-validation uses the public `validate_invite` RPC; the final database trigger remains the source of truth during signup.
 - Browser note: DOM smoke confirmed the invite screen has Email and Invite Code before unlock. Browser automation could not submit the form because the plugin still cannot type into `type=email` inputs.
+
+### 2026-05-15 - Agent M10-2 - Media/Image Workflow Coverage
+
+- Status: Complete for scoped media/image workflow tests.
+- Files changed: Updated `tests/unit/questionContentStore.test.ts`,
+  `tests/unit/supabaseMediaStore.test.ts`, and coordination status. Existing concurrent
+  lifecycle-test edits in `tests/unit/questionContentStore.test.ts` were preserved.
+- Coverage added: Browser-local prompt images, explanation images, and local videos now all reject
+  cloud publish before a question row write; cloud image link sync now covers missing
+  `media_records` metadata before `question_media` upsert; signed URL creation now rejects
+  browser-local references before Storage calls and surfaces Storage signing errors.
+- Verification: Ran `npm test -- questionContentStore supabaseMediaStore`, `npm test` (134 tests),
+  scoped `npx prettier --check` and `npx eslint` for the touched tests, and
+  `npx tsc --noEmit --pretty false`. All passed.
+
+### 2026-05-15 - Agent M10-4 / Codex - M9/M10 Owner Handoff
+
+- Status: Complete for owner activation and admin content QA handoff docs.
+- Files changed: Added `docs/operations/m9-m10-owner-handoff.md`; updated `docs/operations/production-activation.md`, `docs/INDEX.md`, `.ai/messages/from-codex.md`, `.ai/status.md`, and this handoff log.
+- Verification: Ran scoped Prettier and diff checks for the touched docs/coordination files. All passed.
+- Decisions made: Kept the M9/M10 handoff as a concise evidence and blocker checklist that points to the detailed M8 runbooks instead of duplicating them.
+- Blockers: Live Supabase, Vercel, registrar, inbox, production admin, and student smoke evidence still requires owner dashboard access and real production credentials.
+- Next recommended step: Owner uses the handoff to gather the launch evidence packet, complete dashboard-only setup, and rerun the Supabase/content smoke checks.
+
+### 2026-05-15 - Agent M10-1 - CONTENT-007
+
+- Status: Complete for content lifecycle coverage.
+- Files changed: Updated `tests/unit/questionContentStore.test.ts` for draft -> publish -> archive, student-visible published-only reads, update persistence, and local fallback lifecycle coverage. Updated `src/domain/questions/contentRecords.ts` with the minimal persistence fix needed after the new test exposed reloaded records resetting explicit lifecycle timestamps.
+- Verification: Ran `npm test -- questionContentStore`, `npx vitest run tests/unit/questionContentStore.test.ts tests/unit/publication.test.ts`, targeted `npx eslint src/domain/questions/contentRecords.ts tests/unit/questionContentStore.test.ts`, targeted `npx prettier --check src/domain/questions/contentRecords.ts tests/unit/questionContentStore.test.ts`, `npm test` (134 tests), `npm run lint`, and `npm run build`. All passed.
+- Decisions made: Preserved explicit `publishedAt` and `archivedAt` when reconstructing content records so editing a published question and reloading local storage does not move the original publish timestamp.
+- Notes: `tests/unit/questionContentStore.test.ts` also contains concurrent media workflow additions from another M10 scope; those were left in place.
+
+### 2026-05-15 - Agent M10-3 - CONTENT-007
+
+- Status: Complete for admin content UI/browser QA. No blocking UI bugs found.
+- Files changed: `.ai/status.md` and `.ai/handoff-log.md` coordination only; no changes to `src/app/components/ContentManager.tsx` or `src/app/styles/app.css`.
+- Verification: Ran a headless Chrome local-admin smoke against Vite for Manage Content: original MCQ and FRQ creation, image-capable prompt/solution fields with local PNG upload, Save Draft, Publish, Archive, and archived-question hiding from Practice. Also ran `npx eslint src/app/components/ContentManager.tsx`, `npm test -- publication questionContentStore` (28 tests), `npm run validate:content`, and `npm run build`. All passed.
+- Decisions made: No scoped source fix was needed.
+- Next recommended step: Continue CONTENT-007 owner/live cloud checks with real Supabase admin/student accounts after the owner applies the production SQL and bucket setup.
+
+### 2026-05-15 - Codex + Six Agents - M9/M10 Execution
+
+- Status: Repo-side M9/M10 execution complete. M10 passed locally. M9 production activation is blocked by owner-side Supabase/DNS setup.
+- Files changed: Added `docs/operations/m9-m10-owner-handoff.md`; updated production activation docs, docs index, content lifecycle logic, content/media tests, and coordination files.
+- Verification: Agents and Codex ran Supabase smoke, DNS/HTTP checks, local/admin content QA, targeted tests, full tests, lint, TypeScript/build checks, and content validation. Final integrated verification is recorded in `.ai/status.md`.
+- Production findings: `https://studyprecalc.com` returns HTTP 200 from Vercel. `www.studyprecalc.com` does not resolve. `npm run smoke:supabase` fails because `public.validate_invite`, `public.questions`, and the `question-images` bucket are missing; `media_records` and `question_media` are queryable.
+- Decisions made: Preserve explicit content lifecycle timestamps on reload/edit, block cloud publication when media metadata is missing before `question_media` linkage, and keep owner-only launch evidence in a short handoff that links to detailed runbooks.
+- Next recommended step: Owner runs `supabase/schema.sql`, configures/validates the `question-images` bucket and Auth email template, optionally configures `www`, then reruns `npm run smoke:supabase` and live admin/student content smoke.

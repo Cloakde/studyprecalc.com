@@ -68,3 +68,10 @@ AccountAuth flow, App wiring, unit coverage, and owner docs for configuring the 
 Signup template with `{{ .Token }}`. Invite-only signup remains in place; the verification-code
 screen only appears after the invite is accepted and Supabase returns a signup that requires email
 confirmation.
+
+### 2026-05-15 - Agent M10-4 / Codex
+
+Adding the concise M9/M10 owner handoff for activation evidence and admin content QA. Scope is
+limited to `docs/operations/*`, `docs/INDEX.md`, and this message file. The handoff should not
+replace the detailed M8 runbooks; it gives the owner the evidence packet, draft/publish/archive/image
+smoke path, and the Supabase/Vercel blockers that require owner dashboard access.

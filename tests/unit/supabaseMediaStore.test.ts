@@ -22,7 +22,12 @@ function createImageFile(options: { name?: string; type?: string; size?: number 
   });
 }
 
-function createMockClient(options: { insertError?: { message: string } | null } = {}) {
+function createMockClient(
+  options: {
+    insertError?: { message: string } | null;
+    signedUrlError?: { message: string } | null;
+  } = {},
+) {
   const uploaded: Array<{
     bucket: string;
     path: string;
@@ -43,6 +48,13 @@ function createMockClient(options: { insertError?: { message: string } | null } 
           },
           async createSignedUrl(path, expiresIn) {
             signedUrlCalls.push({ bucket, path, expiresIn });
+            if (options.signedUrlError) {
+              return {
+                data: null,
+                error: options.signedUrlError,
+              };
+            }
+
             return {
               data: {
                 signedUrl: `https://example.supabase.co/storage/${bucket}/${path}?token=abc`,
@@ -252,5 +264,37 @@ describe('supabase signed image URLs', () => {
     expect(url).toBe(
       'https://example.supabase.co/storage/question-images/uploads/admin-1/2026/05/14/graph-abc123.png?token=abc',
     );
+  });
+
+  it('rejects browser-local references before requesting a signed URL', async () => {
+    const { client, signedUrlCalls } = createMockClient();
+
+    await expect(
+      createSupabaseSignedImageUrl({ reference: 'local-image:image-123' }, { client }),
+    ).rejects.toThrow('Invalid Supabase image reference.');
+    expect(signedUrlCalls).toEqual([]);
+  });
+
+  it('surfaces storage errors when signed URL creation fails', async () => {
+    const { client, signedUrlCalls } = createMockClient({
+      signedUrlError: { message: 'signed URL denied' },
+    });
+
+    await expect(
+      createSupabaseSignedImageUrl(
+        {
+          reference: 'supabase-image:uploads/admin-1/2026/05/14/graph-abc123.png',
+          expiresInSeconds: 60,
+        },
+        { client },
+      ),
+    ).rejects.toThrow('signed URL denied');
+    expect(signedUrlCalls).toEqual([
+      {
+        bucket: supabaseImageBucket,
+        path: 'uploads/admin-1/2026/05/14/graph-abc123.png',
+        expiresIn: 60,
+      },
+    ]);
   });
 });

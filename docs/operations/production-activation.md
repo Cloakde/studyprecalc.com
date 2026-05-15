@@ -3,6 +3,9 @@
 Use this checklist when the owner is ready to activate the first production deployment for
 `studyprecalc.com`. Follow the steps in order.
 
+For the short M9/M10 owner evidence and admin content QA handoff, use
+[M9/M10 Owner Handoff](m9-m10-owner-handoff.md).
+
 ## Access Needed
 
 Codex can verify local files, local environment shape, tests, lint, and production HTTP responses
