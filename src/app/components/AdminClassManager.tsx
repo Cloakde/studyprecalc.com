@@ -1,8 +1,20 @@
-import { Ban, Clipboard, GraduationCap, Plus, RotateCcw, Ticket, Users } from 'lucide-react';
+import {
+  Ban,
+  BarChart3,
+  Clipboard,
+  GraduationCap,
+  Plus,
+  RotateCcw,
+  Search,
+  Send,
+  Ticket,
+  Users,
+} from 'lucide-react';
 import { type FormEvent, useMemo, useState } from 'react';
 
 import {
   getClassEnrollmentCount,
+  getClassProgressReadiness,
   type ClassEnrollment,
   type ClassRecord,
 } from '../../domain/classes';
@@ -33,6 +45,22 @@ type AdminClassManagerProps = {
 };
 
 type InviteDisplayStatus = 'active' | 'expired' | 'used' | 'revoked';
+type InviteStatusFilter = 'all' | InviteDisplayStatus;
+type RosterRoleFilter = 'all' | ClassEnrollment['role'];
+
+const inviteStatusFilters: Array<{ label: string; value: InviteStatusFilter }> = [
+  { label: 'All', value: 'all' },
+  { label: 'Active', value: 'active' },
+  { label: 'Used', value: 'used' },
+  { label: 'Expired', value: 'expired' },
+  { label: 'Revoked', value: 'revoked' },
+];
+
+const rosterRoleFilters: Array<{ label: string; value: RosterRoleFilter }> = [
+  { label: 'All', value: 'all' },
+  { label: 'Students', value: 'student' },
+  { label: 'Admins', value: 'admin' },
+];
 
 function timestampMs(value: string | undefined): number {
   if (!value) {
@@ -130,6 +158,10 @@ export function AdminClassManager({
   const [isWorking, setIsWorking] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [revokingInviteId, setRevokingInviteId] = useState('');
+  const [resendingInviteId, setResendingInviteId] = useState('');
+  const [inviteStatusFilter, setInviteStatusFilter] = useState<InviteStatusFilter>('all');
+  const [rosterRoleFilter, setRosterRoleFilter] = useState<RosterRoleFilter>('all');
+  const [rosterSearch, setRosterSearch] = useState('');
 
   const activeClassId = selectedClassId || classes[0]?.id || '';
   const classSummaries = useMemo(
@@ -169,6 +201,38 @@ export function AdminClassManager({
   const activeInviteCounts = useMemo(
     () => getInviteStatusCounts(activeClassInvites),
     [activeClassInvites],
+  );
+  const filteredActiveClassInvites = useMemo(
+    () =>
+      activeClassInvites.filter(
+        (invite) =>
+          inviteStatusFilter === 'all' || getInviteDisplayStatus(invite) === inviteStatusFilter,
+      ),
+    [activeClassInvites, inviteStatusFilter],
+  );
+  const filteredActiveClassEnrollments = useMemo(() => {
+    const searchTerm = rosterSearch.trim().toLowerCase();
+
+    return activeClassEnrollments.filter((enrollment) => {
+      const roleMatches = rosterRoleFilter === 'all' || enrollment.role === rosterRoleFilter;
+      const searchMatches =
+        !searchTerm ||
+        enrollment.displayName.toLowerCase().includes(searchTerm) ||
+        enrollment.email.toLowerCase().includes(searchTerm);
+
+      return roleMatches && searchMatches;
+    });
+  }, [activeClassEnrollments, rosterRoleFilter, rosterSearch]);
+  const activeClassProgress = useMemo(
+    () =>
+      activeClassId
+        ? getClassProgressReadiness(enrollments, activeClassId)
+        : {
+            enrolledStudents: 0,
+            status: 'not-ready' as const,
+            message: 'Select a class to view progress readiness.',
+          },
+    [activeClassId, enrollments],
   );
   const totalInviteCounts = useMemo(() => getInviteStatusCounts(invites), [invites]);
   const activeClassDescription = activeClass?.description?.trim() || 'No description added.';
@@ -288,6 +352,28 @@ export function AdminClassManager({
       setError(revokeError instanceof Error ? revokeError.message : 'Unable to revoke invite.');
     } finally {
       setRevokingInviteId('');
+    }
+  }
+
+  async function resendInvite(invite: InviteCodeRecord) {
+    setNotice('');
+    setError('');
+    setResendingInviteId(invite.id);
+
+    try {
+      const replacementInvite = await onCreateInvite({
+        classId: invite.classId ?? activeClassId,
+        ...(invite.email ? { email: invite.email } : {}),
+      });
+      setNotice(`Replacement invite created: ${replacementInvite.code}`);
+    } catch (resendError) {
+      setError(
+        resendError instanceof Error
+          ? resendError.message
+          : 'Unable to create a replacement invite.',
+      );
+    } finally {
+      setResendingInviteId('');
     }
   }
 
@@ -497,6 +583,33 @@ export function AdminClassManager({
               Revoked
             </span>
           </div>
+          <div className="class-progress-placeholder" aria-label="Class progress readiness">
+            <div className="section-heading-row">
+              <div>
+                <h3>Class Progress</h3>
+                <p>{activeClassProgress.message}</p>
+              </div>
+              <BarChart3 aria-hidden="true" />
+            </div>
+            <div className="admin-detail-metrics admin-detail-metrics--compact">
+              <span>
+                <strong>{activeClassProgress.enrolledStudents}</strong>
+                Roster Ready
+              </span>
+              <span>
+                <strong>--</strong>
+                Attempts Synced
+              </span>
+              <span>
+                <strong>--</strong>
+                Accuracy
+              </span>
+              <span>
+                <strong>--</strong>
+                Weak Units
+              </span>
+            </div>
+          </div>
         </section>
 
         <section className="admin-panel">
@@ -510,11 +623,27 @@ export function AdminClassManager({
             </div>
             <Ticket aria-hidden="true" />
           </div>
+          <div className="admin-filter-row" aria-label="Invite status filters">
+            {inviteStatusFilters.map((filter) => (
+              <button
+                className="filter-chip"
+                data-active={inviteStatusFilter === filter.value}
+                key={filter.value}
+                onClick={() => setInviteStatusFilter(filter.value)}
+                type="button"
+              >
+                {filter.label}
+              </button>
+            ))}
+          </div>
           <div className="admin-list">
             {activeClassInvites.length === 0 ? (
               <p className="empty-list-copy">No invites for this class yet.</p>
             ) : null}
-            {activeClassInvites.map((invite) => {
+            {activeClassInvites.length > 0 && filteredActiveClassInvites.length === 0 ? (
+              <p className="empty-list-copy">No invites match this filter.</p>
+            ) : null}
+            {filteredActiveClassInvites.map((invite) => {
               const status = getInviteDisplayStatus(invite);
 
               return (
@@ -551,6 +680,17 @@ export function AdminClassManager({
                         {revokingInviteId === invite.id ? 'Revoking' : 'Revoke'}
                       </button>
                     ) : null}
+                    {status !== 'active' ? (
+                      <button
+                        className="ghost-button"
+                        disabled={resendingInviteId === invite.id}
+                        onClick={() => void resendInvite(invite)}
+                        type="button"
+                      >
+                        <Send aria-hidden="true" />
+                        {resendingInviteId === invite.id ? 'Creating' : 'New Code'}
+                      </button>
+                    ) : null}
                   </div>
                 </article>
               );
@@ -562,15 +702,45 @@ export function AdminClassManager({
           <div className="section-heading-row">
             <div>
               <h2>Roster</h2>
-              <p>{pluralize(activeClassEnrollments.length, 'student')} enrolled</p>
+              <p>
+                {pluralize(filteredActiveClassEnrollments.length, 'student')} shown of{' '}
+                {activeClassEnrollments.length}
+              </p>
             </div>
             <Users aria-hidden="true" />
+          </div>
+          <div className="admin-filter-stack">
+            <label className="admin-search-field">
+              <Search aria-hidden="true" />
+              <input
+                onChange={(event) => setRosterSearch(event.target.value)}
+                placeholder="Search roster"
+                type="search"
+                value={rosterSearch}
+              />
+            </label>
+            <div className="admin-filter-row" aria-label="Roster role filters">
+              {rosterRoleFilters.map((filter) => (
+                <button
+                  className="filter-chip"
+                  data-active={rosterRoleFilter === filter.value}
+                  key={filter.value}
+                  onClick={() => setRosterRoleFilter(filter.value)}
+                  type="button"
+                >
+                  {filter.label}
+                </button>
+              ))}
+            </div>
           </div>
           <div className="admin-list">
             {activeClassEnrollments.length === 0 ? (
               <p className="empty-list-copy">No students have joined this class yet.</p>
             ) : null}
-            {activeClassEnrollments.map((enrollment) => (
+            {activeClassEnrollments.length > 0 && filteredActiveClassEnrollments.length === 0 ? (
+              <p className="empty-list-copy">No roster members match these filters.</p>
+            ) : null}
+            {filteredActiveClassEnrollments.map((enrollment) => (
               <article className="admin-list-card" key={enrollment.id}>
                 <div className="admin-list-card__header">
                   <strong>{enrollment.displayName}</strong>

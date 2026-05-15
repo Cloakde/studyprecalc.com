@@ -22,6 +22,12 @@ export type ClassEnrollment = {
   createdAt: string;
 };
 
+export type ClassProgressReadiness = {
+  enrolledStudents: number;
+  status: 'not-ready' | 'ready';
+  message: string;
+};
+
 export type CreateClassRecordInput = {
   id: string;
   name: string;
@@ -135,6 +141,27 @@ export function sortClasses(classes: ClassRecord[]): ClassRecord[] {
 
 export function getClassEnrollmentCount(enrollments: ClassEnrollment[], classId: string): number {
   return enrollments.filter((enrollment) => enrollment.classId === classId).length;
+}
+
+export function getClassProgressReadiness(
+  enrollments: ClassEnrollment[],
+  classId: string,
+): ClassProgressReadiness {
+  const enrolledStudents = getClassEnrollmentCount(enrollments, classId);
+
+  if (enrolledStudents === 0) {
+    return {
+      enrolledStudents,
+      status: 'not-ready',
+      message: 'Progress appears after students join and class-scoped attempt sync is available.',
+    };
+  }
+
+  return {
+    enrolledStudents,
+    status: 'not-ready',
+    message: 'Roster is ready. Class-level progress analytics need class-scoped attempt sync.',
+  };
 }
 
 export function upsertClassEnrollment(

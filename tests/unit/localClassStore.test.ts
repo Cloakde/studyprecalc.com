@@ -6,6 +6,7 @@ import {
   loadClassPayload,
   type ClassStorage,
 } from '../../src/data/localClassStore';
+import { getClassProgressReadiness } from '../../src/domain/classes';
 
 function createMemoryStorage(): ClassStorage {
   const values = new Map<string, string>();
@@ -60,6 +61,11 @@ describe('local class store helpers', () => {
       classes: [result.classRecord],
       enrollments: [],
     });
+    expect(getClassProgressReadiness([], result.classRecord.id)).toEqual({
+      enrolledStudents: 0,
+      status: 'not-ready',
+      message: 'Progress appears after students join and class-scoped attempt sync is available.',
+    });
     expect(() => createLocalClass({ name: '   ' }, { storage, storageKey })).toThrow(
       'Enter a class name.',
     );
@@ -95,6 +101,11 @@ describe('local class store helpers', () => {
       createdAt: '2026-05-13T11:00:00.000Z',
     });
     expect(loadClassPayload(storage, storageKey).enrollments).toHaveLength(1);
+    expect(getClassProgressReadiness(result.payload.enrollments, classRecord.id)).toEqual({
+      enrolledStudents: 1,
+      status: 'not-ready',
+      message: 'Roster is ready. Class-level progress analytics need class-scoped attempt sync.',
+    });
     expect(
       enrollLocalAccountInClass('missing-class', createAccount(), { storage, storageKey }),
     ).toMatchObject({

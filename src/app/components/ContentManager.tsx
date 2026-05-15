@@ -3,6 +3,7 @@ import {
   CheckCircle2,
   CircleAlert,
   Cloud,
+  Copy,
   Download,
   Eye,
   FileUp,
@@ -111,6 +112,12 @@ type AssetDraft = {
 type DraftWorkflowState = QuestionPublicationStatus;
 
 type PreviewMode = 'student' | 'answer';
+
+type LibraryTypeFilter = 'all' | QuestionDraft['type'];
+
+type LibraryStatusFilter = 'all' | DraftWorkflowState;
+
+type LibrarySortMode = 'skill' | 'unit' | 'status' | 'type';
 
 type ReadinessCheck = {
   id: string;
@@ -451,6 +458,41 @@ function getWorkflowStateLabel(workflowState: DraftWorkflowState): string {
   return 'Draft';
 }
 
+function getQuestionSearchText(question: Question, workflowState: DraftWorkflowState): string {
+  return [
+    question.id,
+    question.type,
+    question.unit,
+    question.topic,
+    question.skill,
+    question.section,
+    question.difficulty,
+    question.calculator,
+    workflowState,
+    ...question.tags,
+  ]
+    .join(' ')
+    .toLowerCase();
+}
+
+function createDuplicateQuestionId(questionId: string, existingQuestionIds: Set<string>): string {
+  const baseId = `${questionId}-copy`;
+
+  if (!existingQuestionIds.has(baseId)) {
+    return baseId;
+  }
+
+  let copyNumber = 2;
+  let nextId = `${baseId}-${copyNumber}`;
+
+  while (existingQuestionIds.has(nextId)) {
+    copyNumber += 1;
+    nextId = `${baseId}-${copyNumber}`;
+  }
+
+  return nextId;
+}
+
 function draftToVideoExplanation(draft: QuestionDraft): VideoExplanationData | undefined {
   if (!draft.videoUrl.trim()) {
     return undefined;
@@ -562,6 +604,10 @@ export function ContentManager({
   const [notice, setNotice] = useState<string>('');
   const [error, setError] = useState<string>('');
   const [previewMode, setPreviewMode] = useState<PreviewMode>('student');
+  const [librarySearchText, setLibrarySearchText] = useState('');
+  const [libraryTypeFilter, setLibraryTypeFilter] = useState<LibraryTypeFilter>('all');
+  const [libraryStatusFilter, setLibraryStatusFilter] = useState<LibraryStatusFilter>('all');
+  const [librarySortMode, setLibrarySortMode] = useState<LibrarySortMode>('skill');
   const [workflowStatesByQuestionId, setWorkflowStatesByQuestionId] = useState<
     Record<string, DraftWorkflowState>
   >({});
@@ -580,8 +626,62 @@ export function ContentManager({
     [customQuestions, selectedQuestionId],
   );
   const readinessChecks = useMemo(() => getReadinessChecks(draft), [draft]);
+  const firstIncompleteReadinessCheck = readinessChecks.find((check) => !check.complete);
   const isReadyToPublish = readinessChecks.every((check) => check.complete);
   const previewVideo = useMemo(() => draftToVideoExplanation(draft), [draft]);
+  const displayedQuestions = useMemo(() => {
+    const normalizedSearchText = librarySearchText.trim().toLowerCase();
+
+    return customQuestions
+      .filter((question) => {
+        const workflowState =
+          workflowStatesByQuestionId[question.id] ?? getQuestionStatus(question.id);
+        const matchesSearch =
+          !normalizedSearchText ||
+          getQuestionSearchText(question, workflowState).includes(normalizedSearchText);
+        const matchesType = libraryTypeFilter === 'all' || question.type === libraryTypeFilter;
+        const matchesStatus =
+          libraryStatusFilter === 'all' || workflowState === libraryStatusFilter;
+
+        return matchesSearch && matchesType && matchesStatus;
+      })
+      .sort((leftQuestion, rightQuestion) => {
+        const leftStatus =
+          workflowStatesByQuestionId[leftQuestion.id] ?? getQuestionStatus(leftQuestion.id);
+        const rightStatus =
+          workflowStatesByQuestionId[rightQuestion.id] ?? getQuestionStatus(rightQuestion.id);
+
+        if (librarySortMode === 'unit') {
+          return `${leftQuestion.unit} ${leftQuestion.topic} ${leftQuestion.skill}`.localeCompare(
+            `${rightQuestion.unit} ${rightQuestion.topic} ${rightQuestion.skill}`,
+          );
+        }
+
+        if (librarySortMode === 'status') {
+          return `${leftStatus} ${leftQuestion.skill}`.localeCompare(
+            `${rightStatus} ${rightQuestion.skill}`,
+          );
+        }
+
+        if (librarySortMode === 'type') {
+          return `${leftQuestion.type} ${leftQuestion.skill}`.localeCompare(
+            `${rightQuestion.type} ${rightQuestion.skill}`,
+          );
+        }
+
+        return `${leftQuestion.skill} ${leftQuestion.topic} ${leftQuestion.id}`.localeCompare(
+          `${rightQuestion.skill} ${rightQuestion.topic} ${rightQuestion.id}`,
+        );
+      });
+  }, [
+    customQuestions,
+    getQuestionStatus,
+    librarySearchText,
+    librarySortMode,
+    libraryStatusFilter,
+    libraryTypeFilter,
+    workflowStatesByQuestionId,
+  ]);
   const imageStorageLabel = onUploadImageFile ? 'Cloud storage' : 'Browser-local storage';
   const imageUploadHelp = onUploadImageFile
     ? 'Image uploads are stored in cloud storage and linked to this question when saved. Cloud storage accepts PNG, JPG, WebP, or GIF files under 1 MB.'
@@ -620,12 +720,57 @@ export function ContentManager({
     setError('');
   }
 
+  function duplicateQuestion(question: Question) {
+    const existingQuestionIds = new Set([
+      ...customQuestions.map((customQuestion) => customQuestion.id),
+      ...seedQuestionIds,
+    ]);
+    const duplicateId = createDuplicateQuestionId(question.id, existingQuestionIds);
+    const duplicateDraft = questionToDraft(question, 'draft');
+
+    setSelectedQuestionId(null);
+    setDraft({
+      ...duplicateDraft,
+      id: duplicateId,
+      skill: duplicateDraft.skill ? `${duplicateDraft.skill} Copy` : duplicateDraft.skill,
+      workflowState: 'draft',
+    });
+    setPreviewMode('student');
+    setError('');
+    setNotice('Duplicated as an unsaved draft. Review it, then save or publish.');
+  }
+
+  function publishQuestion() {
+    setNotice('');
+
+    if (!isReadyToPublish) {
+      setError(
+        firstIncompleteReadinessCheck
+          ? `Complete this publish check first: ${firstIncompleteReadinessCheck.label}.`
+          : 'Complete the publish checklist before publishing.',
+      );
+      return;
+    }
+
+    if (previewMode !== 'answer') {
+      setPreviewMode('answer');
+      setError('Review the Answer Key preview, then click Publish again.');
+      return;
+    }
+
+    saveQuestion('published');
+  }
+
   function saveQuestion(workflowState: DraftWorkflowState = 'draft') {
     setNotice('');
     setError('');
 
     if (workflowState === 'published' && !isReadyToPublish) {
-      setError('Complete the publish checklist before publishing.');
+      setError(
+        firstIncompleteReadinessCheck
+          ? `Complete this publish check first: ${firstIncompleteReadinessCheck.label}.`
+          : 'Complete the publish checklist before publishing.',
+      );
       return;
     }
 
@@ -1163,8 +1308,68 @@ export function ContentManager({
         <aside className="managed-list" aria-label="Authored questions">
           <h2>Authored Questions</h2>
           {customQuestions.length === 0 ? <p>No authored questions yet.</p> : null}
+          {customQuestions.length > 0 ? (
+            <div className="managed-list__controls" aria-label="Library search and filters">
+              <label>
+                Search library
+                <input
+                  onChange={(event) => setLibrarySearchText(event.target.value)}
+                  placeholder="Skill, topic, tag, ID"
+                  type="search"
+                  value={librarySearchText}
+                />
+              </label>
+              <div className="managed-list__filter-grid">
+                <label>
+                  Type
+                  <select
+                    onChange={(event) =>
+                      setLibraryTypeFilter(event.target.value as LibraryTypeFilter)
+                    }
+                    value={libraryTypeFilter}
+                  >
+                    <option value="all">All types</option>
+                    <option value="mcq">MCQ</option>
+                    <option value="frq">FRQ</option>
+                  </select>
+                </label>
+                <label>
+                  Status
+                  <select
+                    onChange={(event) =>
+                      setLibraryStatusFilter(event.target.value as LibraryStatusFilter)
+                    }
+                    value={libraryStatusFilter}
+                  >
+                    <option value="all">All statuses</option>
+                    <option value="draft">Draft</option>
+                    <option value="published">Published</option>
+                    <option value="archived">Archived</option>
+                  </select>
+                </label>
+              </div>
+              <label>
+                Sort by
+                <select
+                  onChange={(event) => setLibrarySortMode(event.target.value as LibrarySortMode)}
+                  value={librarySortMode}
+                >
+                  <option value="skill">Skill A-Z</option>
+                  <option value="unit">Unit and topic</option>
+                  <option value="status">Status</option>
+                  <option value="type">Type</option>
+                </select>
+              </label>
+              <small>
+                Showing {displayedQuestions.length} of {customQuestions.length}
+              </small>
+            </div>
+          ) : null}
+          {customQuestions.length > 0 && displayedQuestions.length === 0 ? (
+            <p>No questions match the current library filters.</p>
+          ) : null}
           <div className="managed-list__items">
-            {customQuestions.map((question) => {
+            {displayedQuestions.map((question) => {
               const workflowState =
                 workflowStatesByQuestionId[question.id] ?? getQuestionStatus(question.id);
 
@@ -1213,7 +1418,7 @@ export function ContentManager({
               <button
                 className="primary-button"
                 disabled={!isReadyToPublish}
-                onClick={() => saveQuestion('published')}
+                onClick={publishQuestion}
                 type="button"
               >
                 <Send aria-hidden="true" />
@@ -1221,6 +1426,14 @@ export function ContentManager({
               </button>
               {selectedQuestion ? (
                 <>
+                  <button
+                    className="ghost-button"
+                    onClick={() => duplicateQuestion(selectedQuestion)}
+                    type="button"
+                  >
+                    <Copy aria-hidden="true" />
+                    Duplicate
+                  </button>
                   <button
                     className="ghost-button"
                     onClick={() => archiveQuestion(selectedQuestion.id)}
@@ -1267,7 +1480,11 @@ export function ContentManager({
                 {getWorkflowStateLabel(draft.workflowState)}
               </span>
               <span>
-                {isReadyToPublish ? 'All publish checks pass' : 'Complete checks before publish'}
+                {isReadyToPublish
+                  ? 'All publish checks pass. Review the Answer Key preview before publishing.'
+                  : firstIncompleteReadinessCheck
+                    ? `Next: ${firstIncompleteReadinessCheck.label}`
+                    : 'Complete checks before publish'}
               </span>
             </div>
             <ul className="publish-check-list" aria-label="Publish readiness checks">
@@ -1742,6 +1959,14 @@ export function ContentManager({
             >
               Answer Key
             </button>
+          </div>
+          <div className="preview-publish-note">
+            <Eye aria-hidden="true" />
+            <span>
+              {previewMode === 'answer'
+                ? 'Answer Key preview is active for publish review.'
+                : 'Publish will first switch here so you can review the student prompt and answer key.'}
+            </span>
           </div>
           <div className="preview-meta-strip" aria-label="Question metadata preview">
             <span>{draft.unit || 'Unit'}</span>

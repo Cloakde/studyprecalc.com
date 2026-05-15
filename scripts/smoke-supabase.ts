@@ -152,6 +152,78 @@ export function formatSmokeResults(results: SmokeResult[]): string {
     .join('\n');
 }
 
+function resultMatches(result: SmokeResult, patterns: RegExp[]): boolean {
+  const searchableText = `${result.name} ${result.message}`;
+  return result.status === 'fail' && patterns.some((pattern) => pattern.test(searchableText));
+}
+
+export function formatSmokeNextActions(results: SmokeResult[]): string {
+  const actions: string[] = [];
+  const addAction = (action: string) => {
+    if (!actions.includes(action)) {
+      actions.push(action);
+    }
+  };
+
+  if (
+    results.some((result) =>
+      resultMatches(result, [
+        /validate_invite/i,
+        /questions/i,
+        /media_records/i,
+        /question_media/i,
+        /schema cache/i,
+        /could not find/i,
+        /relation .* does not exist/i,
+      ]),
+    )
+  ) {
+    addAction('Run the full supabase/schema.sql in the production Supabase SQL Editor.');
+  }
+
+  if (
+    results.some((result) =>
+      resultMatches(result, [/question-images bucket/i, /bucket not found/i, /storage/i]),
+    )
+  ) {
+    addAction(
+      'Confirm the private question-images bucket exists with a 1 MB limit and PNG/JPEG/WebP/GIF MIME allowlist.',
+    );
+  }
+
+  if (
+    results.some((result) =>
+      resultMatches(result, [/admin login/i, /profiles/i, /not marked admin/i]),
+    )
+  ) {
+    addAction(
+      'Bootstrap or verify a real Supabase admin account; the local dev admin is not valid for this smoke.',
+    );
+  }
+
+  if (
+    results.some((result) =>
+      resultMatches(result, [/MFA/i, /aal1/i, /aal2/i, /SMOKE_ADMIN_MFA_CODE/i]),
+    )
+  ) {
+    addAction('Complete admin TOTP MFA and rerun with the current SMOKE_ADMIN_MFA_CODE.');
+  }
+
+  if (
+    results.some((result) => result.status === 'skip' && result.name === 'cloud image write path')
+  ) {
+    addAction(
+      'After admin and student smoke accounts exist, rerun with SMOKE_WRITE=1 and smoke credentials to verify cloud image publishing.',
+    );
+  }
+
+  if (actions.length === 0) {
+    return '';
+  }
+
+  return ['Next owner action(s):', ...actions.map((action) => `- ${action}`)].join('\n');
+}
+
 export function getSmokeExitCode(results: SmokeResult[]): number {
   return results.some((result) => result.status === 'fail') ? 1 : 0;
 }
@@ -902,7 +974,9 @@ async function main() {
   }
 
   const results = await runSupabaseSmoke(config);
-  const output = formatSmokeResults(results);
+  const output = [formatSmokeResults(results), formatSmokeNextActions(results)]
+    .filter(Boolean)
+    .join('\n\n');
 
   if (output) {
     console.log(output);

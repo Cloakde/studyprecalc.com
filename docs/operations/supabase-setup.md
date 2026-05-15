@@ -210,6 +210,11 @@ and student sessions, archives the temporary question, verifies student image ac
 archive, and cleans up the rows and Storage object. Use the current six-digit TOTP value for
 `SMOKE_ADMIN_MFA_CODE`; omit it only when intentionally testing an admin account without MFA.
 
+When a smoke failure is caused by missing production setup, the command also prints
+`Next owner action(s):` with the likely dashboard-side fix, such as rerunning
+`supabase/schema.sql`, confirming the private `question-images` bucket, bootstrapping a real admin,
+or adding the current admin TOTP code.
+
 ## Bootstrap The First Admin
 
 The production UI requires an invite code before signup, so bootstrap the owner with a one-time

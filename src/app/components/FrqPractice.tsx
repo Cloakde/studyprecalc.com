@@ -1,5 +1,5 @@
 import { CheckSquare, RotateCcw } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 
 import type { Attempt } from '../../domain/attempts/types';
 import type { FrqQuestion } from '../../domain/questions/types';
@@ -18,6 +18,8 @@ type FrqPracticeProps = {
 };
 
 export function FrqPractice({ question, onSubmitAttempt }: FrqPracticeProps) {
+  const reviewPanelRef = useRef<HTMLElement | null>(null);
+  const controlIdPrefix = useId();
   const [responses, setResponses] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
   const [earnedCriteria, setEarnedCriteria] = useState<Record<string, boolean>>({});
@@ -29,6 +31,13 @@ export function FrqPractice({ question, onSubmitAttempt }: FrqPracticeProps) {
     () => scoreFrqChecklist(question, earnedCriteria),
     [earnedCriteria, question],
   );
+  const earnedPointCount = Object.values(earnedCriteria).filter(Boolean).length;
+
+  useEffect(() => {
+    if (submitted) {
+      reviewPanelRef.current?.focus();
+    }
+  }, [submitted]);
 
   function reset() {
     setResponses({});
@@ -57,12 +66,17 @@ export function FrqPractice({ question, onSubmitAttempt }: FrqPracticeProps) {
     <div className="response-area">
       <div className="frq-parts">
         {question.parts.map((part) => (
-          <section className="frq-part" key={part.id}>
-            <h2>Part {part.id}</h2>
+          <section
+            className="frq-part"
+            key={part.id}
+            aria-labelledby={`${controlIdPrefix}-${part.id}-heading`}
+          >
+            <h2 id={`${controlIdPrefix}-${part.id}-heading`}>Part {part.id}</h2>
             <MathText block text={part.prompt} />
-            <label className="response-box">
-              <span>Your response</span>
+            <label className="response-box" htmlFor={`${controlIdPrefix}-${part.id}-response`}>
+              <span>Your response for part {part.id}</span>
               <textarea
+                id={`${controlIdPrefix}-${part.id}-response`}
                 disabled={submitted}
                 onChange={(event) =>
                   setResponses((current) => ({
@@ -76,12 +90,18 @@ export function FrqPractice({ question, onSubmitAttempt }: FrqPracticeProps) {
             </label>
 
             {submitted ? (
-              <div className="frq-review">
-                <h3>Sample Response</h3>
+              <div
+                className="frq-review"
+                aria-labelledby={`${controlIdPrefix}-${part.id}-review-heading`}
+              >
+                <h3 id={`${controlIdPrefix}-${part.id}-review-heading`}>Sample Response</h3>
                 <MathText block text={part.sampleResponse} />
 
-                <h3>Rubric</h3>
-                <div className="rubric-list">
+                <h3 id={`${controlIdPrefix}-${part.id}-rubric-heading`}>Rubric</h3>
+                <div
+                  className="rubric-list"
+                  aria-labelledby={`${controlIdPrefix}-${part.id}-rubric-heading`}
+                >
                   {part.rubric.map((criterion) => (
                     <label className="rubric-item" key={criterion.id}>
                       <input
@@ -98,7 +118,9 @@ export function FrqPractice({ question, onSubmitAttempt }: FrqPracticeProps) {
                       />
                       <span>
                         <MathText text={criterion.description} />
-                        <small>{criterion.points} point</small>
+                        <small>
+                          {criterion.points} {criterion.points === 1 ? 'point' : 'points'}
+                        </small>
                       </span>
                     </label>
                   ))}
@@ -131,12 +153,19 @@ export function FrqPractice({ question, onSubmitAttempt }: FrqPracticeProps) {
       </div>
 
       {submitted ? (
-        <section className="review-panel" aria-live="polite">
+        <section
+          className="review-panel"
+          ref={reviewPanelRef}
+          aria-live="polite"
+          aria-atomic="true"
+          tabIndex={-1}
+        >
           <div className="result-banner" data-correct="pending">
             <strong>Self Score</strong>
             <span>
               {score.score}/{score.maxScore} points
             </span>
+            <span>{earnedPointCount} rubric item(s) selected</span>
           </div>
         </section>
       ) : null}

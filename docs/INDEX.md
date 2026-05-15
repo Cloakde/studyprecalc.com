@@ -30,6 +30,7 @@ One-line map of every doc and folder in this repo. Update this when you add, rem
 - [docs/product/question-model.md](product/question-model.md) — MCQ/FRQ shape, fields, future video references.
 - [docs/product/content-authoring-guide.md](product/content-authoring-guide.md) - no-code authoring guidance for MCQ, FRQ, explanations, videos, and metadata.
 - [docs/product/content-taxonomy.md](product/content-taxonomy.md) - controlled vocabulary for AP Precalculus units, topics, skills, and tags.
+- [docs/product/ai-frq-grading.md](product/ai-frq-grading.md) - prototype scope and configuration notes for future AI-assisted FRQ feedback.
 
 ## Architecture (`docs/architecture/`)
 
@@ -70,6 +71,7 @@ One-line map of every doc and folder in this repo. Update this when you add, rem
 - [docs/decisions/0008-vercel-first-web-deploy.md](decisions/0008-vercel-first-web-deploy.md) - Vercel as the first public deployment target for `studyprecalc.com`.
 - [docs/decisions/0009-local-dev-admin.md](decisions/0009-local-dev-admin.md) - Local-only development admin login and admin-gated content management.
 - [docs/decisions/0010-admin-mfa-enforcement.md](decisions/0010-admin-mfa-enforcement.md) - Admin-only TOTP MFA with frontend gating and Supabase `aal2` RLS enforcement.
+- [docs/decisions/0011-ai-frq-grading-prototype.md](decisions/0011-ai-frq-grading-prototype.md) - disabled-by-default AI FRQ grading foundation with provider-neutral request/result shapes.
 
 ## Source Tree (`src/`)
 

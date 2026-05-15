@@ -1,5 +1,5 @@
 import { CheckCircle2, RotateCcw, XCircle } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type KeyboardEvent } from 'react';
 
 import type { McqChoice, McqQuestion } from '../../domain/questions/types';
 import { scoreMcq } from '../../domain/scoring/scoreMcq';
@@ -25,6 +25,36 @@ export function McqPractice({ question, onSubmitAttempt }: McqPracticeProps) {
 
   const submitted = submittedChoiceId !== null;
 
+  function submitSelectedChoice() {
+    if (!selectedChoiceId || submitted) {
+      return;
+    }
+
+    setSubmittedChoiceId(selectedChoiceId);
+    onSubmitAttempt?.(selectedChoiceId, startedAt);
+  }
+
+  function handleChoiceKeyDown(event: KeyboardEvent<HTMLFieldSetElement>) {
+    if (submitted) {
+      return;
+    }
+
+    const shortcutChoice = question.choices.find(
+      (choice) => choice.id.toLowerCase() === event.key.toLowerCase(),
+    );
+
+    if (shortcutChoice) {
+      event.preventDefault();
+      setSelectedChoiceId(shortcutChoice.id);
+      return;
+    }
+
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      submitSelectedChoice();
+    }
+  }
+
   function reset() {
     setSelectedChoiceId(null);
     setSubmittedChoiceId(null);
@@ -33,8 +63,17 @@ export function McqPractice({ question, onSubmitAttempt }: McqPracticeProps) {
 
   return (
     <div className="response-area">
-      <fieldset className="choice-list" disabled={submitted}>
+      <fieldset
+        className="choice-list"
+        disabled={submitted}
+        aria-describedby={`${question.id}-choice-help`}
+        onKeyDown={handleChoiceKeyDown}
+      >
         <legend>Choices</legend>
+        <p className="visually-hidden" id={`${question.id}-choice-help`}>
+          Use Tab to move through answer choices, or press A, B, C, or D to select a choice. Press
+          Enter to submit the selected choice.
+        </p>
         {question.choices.map((choice) => {
           const checked = selectedChoiceId === choice.id;
           const correct = submitted && question.correctChoiceId === choice.id;
@@ -68,14 +107,7 @@ export function McqPractice({ question, onSubmitAttempt }: McqPracticeProps) {
         <button
           className="primary-button"
           disabled={!selectedChoiceId || submitted}
-          onClick={() => {
-            if (!selectedChoiceId) {
-              return;
-            }
-
-            setSubmittedChoiceId(selectedChoiceId);
-            onSubmitAttempt?.(selectedChoiceId, startedAt);
-          }}
+          onClick={submitSelectedChoice}
           type="button"
         >
           Submit
@@ -87,7 +119,7 @@ export function McqPractice({ question, onSubmitAttempt }: McqPracticeProps) {
       </div>
 
       {score ? (
-        <section className="review-panel" aria-live="polite">
+        <section className="review-panel" aria-live="polite" aria-atomic="true">
           <div className="result-banner" data-correct={score.isCorrect}>
             {score.isCorrect ? <CheckCircle2 aria-hidden="true" /> : <XCircle aria-hidden="true" />}
             <strong>{score.isCorrect ? 'Correct' : 'Incorrect'}</strong>

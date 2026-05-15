@@ -1,4 +1,8 @@
-import { createFrqAttempt, createMcqAttempt } from '../../src/domain/attempts';
+import {
+  createAttemptPerformanceRecords,
+  createFrqAttempt,
+  createMcqAttempt,
+} from '../../src/domain/attempts';
 import { testFrqQuestion, testMcqQuestion } from '../fixtures/testQuestions';
 
 describe('attempt helpers', () => {
@@ -62,5 +66,40 @@ describe('attempt helpers', () => {
       submittedAt: '2026-05-13T11:05:00.000Z',
       timeSpentSeconds: 300,
     });
+  });
+
+  it('enriches standalone attempts with question metadata for dashboard analytics', () => {
+    const newerAttempt = createMcqAttempt({
+      id: 'attempt-newer',
+      question: testMcqQuestion,
+      selectedChoiceId: 'A',
+      startedAt: '2026-05-13T12:00:00.000Z',
+      submittedAt: '2026-05-13T12:01:00.000Z',
+    });
+    const olderAttempt = createMcqAttempt({
+      id: 'attempt-older',
+      question: testMcqQuestion,
+      selectedChoiceId: 'B',
+      startedAt: '2026-05-13T10:00:00.000Z',
+      submittedAt: '2026-05-13T10:01:00.000Z',
+    });
+
+    expect(
+      createAttemptPerformanceRecords([olderAttempt, newerAttempt], [testMcqQuestion]),
+    ).toEqual([
+      expect.objectContaining({
+        attemptId: 'attempt-newer',
+        missed: false,
+        percent: 100,
+        skill: testMcqQuestion.skill,
+        topic: testMcqQuestion.topic,
+        unit: testMcqQuestion.unit,
+      }),
+      expect.objectContaining({
+        attemptId: 'attempt-older',
+        missed: true,
+        percent: 0,
+      }),
+    ]);
   });
 });

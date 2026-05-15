@@ -114,6 +114,7 @@ function QuestionAssetItem({ asset }: QuestionAssetItemProps) {
       : getSafeAssetPath(asset.path);
   const isLoadingLocalImage = isLocalImage && localImage.status === 'loading';
   const isLoadingCloudImage = isCloudImage && cloudImage.status === 'loading';
+  const isLoadingImage = isLoadingLocalImage || isLoadingCloudImage;
   const hasLocalImageError =
     isLocalImage && (localImage.status === 'missing' || localImage.status === 'error');
   const hasCloudImageError = isCloudImage && cloudImage.status === 'error';
@@ -121,18 +122,21 @@ function QuestionAssetItem({ asset }: QuestionAssetItemProps) {
   const imageError = localImage.error ?? cloudImage.error ?? 'This image could not be displayed.';
 
   return (
-    <figure className="asset-card">
+    <figure className="asset-card" role="listitem">
       <div className="asset-card__media">
         {hasImage ? (
           <img alt={asset.alt} loading="lazy" src={source ?? undefined} />
         ) : (
           <div
             className="asset-card__notice"
-            role={isLoadingLocalImage || isLoadingCloudImage ? 'status' : 'note'}
+            role={isLoadingImage ? 'status' : 'alert'}
+            aria-busy={isLoadingImage || undefined}
           >
             <ImageOff aria-hidden="true" />
             <span>
-              {isLoadingLocalImage || isLoadingCloudImage ? 'Loading image...' : imageError}
+              {isLoadingImage
+                ? `Loading ${formatAssetType(asset.type).toLowerCase()}...`
+                : imageError}
             </span>
           </div>
         )}
@@ -151,7 +155,7 @@ export function QuestionAssetGallery({ assets, ariaLabel, className }: QuestionA
   }
 
   return (
-    <div className={classNames('asset-gallery', className)} aria-label={ariaLabel}>
+    <div className={classNames('asset-gallery', className)} aria-label={ariaLabel} role="list">
       {assets.map((asset) => (
         <QuestionAssetItem asset={asset} key={asset.id} />
       ))}

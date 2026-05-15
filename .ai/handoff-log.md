@@ -494,3 +494,13 @@ Use this file as an append-only record whenever an agent finishes, pauses, or ha
 - Production findings: `https://studyprecalc.com` returns HTTP 200 from Vercel. `www.studyprecalc.com` does not resolve. `npm run smoke:supabase` fails because `public.validate_invite`, `public.questions`, and the `question-images` bucket are missing; `media_records` and `question_media` are queryable.
 - Decisions made: Preserve explicit content lifecycle timestamps on reload/edit, block cloud publication when media metadata is missing before `question_media` linkage, and keep owner-only launch evidence in a short handoff that links to detailed runbooks.
 - Next recommended step: Owner runs `supabase/schema.sql`, configures/validates the `question-images` bucket and Auth email template, optionally configures `www`, then reruns `npm run smoke:supabase` and live admin/student content smoke.
+
+### 2026-05-15 - Codex + Six Agents - M11/M16 Execution
+
+- Status: Repo-side M11-M16 execution complete. M12-M16 are implemented and verified. M11 production activation remains blocked on owner-side Supabase SQL/bucket/admin/student setup and optional `www` DNS.
+- Files changed: Updated Supabase smoke guidance and activation docs; improved `ContentManager`, student practice components, class management, dashboard analytics, and shared app styles; added AI grading domain/data foundation, ADR/product docs, and focused unit/accessibility tests.
+- Verification: Ran `npm test` (151 tests), `npm run lint`, `npm run build`, `npm run validate:content`, `git diff --check`, `npm test -- aiGrading` (9 tests), `npm run smoke:supabase`, and local dev server HTTP smoke at `http://127.0.0.1:5173/`.
+- Production findings: `npm run smoke:supabase` now prints `Next owner action(s):` and still fails as expected until the owner runs `supabase/schema.sql`, confirms the private `question-images` bucket, and creates real admin/student smoke accounts. `www.studyprecalc.com` still needs DNS/Vercel setup if desired.
+- Decisions made: Keep AI FRQ grading disabled by default and provider-neutral; require explicit Gemini model configuration before enabling; no external AI API calls or browser-exposed provider keys were added.
+- Browser note: Bundled Playwright automation was unavailable because the local runtime package is missing `playwright-core`; unit accessibility coverage, build checks, and HTTP smoke passed.
+- Next recommended step: Owner completes the Supabase/DNS/account activation blockers, then continue with live admin/student smoke and question authoring only when the owner is ready to add original content.

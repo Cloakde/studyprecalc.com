@@ -1294,6 +1294,59 @@ button:disabled {
   color: #526174;
 }
 
+.managed-list__controls {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid #e5eaf1;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.managed-list__controls label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  color: #344256;
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.managed-list__controls input,
+.managed-list__controls select {
+  min-width: 0;
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #172033;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-transform: none;
+}
+
+.managed-list__controls input {
+  padding: 9px 10px;
+}
+
+.managed-list__controls select {
+  padding: 9px 28px 9px 10px;
+}
+
+.managed-list__controls small {
+  color: #526174;
+  font-weight: 800;
+}
+
+.managed-list__filter-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
 .managed-list__items {
   display: grid;
   gap: 8px;
@@ -1637,6 +1690,25 @@ button:disabled {
   border-color: #0f766e;
   background: #ffffff;
   color: #0f766e;
+}
+
+.preview-publish-note {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  padding: 10px;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
+.preview-publish-note svg {
+  width: 18px;
+  height: 18px;
 }
 
 .preview-meta-strip {
@@ -2033,6 +2105,13 @@ button:disabled {
   letter-spacing: 0;
 }
 
+.admin-panel h3 {
+  margin: 0;
+  color: #172033;
+  font-size: 1rem;
+  letter-spacing: 0;
+}
+
 .admin-form {
   display: grid;
   gap: 12px;
@@ -2110,6 +2189,10 @@ button:disabled {
   gap: 10px;
 }
 
+.admin-detail-metrics--compact {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .admin-detail-metrics span {
   display: grid;
   min-width: 0;
@@ -2133,6 +2216,71 @@ button:disabled {
 .admin-list {
   display: grid;
   gap: 10px;
+}
+
+.admin-filter-stack {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.filter-chip {
+  min-height: 34px;
+  padding: 7px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #475569;
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.filter-chip[data-active='true'] {
+  border-color: #0f766e;
+  background: #ecfdf5;
+  color: #0f766e;
+}
+
+.admin-search-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 0 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #64748b;
+}
+
+.admin-search-field svg {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+}
+
+.admin-search-field input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  padding: 10px 0;
+  background: transparent;
+  color: #172033;
+  font-weight: 700;
+}
+
+.class-progress-placeholder {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+  background: #ffffff;
 }
 
 .admin-list-card {
@@ -2311,6 +2459,7 @@ button:disabled {
   .form-grid--four,
   .form-grid--two,
   .choice-editor-grid,
+  .managed-list__filter-grid,
   .publish-check-list,
   .rubric-editor-row {
     grid-template-columns: 1fr;

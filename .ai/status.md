@@ -4,9 +4,9 @@ Last updated: 2026-05-15
 
 ## Current Phase
 
-M9/M10 execution is complete for repo-side work. M10 admin content workflow QA passed locally and
-gained stronger lifecycle/media coverage. M9 production activation remains blocked on owner-side
-Supabase SQL/bucket setup and optional `www` DNS configuration.
+M11-M16 repo-side execution is complete. M12-M16 are implemented and verified. M11 production
+activation is still blocked on owner-side Supabase SQL/bucket/account setup and optional `www` DNS
+configuration.
 
 ## Active Ownership
 
@@ -67,6 +67,13 @@ Supabase SQL/bucket setup and optional `www` DNS configuration.
 - M9/M10 repo-side execution added an owner handoff, content lifecycle/media coverage, and a
   lifecycle timestamp persistence fix. Production activation cannot fully pass until Supabase has
   `validate_invite`, `questions`, and the `question-images` bucket installed.
+- M11-M16 repo-side execution improved Supabase smoke owner guidance, admin content search/filter/
+  duplicate/preview workflow, student practice accessibility, class roster/invite management,
+  dashboard recommendations, and a disabled-by-default AI FRQ grading foundation.
+- AI FRQ grading remains a prototype foundation only. It does not call Gemini or any external API,
+  does not expose provider keys in browser code, and remains unavailable unless explicitly
+  configured with `VITE_AI_FRQ_GRADING_ENABLED=true`, `VITE_AI_FRQ_PROVIDER=gemini`, and
+  `VITE_AI_FRQ_GEMINI_MODEL`.
 
 ## Last Verification
 
@@ -115,3 +122,4 @@ Prettier/ESLint for the touched tests, and `npx tsc --noEmit --pretty false`. Al
 2026-05-15: Agent M10-1 added focused content lifecycle coverage and a lifecycle timestamp persistence fix, then ran `npm test -- questionContentStore`, `npx vitest run tests/unit/questionContentStore.test.ts tests/unit/publication.test.ts`, targeted ESLint/Prettier checks, `npm test` (134 tests), `npm run lint`, and `npm run build`. All passed.
 2026-05-15: Agent M10-3 ran a headless Chrome local-admin browser smoke for Manage Content: original MCQ and FRQ creation, local image uploads, Save Draft, Publish, Archive, and archived-question hiding from Practice all passed. Also ran `npx eslint src/app/components/ContentManager.tsx`, `npm test -- publication questionContentStore` (28 tests), `npm run validate:content`, and `npm run build`. All passed. No source fix was needed.
 2026-05-15: Codex integrated M9/M10 and ran `npm test -- questionContentStore supabaseMediaStore supabaseSmoke` (40 tests), `npx tsc --noEmit --pretty false`, `npm run validate:content`, `npm test` (134 tests), `npm run lint`, `npm run build`, and `git diff --check`. All repo checks passed. Live `npm run smoke:supabase` is blocked by missing `public.validate_invite`, `public.questions`, and `question-images` bucket in the configured Supabase project; `studyprecalc.com` returns HTTP 200 and `www.studyprecalc.com` is not configured.
+2026-05-15: Codex integrated M11-M16 and ran `npm test` (151 tests), `npm run lint`, `npm run build`, `npm run validate:content`, `git diff --check`, `npm test -- aiGrading` (9 tests), and `npm run smoke:supabase`. Repo checks passed. Live `npm run smoke:supabase` still fails as expected until the owner applies `supabase/schema.sql`, confirms the `question-images` bucket, and creates real admin/student smoke accounts. Local dev server returned HTTP 200 at `http://127.0.0.1:5173/`; bundled Playwright browser automation was unavailable because the runtime package is missing `playwright-core`.

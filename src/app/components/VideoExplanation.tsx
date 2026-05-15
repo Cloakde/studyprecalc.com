@@ -9,6 +9,7 @@ type VideoExplanationProps = {
   video: VideoExplanationData;
   title?: string;
   className?: string;
+  id?: string;
 };
 
 type VideoRenderModel =
@@ -225,6 +226,7 @@ function renderExternalPreview(
     <a
       className="video-explanation__external"
       href={href}
+      aria-label={`${label} in a new tab`}
       rel="noopener noreferrer"
       target="_blank"
     >
@@ -248,6 +250,7 @@ export function VideoExplanation({
   video,
   title = 'Video explanation',
   className,
+  id,
 }: VideoExplanationProps) {
   const headingId = useId();
   const model = getRenderModel(video.url);
@@ -267,6 +270,7 @@ export function VideoExplanation({
         <iframe
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
           allowFullScreen
+          loading="lazy"
           referrerPolicy="strict-origin-when-cross-origin"
           sandbox="allow-same-origin allow-scripts allow-presentation allow-popups"
           src={model.embedUrl}
@@ -305,21 +309,25 @@ export function VideoExplanation({
       );
     } else if (localVideo.status === 'missing') {
       media = (
-        <div className="video-explanation__notice" role="note">
+        <div className="video-explanation__notice" role="alert">
           <ShieldAlert aria-hidden="true" />
           <span>This uploaded video is not available in this browser.</span>
         </div>
       );
     } else if (localVideo.status === 'error') {
       media = (
-        <div className="video-explanation__notice" role="note">
+        <div className="video-explanation__notice" role="alert">
           <ShieldAlert aria-hidden="true" />
           <span>{localVideo.error ?? 'This uploaded video could not be loaded.'}</span>
         </div>
       );
     } else {
       media = (
-        <div className="video-explanation__notice video-explanation__notice--neutral" role="status">
+        <div
+          className="video-explanation__notice video-explanation__notice--neutral"
+          role="status"
+          aria-busy="true"
+        >
           <PlayCircle aria-hidden="true" />
           <span>Loading uploaded video...</span>
         </div>
@@ -329,7 +337,7 @@ export function VideoExplanation({
     media = renderExternalPreview(model.originalHref, thumbnailPath, 'Open video explanation');
   } else {
     media = (
-      <div className="video-explanation__notice" role="note">
+      <div className="video-explanation__notice" role="alert">
         <ShieldAlert aria-hidden="true" />
         <span>This video link could not be opened safely.</span>
       </div>
@@ -337,7 +345,11 @@ export function VideoExplanation({
   }
 
   return (
-    <section className={classNames('video-explanation', className)} aria-labelledby={headingId}>
+    <section
+      className={classNames('video-explanation', className)}
+      id={id}
+      aria-labelledby={headingId}
+    >
       <header className="video-explanation__header">
         <div className="video-explanation__title">
           <Film aria-hidden="true" />

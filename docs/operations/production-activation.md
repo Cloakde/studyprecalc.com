@@ -192,6 +192,8 @@ Evidence to keep:
 Owner or Codex after deployment:
 
 1. Run `npm run smoke:supabase` locally after `.env` points at the production Supabase project.
+   If activation pieces are missing, the smoke output includes a `Next owner action(s):` section
+   that maps common failures to the required dashboard-side setup.
 2. Optionally set `SMOKE_ADMIN_EMAIL`, `SMOKE_ADMIN_PASSWORD`, and `SMOKE_ADMIN_MFA_CODE`, then
    rerun `npm run smoke:supabase` to verify admin login, `profiles.role = admin`, and MFA `aal2`
    when the account has TOTP enabled.

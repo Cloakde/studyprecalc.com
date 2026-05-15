@@ -1,10 +1,20 @@
-import { AlertCircle, ArrowRight, BarChart3, BookOpenCheck, Clock3, Target } from 'lucide-react';
+import {
+  AlertCircle,
+  ArrowRight,
+  BarChart3,
+  BookOpenCheck,
+  Clock3,
+  Target,
+  TrendingDown,
+  TrendingUp,
+} from 'lucide-react';
 import { useMemo } from 'react';
 
 import type { PublicAccount } from '../../data/localAccountStore';
 import type { Attempt } from '../../domain/attempts/types';
 import type { Question } from '../../domain/questions/types';
-import type { SessionResult } from '../../domain/sessions/types';
+import { createDashboardAnalytics, summarizeQuestionResult } from '../../domain/sessions';
+import type { DashboardTrend, SessionResult } from '../../domain/sessions';
 
 type DashboardMode = 'practice' | 'session' | 'review';
 
@@ -45,6 +55,30 @@ function formatDate(timestamp: string): string {
   }).format(date);
 }
 
+function formatTrend(trend: DashboardTrend): string {
+  if (trend.trend === 'new') {
+    return 'New data';
+  }
+
+  if (trend.trend === 'flat') {
+    return 'Stable';
+  }
+
+  return `${trend.trend === 'up' ? '+' : ''}${trend.trendDelta} pts recent`;
+}
+
+function TrendIcon({ trend }: { trend: DashboardTrend }) {
+  if (trend.trend === 'up') {
+    return <TrendingUp aria-hidden="true" />;
+  }
+
+  if (trend.trend === 'down') {
+    return <TrendingDown aria-hidden="true" />;
+  }
+
+  return <BarChart3 aria-hidden="true" />;
+}
+
 export function StudentDashboard({
   account,
   attempts,
@@ -65,55 +99,23 @@ export function StudentDashboard({
     );
     const mcqAttempts = attempts.filter((attempt) => attempt.questionType === 'mcq');
     const correctMcqAttempts = mcqAttempts.filter((attempt) => attempt.isCorrect).length;
-    const unitStats = new Map<string, { score: number; maxScore: number; missed: number }>();
-
-    sessions.forEach((session) => {
-      session.questionResults.forEach((questionResult) => {
-        const current = unitStats.get(questionResult.unit) ?? {
-          score: 0,
-          maxScore: 0,
-          missed: 0,
-        };
-
-        current.score += questionResult.score;
-        current.maxScore += questionResult.maxScore;
-
-        if (!questionResult.needsManualScore && questionResult.score < questionResult.maxScore) {
-          current.missed += 1;
-        }
-
-        unitStats.set(questionResult.unit, current);
-      });
-    });
-
-    const weakUnits = [...unitStats.entries()]
-      .map(([unit, stats]) => ({
-        unit,
-        ...stats,
-        percent: stats.maxScore > 0 ? Math.round((stats.score / stats.maxScore) * 100) : 0,
-      }))
-      .sort((first, second) => {
-        if (first.percent !== second.percent) {
-          return first.percent - second.percent;
-        }
-
-        return second.missed - first.missed;
-      })
-      .slice(0, 3);
-    const recommendedUnit = weakUnits[0]?.unit;
+    const analytics = createDashboardAnalytics({ attempts, questions, sessions });
+    const recommendedNext = analytics.recommendedNext;
 
     return {
       averageScore: formatPercent(totalSessionScore, totalSessionMaxScore),
+      analytics,
       correctMcqAttempts,
       mcqAccuracy:
         mcqAttempts.length > 0 ? formatPercent(correctMcqAttempts, mcqAttempts.length) : '0%',
       pendingFrqCount,
-      recentSessions: sessions.slice(0, 4),
-      recommendedUnit,
+      recentSessions: [...sessions]
+        .sort((first, second) => Date.parse(second.submittedAt) - Date.parse(first.submittedAt))
+        .slice(0, 4),
+      recommendedNext,
       totalMissedCount,
-      weakUnits,
     };
-  }, [attempts, sessions]);
+  }, [attempts, questions, sessions]);
 
   return (
     <main className="dashboard-shell">
@@ -156,13 +158,27 @@ export function StudentDashboard({
         <article className="dashboard-panel dashboard-panel--action">
           <div>
             <p className="eyebrow">Recommended Next</p>
-            <h2>{dashboard.recommendedUnit ?? 'Start a session'}</h2>
+            <h2>{dashboard.recommendedNext?.skill ?? 'Start a session'}</h2>
             <p>
-              {dashboard.recommendedUnit
-                ? 'Build a focused session from your weakest unit.'
+              {dashboard.recommendedNext
+                ? `${dashboard.recommendedNext.reason} Practice ${dashboard.recommendedNext.topic} in ${dashboard.recommendedNext.unit}.`
                 : 'Complete a session to unlock unit recommendations.'}
             </p>
           </div>
+          {dashboard.recommendedNext ? (
+            <div className="unit-list" aria-label="Recommended practice details">
+              <div className="unit-row">
+                <div>
+                  <strong>{dashboard.recommendedNext.percent}%</strong>
+                  <span>{dashboard.recommendedNext.missedCount} missed</span>
+                </div>
+                <meter max="100" min="0" value={dashboard.recommendedNext.percent}>
+                  {dashboard.recommendedNext.percent}%
+                </meter>
+                <span>{dashboard.recommendedNext.availableQuestionIds.length} q</span>
+              </div>
+            </div>
+          ) : null}
           <button className="primary-button" onClick={() => onNavigate('session')} type="button">
             Start Session
             <ArrowRight aria-hidden="true" />
@@ -179,20 +195,52 @@ export function StudentDashboard({
               Practice
             </button>
           </header>
-          {dashboard.weakUnits.length === 0 ? (
+          {dashboard.analytics.unitTrends.length === 0 ? (
             <p className="dashboard-empty">No unit data yet.</p>
           ) : (
             <div className="unit-list">
-              {dashboard.weakUnits.map((unit) => (
-                <div className="unit-row" key={unit.unit}>
+              {dashboard.analytics.unitTrends.slice(0, 3).map((unit) => (
+                <div className="unit-row" key={unit.label}>
                   <div>
-                    <strong>{unit.unit}</strong>
-                    <span>{unit.missed} missed</span>
+                    <strong>{unit.label}</strong>
+                    <span>
+                      {unit.missedCount} missed | {formatTrend(unit)}
+                    </span>
                   </div>
                   <meter max="100" min="0" value={unit.percent}>
                     {unit.percent}%
                   </meter>
                   <span>{unit.percent}%</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </article>
+
+        <article className="dashboard-panel">
+          <header className="dashboard-panel__header">
+            <div>
+              <p className="eyebrow">Skills & Topics</p>
+              <h2>Weakest Trends</h2>
+            </div>
+          </header>
+          {dashboard.analytics.weakTopics.length === 0 ? (
+            <p className="dashboard-empty">No topic data yet.</p>
+          ) : (
+            <div className="unit-list">
+              {dashboard.analytics.weakTopics.slice(0, 4).map((topic) => (
+                <div className="unit-row" key={`${topic.unit}-${topic.topic}-${topic.skill}`}>
+                  <div>
+                    <strong>{topic.topic}</strong>
+                    <span>{topic.skill}</span>
+                  </div>
+                  <meter max="100" min="0" value={topic.percent}>
+                    {topic.percent}%
+                  </meter>
+                  <span title={formatTrend(topic)}>
+                    <TrendIcon trend={topic} />
+                    {topic.percent}%
+                  </span>
                 </div>
               ))}
             </div>
@@ -229,6 +277,27 @@ export function StudentDashboard({
                     </small>
                   </div>
                   <span>{session.plannedQuestionCount} questions</span>
+                  <details style={{ gridColumn: '1 / -1' }}>
+                    <summary>Question details</summary>
+                    <div className="unit-list" aria-label="Session question details">
+                      {session.questionResults.map((questionResult) => (
+                        <div className="unit-row" key={questionResult.questionId}>
+                          <div>
+                            <strong>{questionResult.skill}</strong>
+                            <span>
+                              {questionResult.topic} | {summarizeQuestionResult(questionResult)}
+                            </span>
+                          </div>
+                          <meter max={questionResult.maxScore} min="0" value={questionResult.score}>
+                            {questionResult.score}/{questionResult.maxScore}
+                          </meter>
+                          <span>
+                            {questionResult.score}/{questionResult.maxScore}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </details>
                 </article>
               ))}
             </div>

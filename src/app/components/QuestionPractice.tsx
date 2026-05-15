@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight, Eye, EyeOff, ListChecks, Shuffle, Video } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useState, type KeyboardEvent } from 'react';
 
 import type { Attempt } from '../../domain/attempts/types';
 import type { FrqQuestion, McqChoice, McqQuestion, Question } from '../../domain/questions/types';
@@ -37,6 +37,11 @@ export function QuestionPractice({
   onSaveMcqAttempt,
   onSaveFrqAttempt,
 }: QuestionPracticeProps) {
+  const questionListId = useId();
+  const solutionPanelId = useId();
+  const solutionBodyId = useId();
+  const videoPanelId = useId();
+  const filterStatusId = useId();
   const [selectedQuestionId, setSelectedQuestionId] = useState<string | null>(
     questions[0]?.id ?? null,
   );
@@ -130,6 +135,46 @@ export function QuestionPractice({
     }
   }
 
+  function focusQuestionButton(index: number) {
+    const nextIndex = Math.min(Math.max(index, 0), filteredQuestions.length - 1);
+
+    window.requestAnimationFrame(() => {
+      document.getElementById(`${questionListId}-${nextIndex}`)?.focus();
+    });
+  }
+
+  function handleQuestionListKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number) {
+    if (filteredQuestions.length === 0) {
+      return;
+    }
+
+    if (event.key === 'ArrowDown' || event.key === 'ArrowRight') {
+      event.preventDefault();
+      goToQuestion(index + 1);
+      focusQuestionButton(index + 1);
+    } else if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') {
+      event.preventDefault();
+      goToQuestion(index - 1);
+      focusQuestionButton(index - 1);
+    } else if (event.key === 'Home') {
+      event.preventDefault();
+      goToQuestion(0);
+      focusQuestionButton(0);
+    } else if (event.key === 'End') {
+      event.preventDefault();
+      goToQuestion(filteredQuestions.length - 1);
+      focusQuestionButton(filteredQuestions.length - 1);
+    }
+  }
+
+  function resetFilters() {
+    setTypeFilter('all');
+    setUnitFilter('all');
+    setDifficultyFilter('all');
+    setCalculatorFilter('all');
+    setSearchText('');
+  }
+
   function chooseRandomQuestion() {
     if (filteredQuestions.length === 0) {
       return;
@@ -141,8 +186,8 @@ export function QuestionPractice({
 
   if (questions.length === 0) {
     return (
-      <main className="empty-shell">
-        <h1>PrecalcApp</h1>
+      <main className="empty-shell" aria-labelledby="practice-empty-heading">
+        <h1 id="practice-empty-heading">PrecalcApp</h1>
         <p>No questions are available.</p>
       </main>
     );
@@ -169,7 +214,7 @@ export function QuestionPractice({
             <ListChecks aria-hidden="true" />
             <h2>Question Bank</h2>
           </div>
-          <div className="filter-panel">
+          <div className="filter-panel" aria-describedby={filterStatusId}>
             <label>
               Search
               <input
@@ -241,10 +286,19 @@ export function QuestionPractice({
               <Shuffle aria-hidden="true" />
               Random
             </button>
+            <p className="visually-hidden" id={filterStatusId} aria-live="polite">
+              {filteredQuestions.length} question{filteredQuestions.length === 1 ? '' : 's'} match
+              the current filters.
+            </p>
           </div>
-          <div className="question-list">
+          <div className="question-list" role="group" aria-label="Filtered questions">
             {filteredQuestions.length === 0 ? (
-              <p className="empty-list-copy">No questions match these filters.</p>
+              <div className="empty-list-copy" role="status">
+                <p>No questions match these filters.</p>
+                <button className="ghost-button" onClick={resetFilters} type="button">
+                  Reset filters
+                </button>
+              </div>
             ) : null}
             {filteredQuestions.map((question, index) => {
               const questionAttempts = attemptsByQuestionId?.get(question.id) ?? [];
@@ -254,8 +308,11 @@ export function QuestionPractice({
                 <button
                   className="question-list__item"
                   data-active={question.id === currentQuestion?.id}
+                  aria-current={question.id === currentQuestion?.id ? 'true' : undefined}
+                  id={`${questionListId}-${index}`}
                   key={question.id}
                   onClick={() => setSelectedQuestionId(question.id)}
+                  onKeyDown={(event) => handleQuestionListKeyDown(event, index)}
                   type="button"
                 >
                   <span>{index + 1}</span>
@@ -325,11 +382,13 @@ export function QuestionPractice({
                 />
               )}
 
-              <section className="solution-panel">
+              <section className="solution-panel" id={solutionPanelId}>
                 <div className="solution-panel__header">
                   <h2>Explanation</h2>
                   <button
                     className="ghost-button"
+                    aria-controls={solutionBodyId}
+                    aria-expanded={isExplanationVisible}
                     onClick={() => {
                       if (isExplanationVisible) {
                         setRevealedExplanationQuestionId(null);
@@ -351,7 +410,7 @@ export function QuestionPractice({
                 </div>
 
                 {isExplanationVisible ? (
-                  <div className="solution-panel__body">
+                  <div className="solution-panel__body" id={solutionBodyId}>
                     <MathText block text={currentQuestion.explanation.summary} />
                     <ol>
                       {currentQuestion.explanation.steps.map((step) => (
@@ -369,6 +428,8 @@ export function QuestionPractice({
                         <div className="solution-panel__video-actions">
                           <button
                             className="ghost-button"
+                            aria-controls={videoPanelId}
+                            aria-expanded={isVideoVisible}
                             onClick={() =>
                               setVisibleVideoQuestionId(isVideoVisible ? null : currentQuestion.id)
                             }
@@ -380,15 +441,17 @@ export function QuestionPractice({
                         </div>
                         {isVideoVisible ? (
                           <VideoExplanation
+                            className="solution-panel__video"
                             title={`${currentQuestion.skill} video explanation`}
                             video={currentQuestion.explanation.video}
+                            id={videoPanelId}
                           />
                         ) : null}
                       </>
                     ) : null}
                   </div>
                 ) : (
-                  <p className="solution-panel__placeholder">
+                  <p className="solution-panel__placeholder" id={solutionBodyId}>
                     Reveal the answer explanation when you are ready to compare your work.
                   </p>
                 )}

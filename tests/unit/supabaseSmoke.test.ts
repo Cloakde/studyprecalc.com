@@ -1,5 +1,6 @@
 import {
   createAdminMfaCodeRequiredResult,
+  formatSmokeNextActions,
   formatSmokeResults,
   getSmokeExitCode,
   parseSupabaseSmokeEnv,
@@ -169,5 +170,44 @@ describe('Supabase smoke helpers', () => {
       message:
         'Admin account has a verified MFA factor and current session AAL is aal1; set SMOKE_ADMIN_MFA_CODE to run the TOTP challenge.',
     });
+  });
+
+  it('prints owner next actions for missing production activation pieces', () => {
+    const results: SmokeResult[] = [
+      {
+        name: 'validate_invite RPC',
+        status: 'fail',
+        message: 'Could not find the function public.validate_invite in the schema cache',
+      },
+      {
+        name: 'question-images bucket',
+        status: 'fail',
+        message: 'Bucket not found',
+      },
+      {
+        name: 'cloud image write path',
+        status: 'skip',
+        message:
+          'No writes are performed. Set SMOKE_WRITE=1 to upload and clean up a tiny generated image.',
+      },
+    ];
+
+    expect(formatSmokeNextActions(results)).toBe(
+      [
+        'Next owner action(s):',
+        '- Run the full supabase/schema.sql in the production Supabase SQL Editor.',
+        '- Confirm the private question-images bucket exists with a 1 MB limit and PNG/JPEG/WebP/GIF MIME allowlist.',
+        '- After admin and student smoke accounts exist, rerun with SMOKE_WRITE=1 and smoke credentials to verify cloud image publishing.',
+      ].join('\n'),
+    );
+  });
+
+  it('does not print next actions when no action is needed', () => {
+    expect(
+      formatSmokeNextActions([
+        { name: 'validate_invite RPC', status: 'pass', message: 'configured' },
+        { name: 'admin login', status: 'pass', message: 'admin verified' },
+      ]),
+    ).toBe('');
   });
 });

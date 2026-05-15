@@ -18,6 +18,7 @@ describe('VideoExplanation', () => {
 
     expect(markup).toContain('https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ');
     expect(markup).toContain('title="Worked solution video player"');
+    expect(markup).toContain('loading="lazy"');
     expect(markup).toContain('Duration');
     expect(markup).toContain('1:05');
     expect(markup).toContain('Open transcript');
@@ -51,6 +52,7 @@ describe('VideoExplanation', () => {
 
     expect(markup).toContain('Uploaded video');
     expect(markup).toContain('Loading uploaded video');
+    expect(markup).toContain('aria-busy="true"');
     expect(markup).not.toContain('Open original video');
   });
 
@@ -75,6 +77,7 @@ describe('VideoExplanation', () => {
     });
 
     expect(markup).toContain('could not be opened safely');
+    expect(markup).toContain('role="alert"');
     expect(markup).toContain('Transcript');
     expect(markup).toContain('Unavailable');
     expect(markup).not.toContain('href="javascript:');
