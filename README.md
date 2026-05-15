@@ -85,7 +85,7 @@ When Supabase is configured and an admin is signed in, authored questions are sa
 
 ## Accounts And Progress
 
-The login/sign-up flow uses Supabase when `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are configured. Production sign-up is invite-only. Attempts and grouped session results are scoped to the active account and power the Dashboard tab. If Supabase is not configured, the app falls back to browser-local profiles for development.
+The login/sign-up flow uses Supabase when `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are configured. Production sign-up is invite-only and collects email plus password after the invite code is accepted. If Supabase email confirmation is enabled and the Confirm Signup email template includes `{{ .Token }}`, the app asks the user for the emailed verification code before signing them in. Attempts and grouped session results are scoped to the active account and power the Dashboard tab. If Supabase is not configured, the app falls back to browser-local profiles for development.
 
 Run `supabase/schema.sql` in the Supabase SQL Editor before relying on cloud accounts, invites, classes, content publishing, or progress sync.
 

@@ -187,11 +187,11 @@ Supabase Auth domain checks:
 1. In Supabase Auth URL Configuration, set Site URL to `https://studyprecalc.com`.
 2. Add redirect URLs for `https://studyprecalc.com/**`, `https://www.studyprecalc.com/**`,
    Vercel preview URLs, and local dev URLs as listed in [Supabase setup](supabase-setup.md).
-3. If email confirmation is enabled, run one signup and confirm the email link returns to the
-   production domain.
+3. If email confirmation is enabled, run one signup and confirm the email contains a six-digit code
+   that verifies in the app.
 
 Evidence to keep: Supabase Auth URL Configuration screenshot/checkpoint and one successful
-confirmation redirect checkpoint if email confirmation is enabled.
+email-code verification checkpoint if email confirmation is enabled.
 
 ## Rollback
 

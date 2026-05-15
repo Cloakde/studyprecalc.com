@@ -1,11 +1,14 @@
-import { ArrowLeft, KeyRound, LogIn, UserPlus } from 'lucide-react';
+import { ArrowLeft, KeyRound, LogIn, MailCheck, RotateCcw, UserPlus } from 'lucide-react';
 import { type FormEvent, useState } from 'react';
 
 import type { LoginInput, SignupInput } from '../../data/localAccountStore';
+import type { EmailVerificationInput } from '../../data/supabase/accountStore';
 
 type AccountAuthProps = {
   onLogin: (input: LoginInput) => Promise<unknown>;
   onSignup: (input: SignupInput) => Promise<unknown>;
+  onVerifyEmailCode?: (input: EmailVerificationInput) => Promise<unknown>;
+  onResendEmailCode?: (email: string) => Promise<unknown>;
   backendLabel?: string;
   allowSignup?: boolean;
   supportingNotice?: string;
@@ -27,25 +30,45 @@ function isEmailConfirmationResult(result: unknown): result is { requiresEmailCo
   );
 }
 
+function getVerificationEmail(result: unknown, fallbackEmail: string): string {
+  if (
+    typeof result === 'object' &&
+    result !== null &&
+    'verificationEmail' in result &&
+    typeof result.verificationEmail === 'string' &&
+    result.verificationEmail.trim()
+  ) {
+    return result.verificationEmail.trim();
+  }
+
+  return fallbackEmail.trim();
+}
+
 export function AccountAuth({
   allowSignup = false,
   backendLabel = 'Local account',
   onBackToHome,
   onLogin,
+  onResendEmailCode,
   onSignup,
+  onVerifyEmailCode,
   supportingNotice,
 }: AccountAuthProps) {
   const [mode, setMode] = useState<AuthMode>('login');
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [emailVerificationCode, setEmailVerificationCode] = useState('');
+  const [pendingVerificationEmail, setPendingVerificationEmail] = useState('');
   const [inviteCode, setInviteCode] = useState('');
   const [acceptedInviteCode, setAcceptedInviteCode] = useState('');
   const [isInviteSignupUnlocked, setIsInviteSignupUnlocked] = useState(false);
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isResendingCode, setIsResendingCode] = useState(false);
   const canUseSignup = allowSignup || isInviteSignupUnlocked;
+  const isVerifyingEmail = Boolean(pendingVerificationEmail);
 
   async function submitAuth(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -66,11 +89,14 @@ export function AccountAuth({
           password,
           inviteCode: acceptedInviteCode,
         });
-        setNotice(
-          isEmailConfirmationResult(result)
-            ? 'Account created. Check your email if confirmation is enabled.'
-            : 'Account created.',
-        );
+
+        if (isEmailConfirmationResult(result)) {
+          const verificationEmail = getVerificationEmail(result, email);
+          setPendingVerificationEmail(verificationEmail);
+          setNotice(`Account created. Enter the verification code sent to ${verificationEmail}.`);
+        } else {
+          setNotice('Account created.');
+        }
       } else {
         setIsSubmitting(true);
         await onLogin({ email, password });
@@ -81,6 +107,53 @@ export function AccountAuth({
       setError(authError instanceof Error ? authError.message : 'Unable to sign in.');
     } finally {
       setIsSubmitting(false);
+    }
+  }
+
+  async function submitEmailVerificationCode(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setNotice('');
+    setError('');
+
+    if (!onVerifyEmailCode) {
+      setError('Email code verification is not available for this account backend.');
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      await onVerifyEmailCode({
+        email: pendingVerificationEmail,
+        code: emailVerificationCode,
+      });
+      setEmailVerificationCode('');
+      setPendingVerificationEmail('');
+      setPassword('');
+      setNotice('Email verified. You are signed in.');
+    } catch (authError) {
+      setError(authError instanceof Error ? authError.message : 'Unable to verify email code.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function resendEmailVerificationCode() {
+    setNotice('');
+    setError('');
+
+    if (!onResendEmailCode) {
+      setError('Email code resend is not available for this account backend.');
+      return;
+    }
+
+    try {
+      setIsResendingCode(true);
+      await onResendEmailCode(pendingVerificationEmail);
+      setNotice(`A new verification code was sent to ${pendingVerificationEmail}.`);
+    } catch (authError) {
+      setError(authError instanceof Error ? authError.message : 'Unable to resend email code.');
+    } finally {
+      setIsResendingCode(false);
     }
   }
 
@@ -101,7 +174,13 @@ export function AccountAuth({
   }
 
   const authHeading =
-    mode === 'signup' ? (canUseSignup ? 'Create Account' : 'Enter Invite Code') : 'Sign In';
+    mode === 'signup'
+      ? isVerifyingEmail
+        ? 'Verify Email'
+        : canUseSignup
+          ? 'Create Account'
+          : 'Enter Invite Code'
+      : 'Sign In';
 
   return (
     <main className="auth-shell">
@@ -116,9 +195,11 @@ export function AccountAuth({
           <p className="eyebrow">{backendLabel}</p>
           <h1 id="auth-heading">{authHeading}</h1>
           <p>
-            {mode === 'signup' && !canUseSignup
-              ? 'Enter your invite code to open account creation.'
-              : 'Save practice history, sessions, and dashboard progress in this browser.'}
+            {mode === 'signup' && isVerifyingEmail
+              ? 'Enter the code from your email to finish account setup.'
+              : mode === 'signup' && !canUseSignup
+                ? 'Enter your invite code to open account creation.'
+                : 'Save practice history, sessions, and dashboard progress in this browser.'}
           </p>
         </div>
 
@@ -130,6 +211,7 @@ export function AccountAuth({
               setMode('login');
               setError('');
               setNotice('');
+              setPendingVerificationEmail('');
             }}
             type="button"
           >
@@ -159,7 +241,40 @@ export function AccountAuth({
           </div>
         ) : null}
 
-        {mode === 'signup' && !canUseSignup ? (
+        {mode === 'signup' && isVerifyingEmail ? (
+          <form className="auth-form auth-form--verify" onSubmit={submitEmailVerificationCode}>
+            <div className="invite-chip">
+              <MailCheck aria-hidden="true" />
+              <span>{pendingVerificationEmail}</span>
+            </div>
+            <label>
+              Email Verification Code
+              <input
+                autoComplete="one-time-code"
+                inputMode="numeric"
+                maxLength={8}
+                onChange={(event) => setEmailVerificationCode(event.target.value)}
+                pattern="[0-9\\s-]*"
+                required
+                type="text"
+                value={emailVerificationCode}
+              />
+            </label>
+            <button className="primary-button" disabled={isSubmitting} type="submit">
+              <MailCheck aria-hidden="true" />
+              {isSubmitting ? 'Verifying...' : 'Verify Email'}
+            </button>
+            <button
+              className="ghost-button"
+              disabled={isResendingCode}
+              onClick={() => void resendEmailVerificationCode()}
+              type="button"
+            >
+              <RotateCcw aria-hidden="true" />
+              {isResendingCode ? 'Sending...' : 'Resend Code'}
+            </button>
+          </form>
+        ) : mode === 'signup' && !canUseSignup ? (
           <form className="auth-form auth-form--invite" onSubmit={submitInviteCode}>
             <label>
               Invite Code

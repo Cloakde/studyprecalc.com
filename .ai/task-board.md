@@ -50,6 +50,7 @@
 | PROD-005    | Expand Supabase live smoke preflight                  | Codex + Agents   | Done   | Added Storage bucket/media schema checks and optional `SMOKE_WRITE=1` cloud image write smoke with cleanup.                                                                                     |
 | PROD-006    | Finalize owner activation checklist                   | Codex + Agents   | Done   | Tightened M8 runbooks for SQL, real admin signup, Vercel deploy, image smoke, student visibility, and rollback evidence.                                                                        |
 | AUTH-007    | Add admin-level 2FA/MFA enforcement                   | Codex + Agents   | Done   | Added Supabase TOTP MFA setup/challenge UI, require `aal2` before cloud admin tabs/actions, updated RLS/storage policies, smoke support, and owner docs.                                        |
+| AUTH-008    | Add email-code verification after signup              | Codex            | Done   | Invite-only email/password signup now supports Supabase email OTP/code verification, resend, unit coverage, and owner docs for the Confirm Signup `{{ .Token }}` template.                      |
 
 ## Later
 

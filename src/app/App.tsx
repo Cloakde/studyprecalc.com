@@ -409,7 +409,9 @@ export function App() {
         backendLabel={isSupabaseConfigured ? 'Cloud account' : 'Local account'}
         onBackToHome={() => setUnauthView('home')}
         onLogin={loginAccount}
+        onResendEmailCode={isSupabaseConfigured ? supabaseAccountStore.resendEmailCode : undefined}
         onSignup={signupAccount}
+        onVerifyEmailCode={isSupabaseConfigured ? supabaseAccountStore.verifyEmailCode : undefined}
         supportingNotice={
           import.meta.env.DEV
             ? `Local admin: ${localDevAdminEmail} / ${localDevAdminPassword}`

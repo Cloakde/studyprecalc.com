@@ -1,4 +1,10 @@
-import { signOutSupabaseAccount } from '../../src/data/supabase/accountStore';
+import type { User } from '@supabase/supabase-js';
+
+import {
+  resendSupabaseSignupVerificationCode,
+  signOutSupabaseAccount,
+  verifySupabaseEmailCode,
+} from '../../src/data/supabase/accountStore';
 
 function createAuthMock(results: Array<string | null | Error>) {
   const calls: Array<{ scope?: 'global' | 'local' | 'others' } | undefined> = [];
@@ -16,6 +22,40 @@ function createAuthMock(results: Array<string | null | Error>) {
 
         return {
           error: result ? { message: result } : null,
+        };
+      },
+    },
+  };
+}
+
+function createEmailVerificationAuthMock(options: {
+  verifyError?: string;
+  resendError?: string;
+  user?: Partial<User> | null;
+}) {
+  const verifyCalls: unknown[] = [];
+  const resendCalls: unknown[] = [];
+  const user = options.user === undefined ? ({ id: 'user-1' } as User) : options.user;
+
+  return {
+    verifyCalls,
+    resendCalls,
+    auth: {
+      async verifyOtp(input: { email: string; token: string; type: 'email' }) {
+        verifyCalls.push(input);
+
+        return {
+          data: {
+            user: user as User | null,
+          },
+          error: options.verifyError ? { message: options.verifyError } : null,
+        };
+      },
+      async resend(input: { type: 'signup'; email: string }) {
+        resendCalls.push(input);
+
+        return {
+          error: options.resendError ? { message: options.resendError } : null,
         };
       },
     },
@@ -60,5 +100,73 @@ describe('supabase account logout', () => {
       signedOut: true,
     });
     expect(calls).toEqual([undefined, { scope: 'local' }]);
+  });
+});
+
+describe('supabase email verification', () => {
+  it('normalizes and verifies the six-digit email code', async () => {
+    const { auth, verifyCalls } = createEmailVerificationAuthMock({});
+
+    await expect(
+      verifySupabaseEmailCode(
+        {
+          email: ' Student@Example.com ',
+          code: '123 456',
+        },
+        auth,
+      ),
+    ).resolves.toMatchObject({ id: 'user-1' });
+    expect(verifyCalls).toEqual([
+      {
+        email: 'student@example.com',
+        token: '123456',
+        type: 'email',
+      },
+    ]);
+  });
+
+  it('rejects malformed email verification codes before calling Supabase', async () => {
+    const { auth, verifyCalls } = createEmailVerificationAuthMock({});
+
+    await expect(
+      verifySupabaseEmailCode(
+        {
+          email: 'student@example.com',
+          code: '123',
+        },
+        auth,
+      ),
+    ).rejects.toThrow('Enter the 6-digit email verification code.');
+    expect(verifyCalls).toEqual([]);
+  });
+
+  it('surfaces Supabase email verification errors', async () => {
+    const { auth } = createEmailVerificationAuthMock({
+      verifyError: 'Token has expired',
+    });
+
+    await expect(
+      verifySupabaseEmailCode(
+        {
+          email: 'student@example.com',
+          code: '123456',
+        },
+        auth,
+      ),
+    ).rejects.toThrow('Token has expired');
+  });
+
+  it('resends signup verification codes to the normalized email', async () => {
+    const { auth, resendCalls } = createEmailVerificationAuthMock({});
+
+    await expect(
+      resendSupabaseSignupVerificationCode(' Student@Example.com ', auth),
+    ).resolves.toBeUndefined();
+    expect(resendCalls).toEqual([
+      {
+        type: 'signup',
+        email: 'student@example.com',
+      },
+    ]);
   });
 });

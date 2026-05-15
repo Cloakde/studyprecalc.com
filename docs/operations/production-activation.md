@@ -73,7 +73,7 @@ Owner, in Supabase SQL Editor:
    Do not use predictable codes such as `OWNER-2026`.
 3. Open the deployed app or local app configured with Supabase env vars.
 4. Sign up with the matching owner email and invite code.
-5. Confirm email if Supabase email confirmation is enabled.
+5. Enter the six-digit email verification code if Supabase email confirmation is enabled.
 6. Sign in and confirm the `Admin` badge plus `Manage Content` and `Classes` tabs are visible.
 7. Complete the admin TOTP setup gate and verify the session reaches `aal2`.
 8. Run the profile, invite, and MFA verification queries from the Supabase setup runbook.
@@ -102,8 +102,8 @@ Owner, in Supabase Auth URL Configuration:
    - `http://127.0.0.1:5173/**`
    - `http://localhost:5173/**`
 3. Keep email/password auth enabled.
-4. If email confirmation is enabled, run one signup and confirm the link returns to the expected
-   app URL.
+4. If email confirmation is enabled, run one signup and confirm the email contains a six-digit code
+   and the in-app verification screen accepts it.
 
 Codex cannot verify Supabase Auth dashboard settings directly unless the owner provides access or
 screenshots.
@@ -111,8 +111,8 @@ screenshots.
 Evidence to keep:
 
 - Screenshot or copied dashboard values for Site URL and redirect URLs.
-- If email confirmation is enabled, screenshot/checkpoint that the confirmation link returns to
-  `https://studyprecalc.com`.
+- If email confirmation is enabled, screenshot/checkpoint that the six-digit email code verifies in
+  the app.
 
 ## 5. Configure Vercel Environment Variables
 

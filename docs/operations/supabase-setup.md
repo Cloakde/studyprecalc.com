@@ -115,8 +115,21 @@ In Supabase Auth URL configuration:
   - `http://127.0.0.1:5173/**`
   - `http://localhost:5173/**`
 
-Email/password auth must be enabled. If email confirmation is enabled, account creation will show a
-confirmation notice and the user must confirm email before login.
+Email/password auth must be enabled.
+
+For production, enable email confirmation so new users must verify ownership of the email address
+they used at signup. The app supports the invite-first flow followed by name, email, password, and a
+six-digit email verification code.
+
+To send a visible code instead of only a magic link, open Auth -> Email Templates -> Confirm signup
+and include Supabase's `{{ .Token }}` value in the message body, for example:
+
+```txt
+Your Study Precalc verification code is {{ .Token }}.
+```
+
+Keep `{{ .ConfirmationURL }}` in the template only if you also want a fallback link. The in-app
+verification screen uses the six-digit token from the email.
 
 Enable Supabase Auth MFA with TOTP factors for production admins. Do not require MFA for student
 accounts at launch; the app and RLS policies require `aal2` only for admin-managed actions.
@@ -226,13 +239,13 @@ Then:
 2. Select `Sign Up`.
 3. Enter the returned bootstrap invite code and select `Unlock Sign Up`.
 4. Create the owner account with the matching email address.
-5. Confirm the email if Supabase email confirmation is enabled.
+5. Enter the six-digit email verification code if Supabase email confirmation is enabled.
 6. Log in and confirm the header shows the `Admin` badge plus `Manage Content` and `Classes` tabs.
 7. Complete the admin MFA setup gate by scanning the TOTP QR code and entering the current code.
 8. Confirm the admin tabs remain available after the session reaches `aal2`.
 
-Evidence to keep: the returned invite row, the email confirmation checkpoint if enabled, the admin
-MFA checkpoint, and a screenshot/checkpoint showing the signed-in admin UI.
+Evidence to keep: the returned invite row, the email verification-code checkpoint if enabled, the
+admin MFA checkpoint, and a screenshot/checkpoint showing the signed-in admin UI.
 
 Verify in SQL:
 
@@ -315,8 +328,9 @@ Student signup flow:
 
 1. Student opens `Sign Up`.
 2. Student enters the invite code and selects `Unlock Sign Up`.
-3. Student creates an account.
-4. If the invite was class-scoped, the database creates a `class_enrollments` row after signup.
+3. Student creates an account with email and password.
+4. If Supabase email confirmation is enabled, student enters the six-digit email verification code.
+5. If the invite was class-scoped, the database creates a `class_enrollments` row after signup.
 
 SQL fallback for creating a student invite:
 

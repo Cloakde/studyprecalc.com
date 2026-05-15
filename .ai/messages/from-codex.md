@@ -60,3 +60,11 @@ operations runbooks, docs index, and this message file. The intended production 
 frontend admin MFA gate for usability, Supabase RLS/Storage `aal2` checks as enforcement, local dev
 admin bypass only for browser-local development, and optional smoke support through
 `SMOKE_ADMIN_MFA_CODE`.
+
+### 2026-05-15 - From Codex
+
+Starting AUTH-008 for signup email-code verification. Scope is the Supabase account adapter,
+AccountAuth flow, App wiring, unit coverage, and owner docs for configuring the Supabase Confirm
+Signup template with `{{ .Token }}`. Invite-only signup remains in place; the verification-code
+screen only appears after the invite is accepted and Supabase returns a signup that requires email
+confirmation.

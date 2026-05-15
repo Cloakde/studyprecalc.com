@@ -430,3 +430,11 @@ Use this file as an append-only record whenever an agent finishes, pauses, or ha
 - Verification: Ran targeted `npm test -- supabaseAdminMfaStore supabaseSmoke`, targeted ESLint and TypeScript, `npm run validate:content`, `npm test` (120 tests), `npm run lint`, `npm run build`, and browser-opened `http://127.0.0.1:5173/` to confirm the home/sign-in surface. Browser form automation could not type into the email field due the existing browser plugin issue.
 - Decisions made: Production admin authorization now means `profiles.role = 'admin'` plus Supabase Auth `aal2`; `public.has_admin_role()` remains role-only for diagnostics, while `public.is_admin()` enforces role plus MFA. Cloud admin tabs/actions are gated by `AdminMfaGate`; local dev admin bypass remains local-only.
 - Next recommended step: Owner applies the updated SQL, logs in as the real admin, completes the TOTP gate, sets `SMOKE_ADMIN_MFA_CODE` when running smoke checks, and redeploys Vercel.
+
+### 2026-05-15 - Codex - AUTH-008
+
+- Status: Complete for repo-side signup email-code verification. Live email delivery still requires Supabase Auth email confirmation enabled and the Confirm Signup template configured with `{{ .Token }}`.
+- Files changed: Updated `src/data/supabase/accountStore.ts`, `src/app/components/AccountAuth.tsx`, `src/app/App.tsx`, `tests/unit/supabaseAccountStore.test.ts`, `README.md`, `docs/operations/supabase-setup.md`, `docs/operations/production-activation.md`, `docs/operations/deployment.md`, and coordination files.
+- Verification: Ran `npm test -- supabaseAccountStore`, targeted ESLint for auth files, `npx tsc --noEmit --pretty false`, `npm run validate:content`, `npm test` (124 tests), `npm run lint`, and `npm run build`. All passed.
+- Decisions made: Preserved invite-only signup. The verification step appears only after an accepted invite and a Supabase signup result that requires email confirmation; resend uses Supabase's signup resend endpoint.
+- Next recommended step: In Supabase, enable email confirmation and edit Auth -> Email Templates -> Confirm signup so the email visibly includes the `{{ .Token }}` six-digit code, then test one invite signup.

@@ -4,13 +4,14 @@ Last updated: 2026-05-15
 
 ## Current Phase
 
-AUTH-007 is complete repo-side: production Supabase admin actions now require TOTP MFA with an `aal2` session in both the frontend gate and Supabase RLS/Storage policies. Local dev admin remains usable without real MFA because it uses browser-local stores only. M8 live cloud activation remains owner-run after applying the updated SQL and redeploying.
+AUTH-008 is complete: invite-only signup now continues through email/password account creation and,
+when Supabase email confirmation is enabled, an in-app six-digit email-code verification step.
 
 ## Active Ownership
 
-| Agent | Task                                            | File Scope | Status |
-| ----- | ----------------------------------------------- | ---------- | ------ |
-| None  | No active file claim after AUTH-007 integration | N/A        | Clear  |
+| Agent | Task | File Scope | Status |
+| ----- | ---- | ---------- | ------ |
+| None  | -    | -          | Idle   |
 
 ## Notes
 
@@ -57,6 +58,8 @@ AUTH-007 is complete repo-side: production Supabase admin actions now require TO
 - Codex and six agents completed the REVIEW-001 execution pass. `.claude/` local settings are ignored and should not be committed.
 - AUTH-007 adds production admin TOTP MFA. Supabase RLS/Storage admin policies now require `public.is_admin()`, which checks both admin role and `auth.jwt()->>'aal' = 'aal2'`; `public.has_admin_role()` is retained for role-only diagnostics.
 - Cloud admin tabs/actions stay hidden behind `AdminMfaGate` until the Supabase session reaches `aal2`. The local dev admin bypass is limited to browser-local stores and remains unavailable in production builds.
+- AUTH-008 adds Supabase email-code verification after invite-based email/password signup. To send a
+  visible code, configure the Supabase Confirm Signup email template with `{{ .Token }}`.
 
 ## Last Verification
 
@@ -91,6 +94,7 @@ AUTH-007 is complete repo-side: production Supabase admin actions now require TO
 2026-05-14: Agent E ran `npm test -- invite`, `npm test -- supabaseInviteMapping supabaseMapping`, `npx tsc --noEmit --pretty false`, scoped ESLint for invite/persistence files, `npm test` (110 tests), `npm run lint`, `npm run build`, and `git diff --check`. All passed; diff check reported existing CRLF warnings only.
 2026-05-14: Codex integrated all six REVIEW-001 agents, ran `npm run validate:content`, `npm test` (110 tests), `npm run lint`, `npm run build`, confirmed `http://127.0.0.1:5173/` returns HTTP 200, and ran `git diff --check`. All passed; diff check reported existing CRLF warnings only.
 2026-05-15: Codex integrated AUTH-007 and ran targeted `npm test -- supabaseAdminMfaStore supabaseSmoke`, targeted ESLint and TypeScript, `npm run validate:content`, `npm test` (120 tests), `npm run lint`, and `npm run build`. All passed. Browser automation opened `http://127.0.0.1:5173/` and confirmed the home/sign-in surface; local admin form entry remains blocked by the browser plugin email-input automation issue, not by app tests/build.
+2026-05-15: Codex completed AUTH-008 and ran `npm test -- supabaseAccountStore`, targeted ESLint for the auth files, `npx tsc --noEmit --pretty false`, `npm run validate:content`, `npm test` (124 tests), `npm run lint`, and `npm run build`. All passed.
 2026-05-14: Agent MFA-3 ran scoped `rg` checks for Supabase admin/MFA helpers and `git diff --check -- supabase/schema.sql supabase/README.md`. Checks passed; diff check reported CRLF warnings only for the touched Supabase files.
 2026-05-14: Agent MFA-5 ran `npx prettier --write` and scoped `npx prettier --check` for the admin MFA ADR/runbook/index/message/status docs, plus scoped `git diff --check`. All passed.
 2026-05-14: Agent MFA-4 ran `npm test -- supabaseSmoke`, `npx prettier --check scripts/smoke-supabase.ts tests/unit/supabaseSmoke.test.ts`, scoped `npx eslint scripts/smoke-supabase.ts tests/unit/supabaseSmoke.test.ts`, and scoped `npx tsc --noEmit --pretty false ... scripts/smoke-supabase.ts tests/unit/supabaseSmoke.test.ts`. All passed. Repo-wide `npx tsc --noEmit --pretty false` is currently blocked by concurrent `tests/unit/supabaseAdminMfaStore.test.ts` typing work outside MFA-4 scope.

@@ -16,6 +16,12 @@ type ProfileRow = {
 export type SupabaseSignupResult = {
   account: PublicAccount | null;
   requiresEmailConfirmation: boolean;
+  verificationEmail?: string;
+};
+
+export type EmailVerificationInput = {
+  email: string;
+  code: string;
 };
 
 type SupabaseSignOutScope = 'global' | 'local' | 'others';
@@ -23,6 +29,18 @@ type SupabaseSignOutScope = 'global' | 'local' | 'others';
 type SupabaseSignOutAuth = {
   signOut: (options?: {
     scope: SupabaseSignOutScope;
+  }) => Promise<{ error: { message: string } | null }>;
+};
+
+type SupabaseEmailVerificationAuth = {
+  verifyOtp: (input: {
+    email: string;
+    token: string;
+    type: 'email';
+  }) => Promise<{ data: { user: User | null }; error: { message: string } | null }>;
+  resend: (input: {
+    type: 'signup';
+    email: string;
   }) => Promise<{ error: { message: string } | null }>;
 };
 
@@ -70,6 +88,24 @@ function validateLoginInput(input: LoginInput): LoginInput {
   return {
     email,
     password: input.password,
+  };
+}
+
+function validateEmailVerificationInput(input: EmailVerificationInput): EmailVerificationInput {
+  const email = normalizeEmail(input.email);
+  const code = input.code.trim().replace(/[\s-]+/g, '');
+
+  if (!email || !email.includes('@')) {
+    throw new Error('Enter the email address used for signup.');
+  }
+
+  if (!/^\d{6}$/.test(code)) {
+    throw new Error('Enter the 6-digit email verification code.');
+  }
+
+  return {
+    email,
+    code,
   };
 }
 
@@ -158,6 +194,56 @@ export async function signOutSupabaseAccount(
   };
 }
 
+export async function verifySupabaseEmailCode(
+  input: EmailVerificationInput,
+  auth: SupabaseEmailVerificationAuth | undefined = supabase?.auth,
+): Promise<User> {
+  if (!auth) {
+    throw new Error('Supabase is not configured.');
+  }
+
+  const verificationInput = validateEmailVerificationInput(input);
+  const { data, error } = await auth.verifyOtp({
+    email: verificationInput.email,
+    token: verificationInput.code,
+    type: 'email',
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  if (!data.user) {
+    throw new Error('Unable to verify this email code.');
+  }
+
+  return data.user;
+}
+
+export async function resendSupabaseSignupVerificationCode(
+  email: string,
+  auth: SupabaseEmailVerificationAuth | undefined = supabase?.auth,
+): Promise<void> {
+  if (!auth) {
+    throw new Error('Supabase is not configured.');
+  }
+
+  const normalizedEmail = normalizeEmail(email);
+
+  if (!normalizedEmail || !normalizedEmail.includes('@')) {
+    throw new Error('Enter the email address used for signup.');
+  }
+
+  const { error } = await auth.resend({
+    type: 'signup',
+    email: normalizedEmail,
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
 export function useSupabaseAccountStore() {
   const [currentAccount, setCurrentAccount] = useState<PublicAccount | null>(null);
   const [isLoading, setIsLoading] = useState(isSupabaseConfigured);
@@ -210,6 +296,7 @@ export function useSupabaseAccountStore() {
       return {
         account: null,
         requiresEmailConfirmation: true,
+        verificationEmail: signupInput.email,
       };
     }
 
@@ -222,7 +309,44 @@ export function useSupabaseAccountStore() {
     return {
       account,
       requiresEmailConfirmation: !data.session,
+      ...(!data.session ? { verificationEmail: signupInput.email } : {}),
     };
+  }, []);
+
+  const verifyEmailCode = useCallback(async (input: EmailVerificationInput) => {
+    if (!supabase) {
+      throw new Error('Supabase is not configured.');
+    }
+
+    setLastError('');
+
+    try {
+      const user = await verifySupabaseEmailCode(input);
+      const account = await loadProfileAccount(user);
+      setCurrentAccount(account);
+      return account;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to verify email code.';
+      setLastError(message);
+      throw new Error(message);
+    }
+  }, []);
+
+  const resendEmailCode = useCallback(async (email: string) => {
+    if (!supabase) {
+      throw new Error('Supabase is not configured.');
+    }
+
+    setLastError('');
+
+    try {
+      await resendSupabaseSignupVerificationCode(email);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Unable to resend email verification code.';
+      setLastError(message);
+      throw new Error(message);
+    }
   }, []);
 
   const login = useCallback(async (input: LoginInput) => {
@@ -297,6 +421,8 @@ export function useSupabaseAccountStore() {
     lastError,
     login,
     logout,
+    resendEmailCode,
     signup,
+    verifyEmailCode,
   };
 }
