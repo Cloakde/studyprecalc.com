@@ -33,6 +33,52 @@ Use this file as an append-only record whenever an agent finishes, pauses, or ha
 - Blockers: None.
 - Next recommended step: Codex to respond in `.ai/messages/from-codex.md`. DEC-001 (stack choice) should be revisited under the dual-target framing. PLAN-001 still unowned.
 
+### 2026-05-15 - Claude - HOME-002 (homepage polish)
+
+- Status: Complete. Committed + pushed to `origin/main`.
+- Files changed: `src/app/components/Home.tsx`, `src/app/styles/home.css`.
+- What changed:
+  - Focus rings recolored from off-vocabulary orange to brand teal (`#0f766e`) on the difficulty selector + sample-card choices; added a homepage-wide teal `:focus-visible` base. Matches `--sp-border-focus`/the app the user enters after sign-in.
+  - Added `@media (prefers-reduced-motion: reduce)` disabling hover lifts/transitions; removed the infinitely-pulsing qpanel dot + its `@keyframes` entirely.
+  - Added a keyboard skip link (`.home-skip-link`, off-screen until focused).
+  - Nav content wrapped in `.home-nav__inner` (max-width 1280, centered) so the bar aligns with the rest of the page on wide monitors; moved the 720px flex-wrap onto the inner wrapper.
+  - Removed dead `.home-band*` CSS (~60 lines + 2 media-query refs) — the stats band was removed from JSX in the H3 honesty fix but the CSS lingered.
+  - Unit-card decorative plot opacity 0.95 → 0.5 for text legibility (WCAG).
+  - Removed the redundant "Unit N" label from unit cards (the "0N" badge already conveys it) — the user flagged it as text serving no purpose over the unit graphs.
+  - qpanel "End behavior" `<h3>` → non-heading `<p class="home-hero__qpanel-title">` (fixes h1→h3 outline skip); "Live preview" + dot → static "Sample" chip (it is not interactive).
+- Verification: `npm run lint` clean, `npm test` 196/196 across 36 files, `npm run build` green (pre-existing 500 kB chunk warning only).
+- Decisions made: Left the editorial 12–16px radii and the multi-accent feature stripe as-is — those are deliberate "bolder marketing" choices from the design-iteration history, not bugs; flagged as judgment calls rather than silently reverting.
+- Blockers: None.
+- Next recommended step: Codex's REVIEW-002 clusters (F new-auth, G data integrity, H storage migration) are still open and unaffected by this UI pass.
+
+### 2026-05-15 - Claude - REVIEW-002 fix spec
+
+- Status: Complete (spec only; no source edits).
+- Files changed:
+  - Rewrote `docs/reviews/2026-05-15-bug-hunt.md` so every bug (V1–V4, A1–A4, A5.1–A5.6) carries a concrete apply-as-is fix (code/SQL), not a one-line direction. Read the actual source for A1–A4 before writing their fixes (`questionContentStore.ts:285-329,690-705`, `inviteStore.ts:526-561`, `scoreFrq.ts`, `createSessionResult.ts:70-129`).
+  - Updated `docs/INDEX.md`, `.ai/task-board.md` (REVIEW-002 note), `.ai/messages/from-claude.md` (heads-up on V1 SQL, V2 two-part, A2 migration, V4 one-liner).
+- Verification: Read-only. Fixes written against current source; line numbers approximate, snippet-anchored.
+- Decisions made:
+  - V1 fix splits invite consumption into a new `handle_user_email_confirmed()` trigger; documented the insert→confirm race as an accepted beta trade-off with a `reserved_at` alternative deferred.
+  - A2 explicitly scoped as a schema migration (nullable `asset_id` → `''` sentinel + matching unique index) + optional RPC for atomicity — not a blind one-liner; assigned to Cluster H (Codex, migration ownership).
+  - The doc now doubles as the implementation spec; clusters F–I unchanged.
+- Blockers: None.
+- Next recommended step: Land V4 (one line) immediately. Codex takes Cluster F + H, Claude takes G, I flexible. Codex to confirm/counter in `from-codex.md`.
+
+### 2026-05-15 - Claude - REVIEW-002 (bug hunt)
+
+- Status: Complete (findings only; no source edits).
+- Files changed:
+  - Added `docs/reviews/2026-05-15-bug-hunt.md` — post-REVIEW-001/AUTH-007/AUTH-008 hunt. 4 verified findings (V1–V4), 4 agent-reported (A1–A4), a minor batch (A5), and an explicit rejection of the `aal` false-positive (V5). Clusters F–I + coordination proposal.
+  - Updated `docs/INDEX.md`, `.ai/task-board.md` (REVIEW-002 Done), `.ai/messages/from-claude.md` (heads-up + cluster proposal).
+- Verification: Read-only. Ran 3 parallel hunting agents (auth/MFA, Supabase/async, UI/domain). Personally verified the highest-stakes items in source: `supabase/schema.sql:280-345,449-458`, `src/data/supabase/accountStore.ts:272-389`, `src/app/components/SessionPractice.tsx:543-555`, and the `aal` claim against Supabase's MFA docs.
+- Decisions made:
+  - Rejected the agent-reported "critical" `is_admin()` `aal` finding — `auth.jwt()->>'aal'` is Supabase's documented MFA RLS pattern; `schema.sql:457` is correct. Logged the rejection in the doc so it isn't re-raised.
+  - Confirmed REVIEW-001D fixes held (ref-sync dep array, MathText trust/MathML, AccountAuth semantics).
+  - Confidence tiers labelled per finding: [verified] vs [agent].
+- Blockers: None.
+- Next recommended step: V4 (`SessionPractice.submitSession` phase guard) is a one-line fix — land independently and immediately. Codex takes Cluster F (new-auth: V1/V2/V3), Claude takes Cluster G (data integrity). Codex to confirm/counter in `from-codex.md`.
+
 ### 2026-05-14 - Claude - REVIEW-001 reply
 
 - Status: Complete.

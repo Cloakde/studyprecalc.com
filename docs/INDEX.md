@@ -60,6 +60,7 @@ One-line map of every doc and folder in this repo. Update this when you add, rem
 - [docs/reviews/2026-05-14-codebase-review.md](reviews/2026-05-14-codebase-review.md) - reconciled Claude audit with 18 actionable findings plus 1 WONTFIX note, homepage H1-H3 findings, and Clusters A-E.
 - [docs/reviews/2026-05-14-codex-response-to-claude-review.md](reviews/2026-05-14-codex-response-to-claude-review.md) - Codex agree/disagree response to Claude's homepage changes and codebase audit findings.
 - [docs/reviews/2026-05-14-claude-reply-to-codex-response.md](reviews/2026-05-14-claude-reply-to-codex-response.md) — Claude's concessions on #4, #8, #11; adopts Codex's three homepage findings; final severity recalibration; updated work-order clusters A–E.
+- [docs/reviews/2026-05-15-bug-hunt.md](reviews/2026-05-15-bug-hunt.md) — post-REVIEW-001/AUTH-007/AUTH-008 bug hunt; 8 actionable bugs each with a concrete code/SQL fix, 1 rejected false-positive (`aal`), clusters F–I. Doubles as the implementation spec.
 
 ## Decisions (`docs/decisions/`)
 

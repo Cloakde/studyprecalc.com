@@ -4,8 +4,9 @@ Last updated: 2026-05-15
 
 ## Current Phase
 
-Homepage design-system update is complete. Production activation still remains blocked on owner-side
-Supabase SQL/bucket/account setup and optional `www` DNS configuration.
+Homepage design-system update plus a HOME-002 a11y/polish pass are complete (committed + pushed to
+`origin/main`). Production activation still remains blocked on owner-side Supabase SQL/bucket/account
+setup and optional `www` DNS configuration.
 
 ## Active Ownership
 

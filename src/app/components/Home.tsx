@@ -328,12 +328,9 @@ function HeroQuestionPreview() {
       <div className="home-hero__qpanel-head">
         <div>
           <p className="eyebrow">Unit 1 · Polynomials</p>
-          <h3>End behavior</h3>
+          <p className="home-hero__qpanel-title">End behavior</p>
         </div>
-        <span className="home-hero__qpanel-chip">
-          <span className="home-hero__qpanel-dot" aria-hidden="true" />
-          Live preview
-        </span>
+        <span className="home-hero__qpanel-chip">Sample</span>
       </div>
       <div className="home-hero__qpanel-body">
         <div className="home-hero__qpanel-prompt">
@@ -390,27 +387,32 @@ export function Home({ onGetStarted, onSignIn }: HomeProps) {
 
   return (
     <div className="home">
+      <a className="home-skip-link" href="#sample">
+        Skip to the sample question
+      </a>
       <header className="home-nav">
-        <a className="home-brand" href="#top">
-          <span className="home-brand__monogram" aria-hidden="true">
-            SP
-          </span>
-          <span className="home-brand__word">
-            Study<span style={{ color: '#0f766e' }}>Precalc</span>
-          </span>
-        </a>
-        <nav className="home-nav__links" aria-label="Primary">
-          <a href="#features">Why us</a>
-          <a href="#units">Units</a>
-          <a href="#sample">Try it</a>
-        </nav>
-        <div className="home-nav__cta">
-          <button className="ghost-button" type="button" onClick={onSignIn}>
-            Sign in
-          </button>
-          <button className="primary-button" type="button" onClick={onGetStarted}>
-            Get started
-          </button>
+        <div className="home-nav__inner">
+          <a className="home-brand" href="#top">
+            <span className="home-brand__monogram" aria-hidden="true">
+              SP
+            </span>
+            <span className="home-brand__word">
+              Study<span style={{ color: '#0f766e' }}>Precalc</span>
+            </span>
+          </a>
+          <nav className="home-nav__links" aria-label="Primary">
+            <a href="#features">Why us</a>
+            <a href="#units">Units</a>
+            <a href="#sample">Try it</a>
+          </nav>
+          <div className="home-nav__cta">
+            <button className="ghost-button" type="button" onClick={onSignIn}>
+              Sign in
+            </button>
+            <button className="primary-button" type="button" onClick={onGetStarted}>
+              Get started
+            </button>
+          </div>
         </div>
       </header>
 
@@ -618,7 +620,6 @@ export function Home({ onGetStarted, onSignIn }: HomeProps) {
               </div>
               <span className="home-unit__num">
                 <span className="home-unit__badge">{unit.num.padStart(2, '0')}</span>
-                Unit {unit.num}
               </span>
               <strong>{unit.title}</strong>
               <small>{unit.topics}</small>
