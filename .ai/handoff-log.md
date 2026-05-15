@@ -530,3 +530,10 @@ Use this file as an append-only record whenever an agent finishes, pauses, or ha
 - Expected failures: `npm run check:first-pack` fails on the intentionally empty starter bank until owner-authored questions are added. The template placeholder check fails while `OWNER_TODO` fields remain, which is now intentional launch-blocking behavior.
 - Decisions made: Keep live AI grading behind a future server-side Gemini proxy; expose admin/student AI surfaces as status/placeholder only; block first-pack launch when template placeholders remain.
 - Next recommended step: Owner writes original questions in the no-code manager or template, replaces every placeholder, runs `npm run check:first-pack -- <pack>`, publishes, then reruns with `--require-published`.
+
+### 2026-05-15 - Codex - HOME-002 Homepage Design-System Refresh
+
+- Status: Complete.
+- Files changed: Updated `src/app/components/Home.tsx`, `src/app/styles/home.css`, and coordination files.
+- Summary: Applied the owner-provided Study Precalc Design System homepage refresh with a plotted math hero background, AP-style hero question preview, refreshed unit mini-plots, "Why us" nav copy, and mobile wrapping/overflow hardening.
+- Verification: Ran `npm run lint`, `npm test` (196 tests), `npm run validate:content`, `npm run build`, `git diff --check`, an HTTP smoke for `http://127.0.0.1:5173/`, and a Chrome DevTools Protocol mobile viewport check at 390px with document/body scroll width equal to viewport width. All passed; Vite still prints the existing large-chunk warning.

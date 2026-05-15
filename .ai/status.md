@@ -4,7 +4,7 @@ Last updated: 2026-05-15
 
 ## Current Phase
 
-M21/M22 repo-side execution is complete. Production activation still remains blocked on owner-side
+Homepage design-system update is complete. Production activation still remains blocked on owner-side
 Supabase SQL/bucket/account setup and optional `www` DNS configuration.
 
 ## Active Ownership
@@ -82,6 +82,9 @@ Supabase SQL/bucket/account setup and optional `www` DNS configuration.
 - M21/M22 added admin AI settings/status, a disabled student FRQ AI feedback placeholder, Gemini
   proxy design docs, original-question import templates, a launch QA dashboard, and
   `npm run check:first-pack` for owner-authored pack readiness.
+- HOME-002 applied the owner-provided homepage design-system refresh: plotted math hero
+  background, AP-style hero question preview, refreshed unit mini-plots, and responsive homepage
+  overflow fixes.
 
 ## Last Verification
 
@@ -134,3 +137,4 @@ Prettier/ESLint for the touched tests, and `npx tsc --noEmit --pretty false`. Al
 2026-05-15: Codex integrated M17/M18 and ran `npm test` (167 tests), `npm run lint`, `npm run build`, `npm run validate:content`, `git diff --check`, `npm run check:production-readiness`, `READINESS_WWW_DOMAIN=www.studyprecalc.com npm run check:production-readiness`, `npm run smoke:live-checklist -- --base-url https://studyprecalc.com --run-label "M18 integrated smoke" --no-cleanup`, `npm test -- productionReadiness liveSmokeChecklist integrationHarness` (21 tests), and `npm run smoke:supabase`. Repo checks passed. Apex readiness passes for `studyprecalc.com`; optional `www` readiness fails because `www.studyprecalc.com` has no DNS. Live Supabase smoke still fails until the owner applies SQL, confirms `question-images`, and creates real smoke accounts.
 2026-05-15: Codex integrated M19/M20 and ran `npm run lint`, `npm test` (182 tests), `npm run validate:content`, `git diff --check`, `npm run build`, and an HTTP smoke for `http://127.0.0.1:5173/`. All passed. Vite still reports the existing large-chunk warning during build.
 2026-05-15: Codex integrated M21/M22 and ran `npm run lint`, `npm test` (196 tests), `npm run validate:content`, `npm run check:first-pack -- --help`, `npm run check:first-pack`, `git diff --check`, `npm run build`, an expected-failure template placeholder check, and an HTTP smoke for `http://127.0.0.1:5173/`. Repo checks passed. `npm run check:first-pack` correctly fails on the intentionally empty starter bank until owner-authored questions are added; the template check correctly fails while `OWNER_TODO` placeholders remain.
+2026-05-15: Codex completed HOME-002 and ran `npm run lint`, `npm test` (196 tests), `npm run validate:content`, `npm run build`, `git diff --check`, an HTTP smoke for `http://127.0.0.1:5173/`, and a Chrome DevTools Protocol mobile viewport check at 390px. All passed; build still reports the existing large-chunk warning.

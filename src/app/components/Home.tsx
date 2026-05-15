@@ -1,20 +1,18 @@
 import {
   ArrowRight,
-  BarChart3,
   BookOpenCheck,
   Calculator,
   CheckCircle2,
-  Clock3,
   Eye,
   Gauge,
   Layers3,
   ListChecks,
   type LucideIcon,
   RotateCcw,
-  Target,
+  BarChart3,
   XCircle,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 type HomeProps = {
   onGetStarted: () => void;
@@ -119,28 +117,39 @@ const features: Feature[] = [
   },
 ];
 
-type UnitCard = { num: string; title: string; topics: string };
+type UnitKind = 'poly' | 'exp' | 'trig' | 'param';
+
+type UnitCard = {
+  num: string;
+  title: string;
+  topics: string;
+  kind: UnitKind;
+};
 
 const units: UnitCard[] = [
   {
     num: '1',
     title: 'Polynomial & Rational Functions',
     topics: 'End behavior · zeros · asymptotes',
+    kind: 'poly',
   },
   {
     num: '2',
     title: 'Exponential & Logarithmic Functions',
     topics: 'Growth · decay · log rules',
+    kind: 'exp',
   },
   {
     num: '3',
     title: 'Trigonometric & Polar Functions',
     topics: 'Sinusoids · identities · polar coords',
+    kind: 'trig',
   },
   {
     num: '4',
     title: 'Functions, Vectors & Matrices',
     topics: 'Parametric · vector motion · matrices',
+    kind: 'param',
   },
 ];
 
@@ -154,6 +163,215 @@ function scrollToSample() {
       behavior: 'smooth',
     });
   }
+}
+
+/* ──────────────────────────────────────────────────────────────
+ * Plotted-curve helpers — produce real SVG paths from f(x) over a
+ * coordinate range. Used by the hero background and unit cards so
+ * the visuals are the same math families students will practice.
+ * ────────────────────────────────────────────────────────────── */
+type PlotRange = {
+  xMin: number;
+  xMax: number;
+  yMin: number;
+  yMax: number;
+  w: number;
+  h: number;
+};
+
+function plotPath(fn: (x: number) => number, range: PlotRange, step = 0.1): string {
+  const { xMin, xMax, yMin, yMax, w, h } = range;
+  const sx = (x: number) => ((x - xMin) / (xMax - xMin)) * w;
+  const sy = (y: number) => h - ((y - yMin) / (yMax - yMin)) * h;
+  let d = '';
+  let pen = false;
+  for (let x = xMin; x <= xMax + 1e-9; x += step) {
+    const y = fn(x);
+    if (!Number.isFinite(y) || y < yMin - 50 || y > yMax + 50) {
+      pen = false;
+      continue;
+    }
+    d += `${pen ? ' L ' : ' M '}${sx(x).toFixed(2)} ${sy(y).toFixed(2)}`;
+    pen = true;
+  }
+  return d.trim();
+}
+
+function HeroBackground() {
+  const { W, H, ox, oy, parab, sin, log } = useMemo(() => {
+    const width = 1440;
+    const height = 800;
+    const range: PlotRange = {
+      xMin: -18,
+      xMax: 18,
+      yMin: -10,
+      yMax: 10,
+      w: width,
+      h: height,
+    };
+
+    return {
+      W: width,
+      H: height,
+      ox: ((0 - range.xMin) / (range.xMax - range.xMin)) * width,
+      oy: height - ((0 - range.yMin) / (range.yMax - range.yMin)) * height,
+      parab: plotPath((x) => 0.12 * (x + 4) * (x + 4) - 6, range, 0.1),
+      sin: plotPath((x) => 3 * Math.sin(x * 0.7), range, 0.08),
+      log: plotPath((x) => Math.log(x + 6) * 2.4 - 1, range, 0.05),
+    };
+  }, []);
+
+  return (
+    <div className="home-hero__bg" aria-hidden="true">
+      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid slice">
+        <defs>
+          <pattern id="hero-grid-minor" width="24" height="24" patternUnits="userSpaceOnUse">
+            <path d="M 24 0 L 0 0 0 24" fill="none" stroke="rgba(15,118,110,0.07)" strokeWidth="1" />
+          </pattern>
+          <pattern id="hero-grid-major" width="120" height="120" patternUnits="userSpaceOnUse">
+            <path
+              d="M 120 0 L 0 0 0 120"
+              fill="none"
+              stroke="rgba(15,118,110,0.12)"
+              strokeWidth="1"
+            />
+          </pattern>
+          <radialGradient id="hero-fade" cx="50%" cy="40%" r="70%">
+            <stop offset="0" stopColor="white" stopOpacity="0" />
+            <stop offset="0.7" stopColor="white" stopOpacity="0.3" />
+            <stop offset="1" stopColor="#f5f7fb" stopOpacity="1" />
+          </radialGradient>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#hero-grid-minor)" />
+        <rect width="100%" height="100%" fill="url(#hero-grid-major)" />
+        <line x1="0" y1={oy} x2={W} y2={oy} stroke="rgba(23,32,51,0.18)" strokeWidth="1.2" />
+        <line x1={ox} y1="0" x2={ox} y2={H} stroke="rgba(23,32,51,0.18)" strokeWidth="1.2" />
+        <path
+          d={parab}
+          fill="none"
+          stroke="#0f766e"
+          strokeOpacity="0.55"
+          strokeWidth="2.4"
+          strokeLinecap="round"
+        />
+        <path
+          d={sin}
+          fill="none"
+          stroke="#f97316"
+          strokeOpacity="0.45"
+          strokeWidth="2.4"
+          strokeLinecap="round"
+        />
+        <path
+          d={log}
+          fill="none"
+          stroke="#2563eb"
+          strokeOpacity="0.4"
+          strokeWidth="2.4"
+          strokeLinecap="round"
+        />
+        <rect width="100%" height="100%" fill="url(#hero-fade)" />
+      </svg>
+    </div>
+  );
+}
+
+function UnitPlot({ kind }: { kind: UnitKind }) {
+  const W = 160;
+  const H = 110;
+  const range: PlotRange = { xMin: -5, xMax: 5, yMin: -5, yMax: 5, w: W, h: H };
+  let d = '';
+  let color = '#0f766e';
+  if (kind === 'poly') {
+    d = plotPath((x) => 0.18 * x * x * x - 0.8 * x, range);
+    color = '#0f766e';
+  } else if (kind === 'exp') {
+    d = plotPath((x) => Math.pow(1.55, x) - 2, range);
+    color = '#f97316';
+  } else if (kind === 'trig') {
+    d = plotPath((x) => 2.5 * Math.sin(x * 1.1), range);
+    color = '#2563eb';
+  } else {
+    // Lissajous (3:2) — represents Unit 4 parametric / vector motion.
+    const sx = (x: number) => ((x - range.xMin) / (range.xMax - range.xMin)) * W;
+    const sy = (y: number) => H - ((y - range.yMin) / (range.yMax - range.yMin)) * H;
+    const parts: string[] = [];
+    for (let t = 0; t <= Math.PI * 2 + 0.01; t += 0.04) {
+      const x = 3 * Math.sin(3 * t + Math.PI / 2);
+      const y = 2.6 * Math.sin(2 * t);
+      parts.push(`${parts.length ? 'L' : 'M'} ${sx(x).toFixed(2)} ${sy(y).toFixed(2)}`);
+    }
+    d = parts.join(' ');
+    color = '#0f766e';
+  }
+  const ox = ((0 - range.xMin) / (range.xMax - range.xMin)) * W;
+  const oy = H - ((0 - range.yMin) / (range.yMax - range.yMin)) * H;
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} aria-hidden="true">
+      <defs>
+        <pattern id={`unit-grid-${kind}`} width="16" height="16" patternUnits="userSpaceOnUse">
+          <path d="M 16 0 L 0 0 0 16" fill="none" stroke="rgba(15,118,110,0.13)" strokeWidth="1" />
+        </pattern>
+      </defs>
+      <rect width="100%" height="100%" fill={`url(#unit-grid-${kind})`} />
+      <line x1="0" y1={oy} x2={W} y2={oy} stroke="rgba(23,32,51,0.25)" strokeWidth="1" />
+      <line x1={ox} y1="0" x2={ox} y2={H} stroke="rgba(23,32,51,0.25)" strokeWidth="1" />
+      <path d={d} fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+/* Live AP-styled question preview shown on the hero right side. */
+function HeroQuestionPreview() {
+  return (
+    <aside className="home-hero__qpanel" aria-label="Sample question preview">
+      <div className="home-hero__qpanel-head">
+        <div>
+          <p className="eyebrow">Unit 1 · Polynomials</p>
+          <h3>End behavior</h3>
+        </div>
+        <span className="home-hero__qpanel-chip">
+          <span className="home-hero__qpanel-dot" aria-hidden="true" />
+          Live preview
+        </span>
+      </div>
+      <div className="home-hero__qpanel-body">
+        <div className="home-hero__qpanel-prompt">
+          <span className="home-hero__qpanel-num">1</span>
+          <span>
+            As <em>x</em> → ∞, what is the end behavior of <em>g</em>(<em>x</em>) = −2<em>x</em>
+            <sup>4</sup> + 7<em>x</em>?
+          </span>
+        </div>
+      </div>
+      <ol className="home-hero__qpanel-choices">
+        {[
+          { id: 'A', text: 'g(x) → ∞' },
+          { id: 'B', text: 'g(x) → −∞', correct: true },
+          { id: 'C', text: 'g(x) → 0' },
+          { id: 'D', text: 'g(x) oscillates' },
+        ].map((c) => (
+          <li
+            className="home-hero__qpanel-choice"
+            data-correct={c.correct ? 'true' : 'false'}
+            key={c.id}
+          >
+            <span className="home-hero__qpanel-letter">{c.id}</span>
+            <span className="home-hero__qpanel-text">{c.text}</span>
+            {c.correct ? <span className="home-hero__qpanel-badge">✓ Correct</span> : null}
+          </li>
+        ))}
+      </ol>
+      <div className="home-hero__qpanel-foot">
+        <span>
+          Calculator: <strong>Not allowed</strong>
+        </span>
+        <span>
+          Skill: <strong>Read end behavior</strong>
+        </span>
+      </div>
+    </aside>
+  );
 }
 
 export function Home({ onGetStarted, onSignIn }: HomeProps) {
@@ -182,7 +400,7 @@ export function Home({ onGetStarted, onSignIn }: HomeProps) {
           </span>
         </a>
         <nav className="home-nav__links" aria-label="Primary">
-          <a href="#features">Features</a>
+          <a href="#features">Why us</a>
           <a href="#units">Units</a>
           <a href="#sample">Try it</a>
         </nav>
@@ -197,11 +415,11 @@ export function Home({ onGetStarted, onSignIn }: HomeProps) {
       </header>
 
       <section className="home-hero" id="top">
-        <div className="home-hero__bg" aria-hidden="true" />
+        <HeroBackground />
         <div className="home-hero__copy">
           <p className="eyebrow home-hero__eyebrow">AP Precalculus practice · invite-only</p>
           <h1 className="home-hero__title">
-            Practice AP&nbsp;Precalculus skills, with the work shown.
+            Practice AP Precalculus skills, with the work shown.
           </h1>
           <p className="home-hero__sub">
             Build multiple choice and free response practice in one focused study environment. Track
@@ -216,99 +434,9 @@ export function Home({ onGetStarted, onSignIn }: HomeProps) {
               <Eye aria-hidden="true" size={18} /> Try a sample question
             </button>
           </div>
-          <div className="home-hero__chips">
-            <span>4 AP Precalc units</span>
-            <span>MCQ + FRQ</span>
-            <span>Desmos built in</span>
-          </div>
         </div>
 
-        <aside className="home-hero__panel" aria-label="Study dashboard feature preview">
-          <div className="home-hero__panel-head">
-            <div>
-              <p className="eyebrow">Student dashboard</p>
-              <h3>Practice signals</h3>
-            </div>
-            <span className="home-hero__live">
-              <span className="home-hero__live-dot" aria-hidden="true" />
-              Ready
-            </span>
-          </div>
-          <div className="home-hero__stats">
-            <article className="home-stat">
-              <BarChart3 aria-hidden="true" size={22} />
-              <strong>Scores</strong>
-              <span>Session summaries</span>
-            </article>
-            <article className="home-stat">
-              <Target aria-hidden="true" size={22} />
-              <strong>Units</strong>
-              <span>Weak spots</span>
-            </article>
-            <article className="home-stat">
-              <Clock3 aria-hidden="true" size={22} />
-              <strong>Timer</strong>
-              <span>Session pacing</span>
-            </article>
-            <article className="home-stat">
-              <BookOpenCheck aria-hidden="true" size={22} />
-              <strong>Review</strong>
-              <span>Saved attempts</span>
-            </article>
-          </div>
-          <div className="home-hero__sparkline">
-            <div className="home-hero__sparkline-head">
-              <p className="eyebrow" style={{ margin: 0 }}>
-                Progress view
-              </p>
-              <strong>Trend</strong>
-            </div>
-            <svg viewBox="0 0 280 120" preserveAspectRatio="none" aria-hidden="true">
-              <defs>
-                <linearGradient id="spark-fill" x1="0" x2="0" y1="0" y2="1">
-                  <stop offset="0" stopColor="#0f766e" stopOpacity="0.55" />
-                  <stop offset="0.6" stopColor="#0f766e" stopOpacity="0.18" />
-                  <stop offset="1" stopColor="#0f766e" stopOpacity="0" />
-                </linearGradient>
-                <linearGradient id="spark-line" x1="0" x2="1" y1="0" y2="0">
-                  <stop offset="0" stopColor="#14b8a6" />
-                  <stop offset="0.7" stopColor="#0f766e" />
-                  <stop offset="1" stopColor="#f97316" />
-                </linearGradient>
-                <filter id="spark-glow" x="-20%" y="-40%" width="140%" height="180%">
-                  <feGaussianBlur in="SourceGraphic" stdDeviation="3.5" result="blur" />
-                  <feMerge>
-                    <feMergeNode in="blur" />
-                    <feMergeNode in="SourceGraphic" />
-                  </feMerge>
-                </filter>
-              </defs>
-              <line
-                x1="0"
-                x2="280"
-                y1="100"
-                y2="100"
-                stroke="#e5eaf1"
-                strokeWidth="1"
-                strokeDasharray="2 4"
-              />
-              <path
-                d="M0,90 C30,86 50,72 70,70 C92,68 110,84 134,78 C158,72 174,46 200,38 C224,30 248,52 280,28 L280,120 L0,120 Z"
-                fill="url(#spark-fill)"
-              />
-              <path
-                d="M0,90 C30,86 50,72 70,70 C92,68 110,84 134,78 C158,72 174,46 200,38 C224,30 248,52 280,28"
-                fill="none"
-                stroke="url(#spark-line)"
-                strokeWidth="3"
-                strokeLinecap="round"
-                filter="url(#spark-glow)"
-              />
-              <circle cx="280" cy="28" r="9" fill="#f97316" opacity="0.18" />
-              <circle cx="280" cy="28" r="4" fill="#f97316" stroke="#ffffff" strokeWidth="2" />
-            </svg>
-          </div>
-        </aside>
+        <HeroQuestionPreview />
       </section>
 
       <section className="home-band" aria-label="Practice workflow features">
@@ -485,10 +613,13 @@ export function Home({ onGetStarted, onSignIn }: HomeProps) {
         <div className="home-units__grid">
           {units.map((unit) => (
             <article className="home-unit" key={unit.num}>
-              <span className="home-unit__big" aria-hidden="true">
-                {unit.num.padStart(2, '0')}
+              <div className="home-unit__plot" aria-hidden="true">
+                <UnitPlot kind={unit.kind} />
+              </div>
+              <span className="home-unit__num">
+                <span className="home-unit__badge">{unit.num.padStart(2, '0')}</span>
+                Unit {unit.num}
               </span>
-              <span className="home-unit__num">Unit {unit.num}</span>
               <strong>{unit.title}</strong>
               <small>{unit.topics}</small>
             </article>

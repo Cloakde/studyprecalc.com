@@ -74,6 +74,7 @@
 | CONTENT-012 | M22 content import template                           | Codex + Worker 10 | Done    | Added original-question pack template, template README, and owner guidance for MCQ/FRQ import packs with images, videos, rubrics, and metadata.                                                               |
 | CONTENT-013 | M22 content QA dashboard                              | Codex + Worker 11 | Done    | Expanded readiness helpers and Content Manager launch QA dashboard with filters, grouping, counts, and action messages.                                                                                        |
 | CONTENT-014 | M22 first-pack launch checklist                       | Codex + Worker 12 | Done    | Added local `npm run check:first-pack` tooling/docs/tests and placeholder launch blockers for unfinished templates.                                                                                            |
+| HOME-002    | Apply owner-provided homepage UI update               | Codex             | Done    | Applied the Study Precalc Design System zip homepage refresh, added mobile overflow hardening, and verified lint/tests/build/content validation plus HTTP/CDP mobile smoke.                                     |
 
 ## Later
 
