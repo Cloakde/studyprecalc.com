@@ -1,4 +1,4 @@
-import { KeyRound, LogIn, UserPlus } from 'lucide-react';
+import { ArrowLeft, KeyRound, LogIn, UserPlus } from 'lucide-react';
 import { type FormEvent, useState } from 'react';
 
 import type { LoginInput, SignupInput } from '../../data/localAccountStore';
@@ -9,6 +9,7 @@ type AccountAuthProps = {
   backendLabel?: string;
   allowSignup?: boolean;
   supportingNotice?: string;
+  onBackToHome?: () => void;
 };
 
 type AuthMode = 'login' | 'signup';
@@ -29,6 +30,7 @@ function isEmailConfirmationResult(result: unknown): result is { requiresEmailCo
 export function AccountAuth({
   allowSignup = false,
   backendLabel = 'Local account',
+  onBackToHome,
   onLogin,
   onSignup,
   supportingNotice,
@@ -104,6 +106,12 @@ export function AccountAuth({
   return (
     <main className="auth-shell">
       <section className="auth-panel" aria-labelledby="auth-heading">
+        {onBackToHome ? (
+          <button className="auth-back-home" onClick={onBackToHome} type="button">
+            <ArrowLeft aria-hidden="true" />
+            Back to home
+          </button>
+        ) : null}
         <div className="auth-panel__intro">
           <p className="eyebrow">{backendLabel}</p>
           <h1 id="auth-heading">{authHeading}</h1>
@@ -114,30 +122,28 @@ export function AccountAuth({
           </p>
         </div>
 
-        <div className="auth-toggle" role="tablist" aria-label="Account mode">
+        <div className="auth-toggle" aria-label="Account mode">
           <button
-            aria-selected={mode === 'login'}
+            aria-pressed={mode === 'login'}
             data-active={mode === 'login'}
             onClick={() => {
               setMode('login');
               setError('');
               setNotice('');
             }}
-            role="tab"
             type="button"
           >
             <LogIn aria-hidden="true" />
             Log In
           </button>
           <button
-            aria-selected={mode === 'signup'}
+            aria-pressed={mode === 'signup'}
             data-active={mode === 'signup'}
             onClick={() => {
               setMode('signup');
               setError('');
               setNotice('');
             }}
-            role="tab"
             type="button"
           >
             <UserPlus aria-hidden="true" />

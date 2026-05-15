@@ -1,6 +1,8 @@
 import {
   consumeInviteCode,
   createInvite,
+  getInviteStatus,
+  markInviteRevoked,
   validateInviteCode,
   type InviteCodeRecord,
 } from '../../src/domain/invites';
@@ -98,6 +100,28 @@ describe('invite domain helpers', () => {
     ).toMatchObject({
       status: 'used',
       reason: 'used',
+    });
+  });
+
+  it('keeps revoked invite codes auditable and unavailable', () => {
+    const invite = markInviteRevoked(createBaseInvite(), {
+      revokedAt: '2026-05-13T11:30:00.000Z',
+    });
+
+    expect(invite.revokedAt).toBe('2026-05-13T11:30:00.000Z');
+    expect(getInviteStatus(invite, now)).toBe('revoked');
+    expect(
+      validateInviteCode({
+        code: 'BETA-2026',
+        invites: [invite],
+        now,
+      }),
+    ).toMatchObject({
+      status: 'revoked',
+      reason: 'revoked',
+      invite: {
+        revokedAt: '2026-05-13T11:30:00.000Z',
+      },
     });
   });
 

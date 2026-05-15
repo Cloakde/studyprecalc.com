@@ -13,6 +13,12 @@ type TextSegment = {
 };
 
 const mathPattern = /(\$\$[\s\S]+?\$\$|\$[^$]+?\$)/g;
+const katexOptions = {
+  output: 'htmlAndMathml',
+  strict: 'warn',
+  throwOnError: false,
+  trust: false,
+} as const;
 
 function parseSegments(text: string): TextSegment[] {
   const segments: TextSegment[] = [];
@@ -70,18 +76,17 @@ export function MathText({ text, block = false }: MathTextProps) {
 
     const html = katex.renderToString(segment.value, {
       displayMode: segment.displayMode,
-      throwOnError: false,
-      strict: 'warn',
+      ...katexOptions,
     });
 
     const className = segment.displayMode ? 'math-text math-text--block' : 'math-text';
+    const hasMathMl = html.includes('katex-mathml');
 
     return (
-      <span
-        className={className}
-        dangerouslySetInnerHTML={{ __html: html }}
-        key={index}
-      />
+      <span className={className} key={index}>
+        <span dangerouslySetInnerHTML={{ __html: html }} />
+        {hasMathMl ? null : <span className="visually-hidden">LaTeX: {segment.value}</span>}
+      </span>
     );
   });
 

@@ -51,6 +51,12 @@ One-line map of every doc and folder in this repo. Update this when you add, rem
 
 - [docs/planning/milestones.md](planning/milestones.md) — M0–M10 construction roadmap with submilestones.
 
+## Reviews (`docs/reviews/`)
+
+- [docs/reviews/2026-05-14-codebase-review.md](reviews/2026-05-14-codebase-review.md) - reconciled Claude audit with 18 actionable findings plus 1 WONTFIX note, homepage H1-H3 findings, and Clusters A-E.
+- [docs/reviews/2026-05-14-codex-response-to-claude-review.md](reviews/2026-05-14-codex-response-to-claude-review.md) - Codex agree/disagree response to Claude's homepage changes and codebase audit findings.
+- [docs/reviews/2026-05-14-claude-reply-to-codex-response.md](reviews/2026-05-14-claude-reply-to-codex-response.md) — Claude's concessions on #4, #8, #11; adopts Codex's three homepage findings; final severity recalibration; updated work-order clusters A–E.
+
 ## Decisions (`docs/decisions/`)
 
 - [docs/decisions/0001-initial-project-layout.md](decisions/0001-initial-project-layout.md) — initial layout ADR.

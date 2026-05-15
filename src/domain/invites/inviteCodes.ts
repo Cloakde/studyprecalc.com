@@ -107,7 +107,9 @@ export function isInviteRecord(candidate: unknown): candidate is InviteCodeRecor
     (invite.createdByAccountId === undefined || typeof invite.createdByAccountId === 'string') &&
     (invite.consumedAt === undefined ||
       (typeof invite.consumedAt === 'string' && !Number.isNaN(timestampMs(invite.consumedAt)))) &&
-    (invite.consumedByAccountId === undefined || typeof invite.consumedByAccountId === 'string')
+    (invite.consumedByAccountId === undefined || typeof invite.consumedByAccountId === 'string') &&
+    (invite.revokedAt === undefined ||
+      (typeof invite.revokedAt === 'string' && !Number.isNaN(timestampMs(invite.revokedAt))))
   );
 }
 
@@ -127,6 +129,7 @@ export function normalizeInviteRecord(invite: InviteCodeRecord): InviteCodeRecor
     ...(invite.consumedByAccountId?.trim()
       ? { consumedByAccountId: invite.consumedByAccountId.trim() }
       : {}),
+    ...(invite.revokedAt ? { revokedAt: invite.revokedAt } : {}),
   };
 }
 
@@ -148,10 +151,18 @@ export function isInviteConsumed(invite: InviteCodeRecord): boolean {
   return Boolean(invite.consumedAt || invite.consumedByAccountId);
 }
 
+export function isInviteRevoked(invite: InviteCodeRecord): boolean {
+  return Boolean(invite.revokedAt);
+}
+
 export function getInviteStatus(
   invite: InviteCodeRecord,
   now: InviteTimestamp = new Date(),
 ): InviteStatus {
+  if (isInviteRevoked(invite)) {
+    return 'revoked';
+  }
+
   if (isInviteConsumed(invite)) {
     return 'used';
   }
@@ -199,6 +210,14 @@ export function validateInviteCode(input: ValidateInviteCodeInput): InviteValida
     };
   }
 
+  if (isInviteRevoked(invite)) {
+    return {
+      status: 'revoked',
+      reason: 'revoked',
+      invite,
+    };
+  }
+
   if (isInviteConsumed(invite)) {
     return {
       status: 'used',
@@ -233,6 +252,22 @@ export function markInviteConsumed(
     ...invite,
     consumedAt: toIsoTimestamp(metadata.consumedAt),
     consumedByAccountId: metadata.accountId.trim(),
+  });
+}
+
+export function markInviteRevoked(
+  invite: InviteCodeRecord,
+  metadata: { revokedAt: InviteTimestamp },
+): InviteCodeRecord {
+  const revokedAt = toIsoTimestamp(metadata.revokedAt);
+
+  if (Number.isNaN(timestampMs(revokedAt))) {
+    throw new Error('Invite revokedAt must be a valid timestamp.');
+  }
+
+  return normalizeInviteRecord({
+    ...invite,
+    revokedAt,
   });
 }
 

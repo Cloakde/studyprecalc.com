@@ -33,10 +33,46 @@ type SessionRow = {
   question_results: SessionResult['questionResults'];
 };
 
+type SupabasePersistenceResult = {
+  error: { message?: string } | null;
+};
+
 type UseSupabaseSessionStoreOptions = {
   enabled: boolean;
   userId?: string;
 };
+
+function getPersistenceErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'message' in error &&
+    typeof error.message === 'string' &&
+    error.message
+  ) {
+    return error.message;
+  }
+
+  return fallback;
+}
+
+async function recordSupabasePersistenceResult(
+  operation: () => PromiseLike<SupabasePersistenceResult>,
+  setLastError: (message: string) => void,
+  fallbackMessage: string,
+): Promise<void> {
+  try {
+    const { error } = await operation();
+
+    setLastError(error ? getPersistenceErrorMessage(error, fallbackMessage) : '');
+  } catch (error) {
+    setLastError(getPersistenceErrorMessage(error, fallbackMessage));
+  }
+}
 
 export function sessionToSupabaseRow(session: SessionResult, userId: string): SessionRow {
   return {
@@ -101,13 +137,16 @@ export function useSupabaseSessionStore({ enabled, userId }: UseSupabaseSessionS
         return;
       }
 
-      const { error } = await supabase
-        .from('session_results')
-        .upsert(sessionToSupabaseRow(session, userId), { onConflict: 'id' });
+      const client = supabase;
 
-      if (error) {
-        setLastError(error.message);
-      }
+      await recordSupabasePersistenceResult(
+        () =>
+          client
+            .from('session_results')
+            .upsert(sessionToSupabaseRow(session, userId), { onConflict: 'id' }),
+        setLastError,
+        'Unable to save session result.',
+      );
     },
     [enabled, userId],
   );
@@ -131,9 +170,16 @@ export function useSupabaseSessionStore({ enabled, userId }: UseSupabaseSessionS
       const nextSessions = setSortedSessions(merged.sessions);
 
       if (enabled && supabase && userId) {
-        void supabase.from('session_results').upsert(
-          nextSessions.map((session) => sessionToSupabaseRow(session, userId)),
-          { onConflict: 'id' },
+        const client = supabase;
+
+        void recordSupabasePersistenceResult(
+          () =>
+            client.from('session_results').upsert(
+              nextSessions.map((session) => sessionToSupabaseRow(session, userId)),
+              { onConflict: 'id' },
+            ),
+          setLastError,
+          'Unable to sync imported sessions.',
         );
       }
 
@@ -153,7 +199,13 @@ export function useSupabaseSessionStore({ enabled, userId }: UseSupabaseSessionS
       setSortedSessions(nextSessions);
 
       if (enabled && supabase && userId) {
-        void supabase.from('session_results').delete().eq('user_id', userId).eq('id', sessionId);
+        const client = supabase;
+
+        void recordSupabasePersistenceResult(
+          () => client.from('session_results').delete().eq('user_id', userId).eq('id', sessionId),
+          setLastError,
+          'Unable to remove session from cloud storage.',
+        );
       }
 
       return nextSessions;
@@ -166,7 +218,13 @@ export function useSupabaseSessionStore({ enabled, userId }: UseSupabaseSessionS
     setSessions([]);
 
     if (enabled && supabase && userId) {
-      void supabase.from('session_results').delete().eq('user_id', userId).neq('id', '');
+      const client = supabase;
+
+      void recordSupabasePersistenceResult(
+        () => client.from('session_results').delete().eq('user_id', userId).neq('id', ''),
+        setLastError,
+        'Unable to clear cloud session history.',
+      );
     }
   }, [enabled, userId]);
 
@@ -178,6 +236,7 @@ export function useSupabaseSessionStore({ enabled, userId }: UseSupabaseSessionS
   useEffect(() => {
     if (!enabled || !supabase || !userId) {
       setSortedSessions([]);
+      setLastError('');
       return;
     }
 
@@ -196,10 +255,11 @@ export function useSupabaseSessionStore({ enabled, userId }: UseSupabaseSessionS
       }
 
       if (error) {
-        setLastError(error.message);
+        setLastError(getPersistenceErrorMessage(error, 'Unable to load session history.'));
         return;
       }
 
+      setLastError('');
       setSortedSessions((data ?? []).map((row) => sessionFromSupabaseRow(row as SessionRow)));
     }
 

@@ -63,14 +63,18 @@ type MockSupabaseOperation = {
 
 type MockSupabaseClientOptions = {
   mediaRecords?: Array<{ id: string; storage_path: string }>;
+  questionMediaLinks?: Array<{ id: string; placement: string; asset_id: string | null }>;
   mediaRecordError?: MockSupabaseError | null;
+  questionMediaSelectError?: MockSupabaseError | null;
   questionMediaDeleteError?: MockSupabaseError | null;
   questionMediaInsertError?: MockSupabaseError | null;
 };
 
 function createMockSupabaseClient({
   mediaRecords = [],
+  questionMediaLinks = [],
   mediaRecordError = null,
+  questionMediaSelectError = null,
   questionMediaDeleteError = null,
   questionMediaInsertError = null,
 }: MockSupabaseClientOptions = {}) {
@@ -98,6 +102,14 @@ function createMockSupabaseClient({
             });
           }
 
+          if (table === 'question_media' && action === 'select') {
+            operations.push({ table, action });
+            return Promise.resolve({
+              data: questionMediaLinks,
+              error: questionMediaSelectError,
+            });
+          }
+
           if (table === 'question_media' && action === 'delete') {
             return Promise.resolve({
               data: null,
@@ -116,6 +128,14 @@ function createMockSupabaseClient({
         upsert(values: QuestionContentRow | QuestionContentRow[]) {
           action = 'upsert';
           operations.push({ table, action, values });
+
+          if (table === 'question_media') {
+            return Promise.resolve({
+              data: null,
+              error: questionMediaInsertError,
+            });
+          }
+
           upsertedQuestionRow = Array.isArray(values) ? values[0] : values;
           return builder;
         },
@@ -453,7 +473,11 @@ describe('Supabase question media links', () => {
       table: 'question_media',
       action: 'delete',
     });
-    expect(operations.some((operation) => operation.action === 'insert')).toBe(false);
+    expect(
+      operations.some(
+        (operation) => operation.table === 'question_media' && operation.action === 'upsert',
+      ),
+    ).toBe(false);
   });
 
   it('rejects publishing browser-local media to the cloud store', async () => {
@@ -532,14 +556,14 @@ describe('Supabase question media links', () => {
       now: '2026-05-14T10:00:00.000Z',
     });
 
-    const insertOperation = operations.find(
-      (operation) => operation.table === 'question_media' && operation.action === 'insert',
+    const upsertOperation = operations.find(
+      (operation) => operation.table === 'question_media' && operation.action === 'upsert',
     );
 
     expect(savedRecord.question).toEqual(question);
     expect(operations).toContainEqual({ table: 'media_records', action: 'select' });
-    expect(operations).toContainEqual({ table: 'question_media', action: 'delete' });
-    expect(insertOperation?.values).toEqual([
+    expect(operations).toContainEqual({ table: 'question_media', action: 'select' });
+    expect(upsertOperation?.values).toEqual([
       {
         question_id: testMcqQuestion.id,
         media_id: 'media-question',
@@ -597,6 +621,61 @@ describe('Supabase question media links', () => {
       action: 'upsert',
       values: expect.any(Object),
     });
+  });
+
+  it('keeps existing media links when new link upsert fails', async () => {
+    const { client, operations } = createMockSupabaseClient({
+      mediaRecords: [
+        {
+          id: 'media-question',
+          storage_path: 'questions/test/question.png',
+        },
+      ],
+      questionMediaLinks: [
+        {
+          id: 'existing-link',
+          placement: 'question',
+          asset_id: 'old-prompt-image',
+        },
+      ],
+      questionMediaInsertError: {
+        message: 'question_media upsert denied',
+      },
+    });
+    const store = createSupabaseQuestionContentStore({
+      enabled: true,
+      client: client as never,
+      userId: 'admin-1',
+    });
+    const question: Question = {
+      ...testMcqQuestion,
+      assets: [
+        {
+          id: 'prompt-image',
+          type: 'image',
+          path: 'supabase-image:questions/test/question.png',
+          alt: 'Question cloud image',
+        },
+      ],
+    };
+
+    await expect(
+      store.saveQuestion({
+        question,
+        status: 'published',
+      }),
+    ).rejects.toThrow('question_media upsert denied');
+    expect(operations).toContainEqual({ table: 'question_media', action: 'select' });
+    expect(operations).toContainEqual({
+      table: 'question_media',
+      action: 'upsert',
+      values: expect.any(Array),
+    });
+    expect(
+      operations.some(
+        (operation) => operation.table === 'question_media' && operation.action === 'delete',
+      ),
+    ).toBe(false);
   });
 });
 

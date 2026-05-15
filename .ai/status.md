@@ -4,13 +4,13 @@ Last updated: 2026-05-14
 
 ## Current Phase
 
-M8 live cloud activation preflight is complete repo-side. Owner activation is still pending in Supabase and Vercel: apply SQL, bootstrap real admin/student accounts, deploy, then run the read-only and write smoke checks.
+Claude's homepage and review audit changes are integrated with Codex's six-agent REVIEW-001 fix pass. Repo-side review hardening is complete for logout behavior, content-write ordering, media-link safety, persistence-error visibility, revoked invite auditability, homepage copy/semantics/focus, MathText hardening, and lower-priority auth/session polish. M8 live cloud activation preflight is still complete repo-side and pending Supabase/Vercel owner activation: apply SQL, bootstrap real admin/student accounts, deploy, then run the read-only and write smoke checks.
 
 ## Active Ownership
 
-| Agent | Task                       | File Scope | Status |
-| ----- | -------------------------- | ---------- | ------ |
-| None  | No active agent file claim | N/A        | Clear  |
+| Agent | Task                                              | File Scope | Status |
+| ----- | ------------------------------------------------- | ---------- | ------ |
+| None  | No active file claim after REVIEW-001 integration | N/A        | Clear  |
 
 ## Notes
 
@@ -53,6 +53,8 @@ M8 live cloud activation preflight is complete repo-side. Owner activation is st
 - The write smoke requires real Supabase admin credentials. Add student smoke credentials to verify fresh student signed URL access after publish and denial after archive.
 - Supabase image uploads now remove the uploaded Storage object if `media_records` metadata insert fails, reducing orphaned file risk.
 - Running `npm run smoke:supabase` against the current configured Supabase project still fails live activation checks because `public.validate_invite`, `public.questions`, and the `question-images` bucket are not all installed yet. Apply `supabase/schema.sql` before expecting those checks to pass.
+- Codex documented its agree/disagree response to Claude's homepage work and codebase audit in `docs/reviews/2026-05-14-codex-response-to-claude-review.md`.
+- Codex and six agents completed the REVIEW-001 execution pass. `.claude/` local settings are ignored and should not be committed.
 
 ## Last Verification
 
@@ -83,3 +85,6 @@ M8 live cloud activation preflight is complete repo-side. Owner activation is st
 2026-05-14: Codex completed M6 production activation tooling and ran `npm run validate:content`, `npm test` (87 tests), `npm run lint`, `npm run build`, and `git diff --check`. All passed; diff check reported a CRLF warning for `supabase/schema.sql` only. `npm run smoke:supabase` executed and correctly failed live checks because the configured Supabase project has not yet applied `supabase/schema.sql`.
 2026-05-14: Codex + agents completed M7 cloud image storage and ran targeted media/content/schema tests, `npm test` (101 tests), `npm run lint`, `npm run build`, and `git diff --check`. All passed; diff check reported CRLF warnings only. Browser check confirmed the local app sign-in surface renders at `http://127.0.0.1:5173`; automated admin login was blocked by the in-app browser email input automation issue.
 2026-05-14: Codex + agents completed M8 live cloud activation preflight and ran `npm test -- supabaseSmoke supabaseMediaStore`, targeted ESLint for the smoke/media files, `npm run validate:content`, `npm test` (104 tests), `npm run lint`, `npm run build`, and `git diff --check`. All passed; diff check reported CRLF warnings only. `npm run smoke:supabase` executed and correctly failed live activation checks because the configured Supabase project has not yet applied the required SQL/bucket setup.
+2026-05-14: Codex documented its review of Claude's homepage and codebase audit findings, then ran `npx prettier --write` on the touched docs/coordination files and `git diff --check`.
+2026-05-14: Agent E ran `npm test -- invite`, `npm test -- supabaseInviteMapping supabaseMapping`, `npx tsc --noEmit --pretty false`, scoped ESLint for invite/persistence files, `npm test` (110 tests), `npm run lint`, `npm run build`, and `git diff --check`. All passed; diff check reported existing CRLF warnings only.
+2026-05-14: Codex integrated all six REVIEW-001 agents, ran `npm run validate:content`, `npm test` (110 tests), `npm run lint`, `npm run build`, confirmed `http://127.0.0.1:5173/` returns HTTP 200, and ran `git diff --check`. All passed; diff check reported existing CRLF warnings only.

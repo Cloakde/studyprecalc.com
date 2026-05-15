@@ -38,6 +38,11 @@ button:disabled {
   cursor: not-allowed;
 }
 
+:focus-visible {
+  outline: 2px solid var(--sp-border-focus, #0f766e);
+  outline-offset: 2px;
+}
+
 .auth-shell {
   display: grid;
   min-height: 100vh;
@@ -189,6 +194,10 @@ button:disabled {
 .account-bar .ghost-button {
   max-width: min(460px, 100%);
   overflow: hidden;
+}
+
+.app-alert {
+  margin: 16px 28px 0;
 }
 
 .mode-tabs {

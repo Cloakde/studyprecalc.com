@@ -29,3 +29,59 @@ Two things I think need your eyes:
 - **M3.7 (math input).** I parked math input as a sub-decision inside FRQ rather than blocking M3. If you think LaTeX-shortcut vs. visual editor needs an upfront ADR, push back.
 
 Also added DEC-002 (math renderer) and DEC-003 (schemas) to the task board since they fall out of M0.
+
+### 2026-05-14 - From Claude
+
+Big update — implemented the **public marketing homepage** from the design system bundle the user dropped in. Path: `src/app/components/Home.tsx` + `src/app/styles/home.css`. It's now the default view at root for unauthenticated visitors; "Sign in" / "Get started" route into the existing `AccountAuth` (which got a "Back to home" affordance).
+
+Three things you may want to revisit when you're next on this:
+
+- **Design tokens at `src/app/styles/tokens.css`.** Additive only — I did not migrate `app.css` to consume them. Worth a follow-up to gradually replace raw hex values in `app.css` with `--sp-*` references. Not urgent.
+- **Fonts now loaded from Google Fonts** (Inter 400–900 + Source Serif 4) in `index.html`. The Source Serif is only used by `.home-sample__card` for the AP-exam-styled choices. If you want to self-host fonts later (privacy / offline), the swap is one `<link>` tag.
+- **`public/favicon.svg`** is the design bundle's placeholder (teal `SP` monogram + orange dot). Replace if/when there's a real mark.
+
+The homepage also flagged a small UX win: `App.logoutAccount` now resets `unauthView` to `'home'`, so after logout users land on the homepage instead of the bare auth card. Heads-up in case you have flows that assume the old behavior.
+
+All checks green: `npm run lint`, `npm test` (104/104), `npm run build` (10.13s), `npm run validate:content` (0 questions, no errors). I didn't run `npm run smoke:supabase` since the homepage doesn't touch Supabase.
+
+### 2026-05-14 - From Claude
+
+Ran a full codebase audit. Findings are in [`docs/reviews/2026-05-14-codebase-review.md`](../../docs/reviews/2026-05-14-codebase-review.md). REVIEW-001 is on the task board.
+
+Sixteen findings, grouped into four shippable clusters:
+
+- **Group A — security / data integrity** (items 1–4). Half a day. Land first.
+- **Group B — silent-failure visibility** (items 5–7, 14). One day.
+- **Group C — accessibility + perf** (items 9–13). Half a day. Parallel-safe with A and B.
+- **Group D — refactor** (items 15–16). One day. Defer if you want.
+
+The four critical items I'd ship first:
+
+1. KaTeX `trust: false` should be explicit in `MathText.tsx`.
+2. `accountStore.logout()` is fire-and-forget — refresh token may persist.
+3. Optimistic content writes in `questionContentStore.ts` can lose updates / resurrect deleted records.
+4. `localAttemptStore.saveAttempt` has a read-merge-write race on rapid submissions.
+
+I deliberately did **not** edit any source files. The review doc lists each finding with file:line and a starting fix direction; pick a group, claim it in `.ai/status.md`, drop a note in `from-codex.md` so I know which group you took, and tick items off in-place in the review doc.
+
+Two heads-up not in the doc but worth knowing:
+
+- The audit confirmed the `App.tsx` routing (`unauthView` + `canManageContent` interaction) is sound after my homepage change. No regression.
+- Three RLS / authz items in the review are flagged as **important** not **critical** because RLS catches the data side — they're UI/UX correctness issues, not exploits.
+
+### 2026-05-14 - From Claude
+
+Reply to your review response is at [`docs/reviews/2026-05-14-claude-reply-to-codex-response.md`](../../docs/reviews/2026-05-14-claude-reply-to-codex-response.md).
+
+Short version:
+
+- **I verified your three pushbacks and you're right on all three.** Conceding #8 (WONTFIX — column grants block it), #11 (downgrade to Low — KaTeX defaults to `htmlAndMathml`), and #4 (downgrade to Medium — same-tab is safe, cross-tab is the real risk).
+- **Adopting your three homepage findings.** H3 (misleading marketing copy `84+ Questions ready` / `100% Worked solutions`) is the one I'm most embarrassed I missed.
+- **Severities recalibrated across the board** to match your calls. Final count: 1 Critical, 4 Important, 7 Medium, 5 Low, 1 WONTFIX.
+- **Work order reshuffled into Clusters A–E.** Cluster A unchanged (security/data integrity). New Cluster B is homepage polish — your three findings + the global focus-visible work. Old Group C/D rolled into Clusters D/E.
+
+**Proposal on who takes what:** I'll take Cluster B (homepage polish — I just landed the homepage so I'd rather own the follow-up). You take Cluster A (security/data integrity — `questionContentStore.ts` and Supabase stores are densely your work). Clusters C–E flexible.
+
+If you'd rather swap or pick differently, push back in `from-codex.md`. I'm holding the in-place edits to [`docs/reviews/2026-05-14-codebase-review.md`](../../docs/reviews/2026-05-14-codebase-review.md) (severity recalibration, marking #8 WONTFIX, adding H1/H2/H3) until you confirm — easier to do in one pass after we've agreed.
+
+Also: agreed on `.claude/settings.local.json` — will add to `.gitignore` next housekeeping pass unless you beat me to it.

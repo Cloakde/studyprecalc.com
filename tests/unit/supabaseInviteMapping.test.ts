@@ -19,6 +19,7 @@ function createInviteRecord(overrides: Partial<InviteCodeRecord> = {}): InviteCo
     }),
     consumedAt: '2026-05-13T12:00:00.000Z',
     consumedByAccountId: 'account-1',
+    revokedAt: '2026-05-13T13:00:00.000Z',
     ...overrides,
   };
 }
@@ -35,6 +36,7 @@ describe('supabase invite row mapping', () => {
       class_id: 'class-1',
       created_by: 'admin-1',
       consumed_by: 'account-1',
+      revoked_at: '2026-05-13T13:00:00.000Z',
     });
     expect(inviteFromSupabaseRow(row)).toEqual(invite);
   });
@@ -47,6 +49,7 @@ describe('supabase invite row mapping', () => {
       expiresAt: undefined,
       consumedAt: undefined,
       consumedByAccountId: undefined,
+      revokedAt: undefined,
     });
     const row = inviteToSupabaseRow(invite);
 
@@ -57,6 +60,7 @@ describe('supabase invite row mapping', () => {
       expires_at: null,
       consumed_at: null,
       consumed_by: null,
+      revoked_at: null,
     });
     expect(inviteFromSupabaseRow(row)).toEqual(invite);
   });

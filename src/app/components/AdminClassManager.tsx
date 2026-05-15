@@ -6,7 +6,12 @@ import {
   type ClassEnrollment,
   type ClassRecord,
 } from '../../domain/classes';
-import { isInviteConsumed, isInviteExpired, type InviteCodeRecord } from '../../domain/invites';
+import {
+  isInviteConsumed,
+  isInviteExpired,
+  isInviteRevoked,
+  type InviteCodeRecord,
+} from '../../domain/invites';
 
 type AdminCreateInviteInput = {
   classId: string;
@@ -27,7 +32,7 @@ type AdminClassManagerProps = {
   onRefresh?: () => void | Promise<void>;
 };
 
-type InviteDisplayStatus = 'active' | 'expired' | 'used';
+type InviteDisplayStatus = 'active' | 'expired' | 'used' | 'revoked';
 
 function timestampMs(value: string | undefined): number {
   if (!value) {
@@ -65,6 +70,10 @@ function pluralize(count: number, singular: string, plural = `${singular}s`): st
 }
 
 function getInviteDisplayStatus(invite: InviteCodeRecord): InviteDisplayStatus {
+  if (isInviteRevoked(invite)) {
+    return 'revoked';
+  }
+
   if (isInviteConsumed(invite)) {
     return 'used';
   }
@@ -85,6 +94,7 @@ function getInviteStatusCounts(invites: InviteCodeRecord[]) {
     {
       active: 0,
       expired: 0,
+      revoked: 0,
       used: 0,
     } satisfies Record<InviteDisplayStatus, number>,
   );
@@ -133,6 +143,7 @@ export function AdminClassManager({
           classRecord,
           enrollmentCount: getClassEnrollmentCount(enrollments, classRecord.id),
           expiredInviteCount: inviteCounts.expired,
+          revokedInviteCount: inviteCounts.revoked,
           usedInviteCount: inviteCounts.used,
         };
       }),
@@ -320,7 +331,8 @@ export function AdminClassManager({
           <span>Active invites</span>
           <strong>{totalInviteCounts.active}</strong>
           <small>
-            {totalInviteCounts.used} used, {totalInviteCounts.expired} expired
+            {totalInviteCounts.used} used, {totalInviteCounts.expired} expired,{' '}
+            {totalInviteCounts.revoked} revoked
           </small>
         </article>
       </section>
@@ -446,7 +458,7 @@ export function AdminClassManager({
                   <span>{pluralize(summary.enrollmentCount, 'student')}</span>
                   <small>
                     {summary.activeInviteCount} active, {summary.usedInviteCount} used,{' '}
-                    {summary.expiredInviteCount} expired
+                    {summary.expiredInviteCount} expired, {summary.revokedInviteCount} revoked
                   </small>
                   <small>{summary.classRecord.description || 'No description'}</small>
                 </button>
@@ -480,6 +492,10 @@ export function AdminClassManager({
               <strong>{activeInviteCounts.expired}</strong>
               Expired
             </span>
+            <span>
+              <strong>{activeInviteCounts.revoked}</strong>
+              Revoked
+            </span>
           </div>
         </section>
 
@@ -489,7 +505,7 @@ export function AdminClassManager({
               <h2>Invites</h2>
               <p>
                 {activeInviteCounts.active} active, {activeInviteCounts.used} used,{' '}
-                {activeInviteCounts.expired} expired
+                {activeInviteCounts.expired} expired, {activeInviteCounts.revoked} revoked
               </p>
             </div>
             <Ticket aria-hidden="true" />
@@ -511,6 +527,9 @@ export function AdminClassManager({
                     <small>{invite.email ?? 'Any invited student'}</small>
                     <small>Created {formatDate(invite.createdAt, 'Not recorded')}</small>
                     <small>Expires {formatExpirationDate(invite.expiresAt)}</small>
+                    {invite.revokedAt ? (
+                      <small>Revoked {formatDate(invite.revokedAt, 'Not recorded')}</small>
+                    ) : null}
                   </div>
                   <div className="action-row">
                     <button

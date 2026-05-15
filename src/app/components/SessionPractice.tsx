@@ -9,7 +9,7 @@ import {
   RotateCcw,
   XCircle,
 } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { Attempt } from '../../domain/attempts/types';
 import type { FrqQuestion, McqChoice, McqQuestion, Question } from '../../domain/questions/types';
@@ -248,10 +248,6 @@ export function SessionPractice({
   }, [phase]);
 
   useEffect(() => {
-    submitSessionRef.current = submitSession;
-  });
-
-  useEffect(() => {
     if (phase !== 'running' || !currentQuestion) {
       return;
     }
@@ -347,90 +343,117 @@ export function SessionPractice({
     });
   }
 
-  function saveSessionAttempts(submittedAt: Date) {
-    const nextResponses = { ...responses };
+  const saveSessionAttempts = useCallback(
+    (submittedAt: Date) => {
+      const nextResponses = { ...responses };
 
-    sessionQuestions.forEach((question) => {
-      const response = nextResponses[question.id] ?? createSessionResponse();
-      const submittedResponse = {
-        ...response,
-        submittedAt,
-      };
+      sessionQuestions.forEach((question) => {
+        const response = nextResponses[question.id] ?? createSessionResponse();
+        const submittedResponse = {
+          ...response,
+          submittedAt,
+        };
 
-      if (question.type === 'mcq') {
-        const savedAttempt = response.selectedChoiceId
-          ? onSaveMcqAttempt?.(question, response.selectedChoiceId, response.startedAt, submittedAt)
-          : undefined;
+        if (question.type === 'mcq') {
+          const savedAttempt = response.selectedChoiceId
+            ? onSaveMcqAttempt?.(
+                question,
+                response.selectedChoiceId,
+                response.startedAt,
+                submittedAt,
+              )
+            : undefined;
+
+          nextResponses[question.id] = {
+            ...submittedResponse,
+            ...(savedAttempt?.id ? { attemptId: savedAttempt.id } : {}),
+          };
+          return;
+        }
+
+        if (!hasFrqResponse(response)) {
+          nextResponses[question.id] = submittedResponse;
+          return;
+        }
+
+        const savedAttempt = onSaveFrqAttempt?.(
+          question,
+          response.partResponses,
+          response.earnedPointsByCriterion,
+          response.startedAt,
+          response.attemptId,
+          submittedAt,
+        );
 
         nextResponses[question.id] = {
           ...submittedResponse,
           ...(savedAttempt?.id ? { attemptId: savedAttempt.id } : {}),
         };
-        return;
+      });
+
+      setResponses(nextResponses);
+      return nextResponses;
+    },
+    [onSaveFrqAttempt, onSaveMcqAttempt, responses, sessionQuestions],
+  );
+
+  const saveGroupedSessionResult = useCallback(
+    (
+      nextResponses: Record<string, SessionResponse>,
+      submittedAt: Date,
+      updatedAt: Date = submittedAt,
+    ) => {
+      if (!sessionStartedAt || !sessionRunId) {
+        return undefined;
       }
 
-      if (!hasFrqResponse(response)) {
-        nextResponses[question.id] = submittedResponse;
-        return;
-      }
-
-      const savedAttempt = onSaveFrqAttempt?.(
-        question,
-        response.partResponses,
-        response.earnedPointsByCriterion,
-        response.startedAt,
-        response.attemptId,
-        submittedAt,
+      return onSaveSessionResult?.(
+        createSessionResult({
+          id: sessionRunId,
+          questionSetVersion,
+          questions: sessionQuestions,
+          responses: nextResponses,
+          markedQuestionIds: [...markedQuestionIds],
+          startedAt: sessionStartedAt,
+          submittedAt,
+          updatedAt,
+          ...(timeLimitSeconds > 0 ? { timeLimitSeconds } : {}),
+          filters: {
+            type: typeFilter,
+            unit: unitFilter,
+            difficulty: difficultyFilter,
+            calculator: calculatorFilter,
+          },
+        }),
       );
+    },
+    [
+      calculatorFilter,
+      difficultyFilter,
+      markedQuestionIds,
+      onSaveSessionResult,
+      questionSetVersion,
+      sessionQuestions,
+      sessionRunId,
+      sessionStartedAt,
+      timeLimitSeconds,
+      typeFilter,
+      unitFilter,
+    ],
+  );
 
-      nextResponses[question.id] = {
-        ...submittedResponse,
-        ...(savedAttempt?.id ? { attemptId: savedAttempt.id } : {}),
-      };
-    });
-
-    setResponses(nextResponses);
-    return nextResponses;
-  }
-
-  function saveGroupedSessionResult(
-    nextResponses: Record<string, SessionResponse>,
-    submittedAt: Date,
-    updatedAt: Date = submittedAt,
-  ) {
-    if (!sessionStartedAt || !sessionRunId) {
-      return undefined;
-    }
-
-    return onSaveSessionResult?.(
-      createSessionResult({
-        id: sessionRunId,
-        questionSetVersion,
-        questions: sessionQuestions,
-        responses: nextResponses,
-        markedQuestionIds: [...markedQuestionIds],
-        startedAt: sessionStartedAt,
-        submittedAt,
-        updatedAt,
-        ...(timeLimitSeconds > 0 ? { timeLimitSeconds } : {}),
-        filters: {
-          type: typeFilter,
-          unit: unitFilter,
-          difficulty: difficultyFilter,
-          calculator: calculatorFilter,
-        },
-      }),
-    );
-  }
-
-  function submitSession() {
+  const submitSession = useCallback(() => {
     const submittedAt = new Date();
     const nextResponses = saveSessionAttempts(submittedAt);
     saveGroupedSessionResult(nextResponses, submittedAt);
     setSessionSubmittedAt(submittedAt);
     setClockNow(submittedAt.getTime());
     setPhase('summary');
-  }
+  }, [saveGroupedSessionResult, saveSessionAttempts]);
+
+  useEffect(() => {
+    submitSessionRef.current = submitSession;
+  }, [submitSession]);
 
   function updateFrqCriterion(question: FrqQuestion, criterionId: string, checked: boolean) {
     const currentResponse = responses[question.id] ?? createSessionResponse();

@@ -37,6 +37,10 @@ type AttemptRow = {
 
 type LocalAttemptMetadataInput = Partial<CreateAttemptMetadata>;
 
+type SupabasePersistenceResult = {
+  error: { message?: string } | null;
+};
+
 type UseSupabaseAttemptStoreOptions = {
   enabled: boolean;
   userId?: string;
@@ -50,6 +54,38 @@ function createBrowserAttemptId(): string {
   }
 
   return `attempt-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function getPersistenceErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'message' in error &&
+    typeof error.message === 'string' &&
+    error.message
+  ) {
+    return error.message;
+  }
+
+  return fallback;
+}
+
+async function recordSupabasePersistenceResult(
+  operation: () => PromiseLike<SupabasePersistenceResult>,
+  setLastError: (message: string) => void,
+  fallbackMessage: string,
+): Promise<void> {
+  try {
+    const { error } = await operation();
+
+    setLastError(error ? getPersistenceErrorMessage(error, fallbackMessage) : '');
+  } catch (error) {
+    setLastError(getPersistenceErrorMessage(error, fallbackMessage));
+  }
 }
 
 function createLocalAttemptMetadata(
@@ -152,13 +188,16 @@ export function useSupabaseAttemptStore({
         return;
       }
 
-      const { error } = await supabase
-        .from('attempts')
-        .upsert(attemptToSupabaseRow(attempt, userId), { onConflict: 'id' });
+      const client = supabase;
 
-      if (error) {
-        setLastError(error.message);
-      }
+      await recordSupabasePersistenceResult(
+        () =>
+          client
+            .from('attempts')
+            .upsert(attemptToSupabaseRow(attempt, userId), { onConflict: 'id' }),
+        setLastError,
+        'Unable to save attempt progress.',
+      );
     },
     [enabled, userId],
   );
@@ -202,9 +241,16 @@ export function useSupabaseAttemptStore({
       const sortedAttempts = setSortedAttempts(nextAttempts.map(validateAttempt));
 
       if (enabled && supabase && userId) {
-        void supabase.from('attempts').upsert(
-          sortedAttempts.map((attempt) => attemptToSupabaseRow(attempt, userId)),
-          { onConflict: 'id' },
+        const client = supabase;
+
+        void recordSupabasePersistenceResult(
+          () =>
+            client.from('attempts').upsert(
+              sortedAttempts.map((attempt) => attemptToSupabaseRow(attempt, userId)),
+              { onConflict: 'id' },
+            ),
+          setLastError,
+          'Unable to sync imported attempts.',
         );
       }
 
@@ -236,7 +282,13 @@ export function useSupabaseAttemptStore({
       setSortedAttempts(nextAttempts);
 
       if (enabled && supabase && userId) {
-        void supabase.from('attempts').delete().eq('user_id', userId).eq('id', attemptId);
+        const client = supabase;
+
+        void recordSupabasePersistenceResult(
+          () => client.from('attempts').delete().eq('user_id', userId).eq('id', attemptId),
+          setLastError,
+          'Unable to remove attempt from cloud storage.',
+        );
       }
 
       return nextAttempts;
@@ -249,7 +301,13 @@ export function useSupabaseAttemptStore({
     setAttempts([]);
 
     if (enabled && supabase && userId) {
-      void supabase.from('attempts').delete().eq('user_id', userId).neq('id', '');
+      const client = supabase;
+
+      void recordSupabasePersistenceResult(
+        () => client.from('attempts').delete().eq('user_id', userId).neq('id', ''),
+        setLastError,
+        'Unable to clear cloud attempt history.',
+      );
     }
   }, [enabled, userId]);
 
@@ -266,6 +324,7 @@ export function useSupabaseAttemptStore({
   useEffect(() => {
     if (!enabled || !supabase || !userId) {
       setSortedAttempts([]);
+      setLastError('');
       return;
     }
 
@@ -284,10 +343,11 @@ export function useSupabaseAttemptStore({
       }
 
       if (error) {
-        setLastError(error.message);
+        setLastError(getPersistenceErrorMessage(error, 'Unable to load attempt history.'));
         return;
       }
 
+      setLastError('');
       setSortedAttempts((data ?? []).map((row) => attemptFromSupabaseRow(row as AttemptRow)));
     }
 

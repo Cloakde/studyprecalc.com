@@ -1,4 +1,4 @@
-import { LogOut, UserCircle } from 'lucide-react';
+import { AlertCircle, LogOut, UserCircle } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
 import {
@@ -25,10 +25,8 @@ import { useSupabaseSessionStore } from '../data/supabase/sessionStore';
 import { AccountAuth } from './components/AccountAuth';
 import { AdminClassManager } from './components/AdminClassManager';
 import { AttemptReview } from './components/AttemptReview';
-import {
-  ContentManager,
-  type ContentManagerImageUploadContext,
-} from './components/ContentManager';
+import { ContentManager, type ContentManagerImageUploadContext } from './components/ContentManager';
+import { Home } from './components/Home';
 import { QuestionPractice } from './components/QuestionPractice';
 import { SessionPractice } from './components/SessionPractice';
 import { StudentDashboard } from './components/StudentDashboard';
@@ -76,6 +74,7 @@ function filenameToAltText(fileName: string): string {
 
 export function App() {
   const [mode, setMode] = useState<AppMode>('dashboard');
+  const [unauthView, setUnauthView] = useState<'home' | 'auth'>('home');
   const [localDevAdminAccount, setLocalDevAdminAccount] = useState<PublicAccount | null>(
     loadLocalDevAdminSession,
   );
@@ -134,6 +133,11 @@ export function App() {
   });
   const activeAttemptStore = isCloudBackendActive ? cloudAttemptStore : attemptStore;
   const activeSessionStore = isCloudBackendActive ? cloudSessionStore : sessionStore;
+  const signedInAccountError = isSupabaseConfigured ? supabaseAccountStore.lastError : '';
+  const signedInPersistenceError = isCloudBackendActive
+    ? [cloudAttemptStore.lastError, cloudSessionStore.lastError].filter(Boolean).join(' ')
+    : '';
+  const signedInError = [signedInAccountError, signedInPersistenceError].filter(Boolean).join(' ');
 
   const uploadCloudQuestionImage = useCallback(
     async (file: File, context: ContentManagerImageUploadContext) => {
@@ -219,6 +223,8 @@ export function App() {
   }
 
   function logoutAccount() {
+    setUnauthView('home');
+
     if (localDevAdminAccount) {
       setLocalDevAdminAccount(null);
 
@@ -244,9 +250,16 @@ export function App() {
   }
 
   if (!currentAccount) {
+    if (unauthView === 'home') {
+      return (
+        <Home onGetStarted={() => setUnauthView('auth')} onSignIn={() => setUnauthView('auth')} />
+      );
+    }
+
     return (
       <AccountAuth
         backendLabel={isSupabaseConfigured ? 'Cloud account' : 'Local account'}
+        onBackToHome={() => setUnauthView('home')}
         onLogin={loginAccount}
         onSignup={signupAccount}
         supportingNotice={
@@ -272,6 +285,12 @@ export function App() {
           <LogOut aria-hidden="true" />
         </button>
       </header>
+      {signedInError ? (
+        <div className="form-error app-alert" role="alert">
+          <AlertCircle aria-hidden="true" />
+          {signedInError}
+        </div>
+      ) : null}
       <nav className="mode-tabs" aria-label="Application sections">
         <button
           className="mode-tabs__button"

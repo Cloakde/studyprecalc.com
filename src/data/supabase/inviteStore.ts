@@ -6,6 +6,7 @@ import {
   createInvite,
   isInviteCodeFormatValid,
   markInviteConsumed,
+  markInviteRevoked,
   normalizeInviteCode,
   normalizeInviteRecord,
   validateInviteCode as validateInviteCodeInDomain,
@@ -96,6 +97,7 @@ export function inviteFromSupabaseRow(row: InviteRow): InviteCodeRecord {
     ...(row.created_by ? { createdByAccountId: row.created_by } : {}),
     ...(row.consumed_at ? { consumedAt: row.consumed_at } : {}),
     ...(row.consumed_by ? { consumedByAccountId: row.consumed_by } : {}),
+    ...(row.revoked_at ? { revokedAt: row.revoked_at } : {}),
   });
 }
 
@@ -111,7 +113,7 @@ export function inviteToSupabaseRow(invite: InviteCodeRecord): InviteRow {
     expires_at: invite.expiresAt ?? null,
     consumed_at: invite.consumedAt ?? null,
     consumed_by: invite.consumedByAccountId ?? null,
-    revoked_at: null,
+    revoked_at: invite.revokedAt ?? null,
   };
 }
 
@@ -162,6 +164,24 @@ async function loadInviteByCode(code: string): Promise<InviteCodeRecord | null> 
     .from('invites')
     .select('*')
     .eq('code', code)
+    .maybeSingle<InviteRow>();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data ? inviteFromSupabaseRow(data) : null;
+}
+
+async function loadInviteById(id: string): Promise<InviteCodeRecord | null> {
+  if (!supabase) {
+    throw new Error('Supabase is not configured.');
+  }
+
+  const { data, error } = await supabase
+    .from('invites')
+    .select('*')
+    .eq('id', id)
     .maybeSingle<InviteRow>();
 
   if (error) {
@@ -255,6 +275,7 @@ export async function consumeSupabaseInviteCode(
     })
     .eq('id', validation.invite.id)
     .is('consumed_at', null)
+    .is('revoked_at', null)
     .select('*')
     .maybeSingle<InviteRow>();
 
@@ -263,6 +284,21 @@ export async function consumeSupabaseInviteCode(
   }
 
   if (!data) {
+    const currentInvite = await loadInviteById(validation.invite.id);
+    const currentValidation = validateInviteCodeInDomain({
+      code: input.code,
+      invites: currentInvite ? [currentInvite] : [],
+      now: now(),
+      ...(input.email ? { email: input.email } : {}),
+    });
+
+    if (currentValidation.status !== 'valid') {
+      return {
+        ...currentValidation,
+        invites: currentValidation.invite ? [currentValidation.invite] : [],
+      };
+    }
+
     return {
       status: 'used',
       reason: 'used',
@@ -295,6 +331,7 @@ export function useSupabaseInviteStore({
   const refreshInvites = useCallback(async () => {
     if (!enabled || !supabase) {
       setInvites([]);
+      setLastError('');
       return;
     }
 
@@ -308,6 +345,7 @@ export function useSupabaseInviteStore({
       return;
     }
 
+    setLastError('');
     setInvites((data ?? []).map((row) => inviteFromSupabaseRow(row as InviteRow)));
   }, [enabled]);
 
@@ -317,14 +355,21 @@ export function useSupabaseInviteStore({
         throw new Error('Cloud invites are not available.');
       }
 
-      const savedInvite = await createSupabaseInvite(input, {
-        userId,
-        ...(now ? { now } : {}),
-        ...(createId ? { createId } : {}),
-        ...(createCode ? { createCode } : {}),
-      });
-      setInvites((currentInvites) => [savedInvite, ...currentInvites]);
-      return savedInvite;
+      try {
+        const savedInvite = await createSupabaseInvite(input, {
+          userId,
+          ...(now ? { now } : {}),
+          ...(createId ? { createId } : {}),
+          ...(createCode ? { createCode } : {}),
+        });
+        setLastError('');
+        setInvites((currentInvites) => [savedInvite, ...currentInvites]);
+        return savedInvite;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unable to create invite.';
+        setLastError(message);
+        throw error;
+      }
     },
     [createCode, createId, enabled, now, userId],
   );
@@ -354,18 +399,34 @@ export function useSupabaseInviteStore({
       const revokedAt = new Date().toISOString();
 
       if (enabled && supabase) {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('invites')
           .update({ revoked_at: revokedAt })
-          .eq('id', inviteId);
+          .eq('id', inviteId)
+          .select('*')
+          .maybeSingle<InviteRow>();
 
         if (error) {
           setLastError(error.message);
           return;
         }
+
+        setLastError('');
+
+        if (data) {
+          const revokedInvite = inviteFromSupabaseRow(data);
+          setInvites((currentInvites) =>
+            currentInvites.map((invite) => (invite.id === inviteId ? revokedInvite : invite)),
+          );
+          return;
+        }
       }
 
-      setInvites((currentInvites) => currentInvites.filter((invite) => invite.id !== inviteId));
+      setInvites((currentInvites) =>
+        currentInvites.map((invite) =>
+          invite.id === inviteId ? markInviteRevoked(invite, { revokedAt }) : invite,
+        ),
+      );
     },
     [enabled],
   );

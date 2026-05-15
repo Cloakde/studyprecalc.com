@@ -2,7 +2,7 @@ export type InviteRole = 'student' | 'admin';
 
 export type InviteTimestamp = string | Date;
 
-export type InviteStatus = 'active' | 'expired' | 'used';
+export type InviteStatus = 'active' | 'expired' | 'used' | 'revoked';
 
 export type InviteCodeRecord = {
   id: string;
@@ -15,6 +15,7 @@ export type InviteCodeRecord = {
   createdByAccountId?: string;
   consumedAt?: string;
   consumedByAccountId?: string;
+  revokedAt?: string;
 };
 
 export type InviteRecord = InviteCodeRecord;
@@ -61,6 +62,11 @@ export type InviteValidationResult =
   | {
       status: 'used';
       reason: 'used';
+      invite: InviteCodeRecord;
+    }
+  | {
+      status: 'revoked';
+      reason: 'revoked';
       invite: InviteCodeRecord;
     };
 

@@ -52,6 +52,12 @@ type MediaRecordReferenceRow = {
   storage_path: string | null;
 };
 
+type QuestionMediaLinkRow = {
+  id: string;
+  placement: QuestionMediaPlacement;
+  asset_id: string | null;
+};
+
 export type CreateSupabaseQuestionContentStoreOptions = {
   enabled: boolean;
   client?: SupabaseClient | null;
@@ -230,6 +236,7 @@ async function syncQuestionMediaLinks(
   const assets = extractCloudQuestionImageAssets(question);
   const storagePaths = [...new Set(assets.map((asset) => asset.storagePath))];
   const mediaIdByStoragePath = new Map<string, string>();
+  const linkPlacements: QuestionMediaPlacement[] = ['question', 'explanation'];
 
   if (storagePaths.length > 0) {
     const { data, error } = await client
@@ -261,21 +268,37 @@ async function syncQuestionMediaLinks(
     }
   }
 
-  const { error: deleteError } = await client
-    .from('question_media')
-    .delete()
-    .eq('question_id', questionId)
-    .in('placement', ['question', 'explanation']);
-
-  if (deleteError) {
-    throw new Error(deleteError.message);
-  }
-
   if (assets.length === 0) {
+    const { error: deleteError } = await client
+      .from('question_media')
+      .delete()
+      .eq('question_id', questionId)
+      .in('placement', linkPlacements);
+
+    if (deleteError) {
+      throw new Error(deleteError.message);
+    }
+
     return;
   }
 
-  const { error: insertError } = await client.from('question_media').insert(
+  const { data: existingLinkData, error: existingLinkError } = await client
+    .from('question_media')
+    .select('id, placement, asset_id')
+    .eq('question_id', questionId)
+    .in('placement', linkPlacements);
+
+  if (existingLinkError) {
+    throw new Error(existingLinkError.message);
+  }
+
+  const desiredLinkKeys = new Set(assets.map((asset) => `${asset.placement}:${asset.assetId}`));
+  const staleLinkIds = (existingLinkData ?? [])
+    .map((row) => row as QuestionMediaLinkRow)
+    .filter((row) => !desiredLinkKeys.has(`${row.placement}:${row.asset_id ?? ''}`))
+    .map((row) => row.id);
+
+  const { error: upsertError } = await client.from('question_media').upsert(
     assets.map((asset) => ({
       question_id: questionId,
       media_id: mediaIdByStoragePath.get(asset.storagePath),
@@ -283,10 +306,25 @@ async function syncQuestionMediaLinks(
       asset_id: asset.assetId,
       sort_order: asset.sortOrder,
     })),
+    { onConflict: 'question_id,placement,asset_id' },
   );
 
-  if (insertError) {
-    throw new Error(insertError.message);
+  if (upsertError) {
+    throw new Error(upsertError.message);
+  }
+
+  if (staleLinkIds.length === 0) {
+    return;
+  }
+
+  const { error: deleteError } = await client
+    .from('question_media')
+    .delete()
+    .eq('question_id', questionId)
+    .in('id', staleLinkIds);
+
+  if (deleteError) {
+    throw new Error(deleteError.message);
   }
 }
 
@@ -338,7 +376,10 @@ export function createSupabaseQuestionContentStore({
   async function persistRecord(record: QuestionContentRecord): Promise<QuestionContentRecord> {
     const activeClient = assertSupabaseClient(enabled, client);
 
-    if (record.publication.status === 'published' && questionHasBrowserLocalMedia(record.question)) {
+    if (
+      record.publication.status === 'published' &&
+      questionHasBrowserLocalMedia(record.question)
+    ) {
       throw new Error(
         'Cloud-published questions cannot use browser-local images or videos. Upload images to cloud storage and use an external video link.',
       );
@@ -516,6 +557,9 @@ export function useSupabaseQuestionContentStore({
   const [isContentLoading, setIsContentLoading] = useState(false);
   const [contentError, setContentError] = useState('');
   const contentRecordsRef = useRef(contentRecords);
+  const questionWriteQueuesRef = useRef(new Map<string, Promise<void>>());
+  const questionOperationVersionsRef = useRef(new Map<string, number>());
+  const nextQuestionOperationVersionRef = useRef(0);
 
   const seedQuestionIds = useMemo(
     () => new Set(seedQuestions.map((question) => question.id)),
@@ -527,6 +571,34 @@ export function useSupabaseQuestionContentStore({
     contentRecordsRef.current = sortedRecords;
     setContentRecords(sortedRecords);
     return sortedRecords;
+  }, []);
+
+  const nextQuestionOperationVersion = useCallback((questionId: string) => {
+    nextQuestionOperationVersionRef.current += 1;
+    const version = nextQuestionOperationVersionRef.current;
+    questionOperationVersionsRef.current.set(questionId, version);
+    return version;
+  }, []);
+
+  const isLatestQuestionOperation = useCallback(
+    (questionId: string, version: number) =>
+      questionOperationVersionsRef.current.get(questionId) === version,
+    [],
+  );
+
+  const enqueueQuestionWrite = useCallback((questionId: string, write: () => Promise<void>) => {
+    const previousWrite = questionWriteQueuesRef.current.get(questionId) ?? Promise.resolve();
+    const queuedWrite = previousWrite.then(write, write);
+    const trackedWrite = queuedWrite.catch(() => undefined);
+
+    questionWriteQueuesRef.current.set(questionId, trackedWrite);
+    void trackedWrite.finally(() => {
+      if (questionWriteQueuesRef.current.get(questionId) === trackedWrite) {
+        questionWriteQueuesRef.current.delete(questionId);
+      }
+    });
+
+    return queuedWrite;
   }, []);
 
   const refreshContent = useCallback(async () => {
@@ -569,50 +641,80 @@ export function useSupabaseQuestionContentStore({
 
   const saveCustomQuestion = useCallback(
     (question: Question, status?: QuestionPublicationStatus) => {
+      const operationVersion = nextQuestionOperationVersion(question.id);
+      const operationNow = now();
       const optimisticRecords = upsertQuestionContentRecord(contentRecordsRef.current, question, {
         status,
         questionSetVersion: defaultQuestionSetVersion,
-        now: now(),
+        now: operationNow,
         updatedBy: userId,
       });
       setSortedContentRecords(optimisticRecords);
 
-      void store
-        .saveQuestion({
+      void enqueueQuestionWrite(question.id, async () => {
+        const record = await store.saveQuestion({
           question,
           status,
           questionSetVersion: defaultQuestionSetVersion,
           updatedBy: userId,
-        })
-        .then((record) => {
+          now: operationNow,
+        });
+
+        if (isLatestQuestionOperation(question.id, operationVersion)) {
           setSortedContentRecords([
             ...contentRecordsRef.current.filter((currentRecord) => currentRecord.id !== record.id),
             record,
           ]);
           setContentError('');
-        })
-        .catch((error) => {
+        }
+      }).catch((error) => {
+        if (isLatestQuestionOperation(question.id, operationVersion)) {
           setContentError(
             error instanceof Error ? error.message : 'Unable to save question content.',
           );
-        });
+        }
+      });
     },
-    [defaultQuestionSetVersion, now, setSortedContentRecords, store, userId],
+    [
+      defaultQuestionSetVersion,
+      enqueueQuestionWrite,
+      isLatestQuestionOperation,
+      nextQuestionOperationVersion,
+      now,
+      setSortedContentRecords,
+      store,
+      userId,
+    ],
   );
 
   const deleteCustomQuestion = useCallback(
     (questionId: string) => {
+      const operationVersion = nextQuestionOperationVersion(questionId);
       setSortedContentRecords(
         contentRecordsRef.current.filter((record) => record.id !== questionId),
       );
 
-      void store.deleteQuestion(questionId).catch((error) => {
-        setContentError(
-          error instanceof Error ? error.message : 'Unable to delete question content.',
-        );
+      void enqueueQuestionWrite(questionId, async () => {
+        await store.deleteQuestion(questionId);
+
+        if (isLatestQuestionOperation(questionId, operationVersion)) {
+          setContentError('');
+        }
+      }).catch((error) => {
+        if (isLatestQuestionOperation(questionId, operationVersion)) {
+          setContentError(
+            error instanceof Error ? error.message : 'Unable to delete question content.',
+          );
+        }
       });
     },
-    [setSortedContentRecords, store],
+    [
+      enqueueQuestionWrite,
+      isLatestQuestionOperation,
+      nextQuestionOperationVersion,
+      setSortedContentRecords,
+      store,
+    ],
   );
 
   const importCustomQuestions = useCallback(
@@ -670,11 +772,13 @@ export function useSupabaseQuestionContentStore({
 
   const setCustomQuestionStatus = useCallback(
     (questionId: string, status: QuestionPublicationStatus) => {
+      const operationVersion = nextQuestionOperationVersion(questionId);
+      const operationNow = now();
       const existingRecord = contentRecordsRef.current.find((record) => record.id === questionId);
 
       if (existingRecord) {
         const updatedRecord = setQuestionContentRecordStatus(existingRecord, status, {
-          now: now(),
+          now: operationNow,
           updatedBy: userId,
         });
         setSortedContentRecords([
@@ -683,24 +787,36 @@ export function useSupabaseQuestionContentStore({
         ]);
       }
 
-      void store
-        .setPublicationStatus(questionId, status, {
+      void enqueueQuestionWrite(questionId, async () => {
+        const record = await store.setPublicationStatus(questionId, status, {
+          now: operationNow,
           updatedBy: userId,
-        })
-        .then((record) => {
+        });
+
+        if (isLatestQuestionOperation(questionId, operationVersion)) {
           setSortedContentRecords([
             ...contentRecordsRef.current.filter((currentRecord) => currentRecord.id !== record.id),
             record,
           ]);
           setContentError('');
-        })
-        .catch((error) => {
+        }
+      }).catch((error) => {
+        if (isLatestQuestionOperation(questionId, operationVersion)) {
           setContentError(
             error instanceof Error ? error.message : 'Unable to update question status.',
           );
-        });
+        }
+      });
     },
-    [now, setSortedContentRecords, store, userId],
+    [
+      enqueueQuestionWrite,
+      isLatestQuestionOperation,
+      nextQuestionOperationVersion,
+      now,
+      setSortedContentRecords,
+      store,
+      userId,
+    ],
   );
 
   const getQuestionStatus = useCallback(

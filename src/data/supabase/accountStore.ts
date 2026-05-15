@@ -18,6 +18,19 @@ export type SupabaseSignupResult = {
   requiresEmailConfirmation: boolean;
 };
 
+type SupabaseSignOutScope = 'global' | 'local' | 'others';
+
+type SupabaseSignOutAuth = {
+  signOut: (options?: {
+    scope: SupabaseSignOutScope;
+  }) => Promise<{ error: { message: string } | null }>;
+};
+
+export type SupabaseSignOutResult = {
+  signedOut: boolean;
+  errorMessage: string;
+};
+
 function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
@@ -95,6 +108,54 @@ async function loadProfileAccount(user: User): Promise<PublicAccount> {
   }
 
   return accountFromUser(user, data);
+}
+
+async function callSupabaseSignOut(
+  auth: SupabaseSignOutAuth,
+  options?: { scope: SupabaseSignOutScope },
+): Promise<string> {
+  try {
+    const { error } = await auth.signOut(options);
+
+    return error?.message ?? '';
+  } catch (error) {
+    return error instanceof Error ? error.message : 'Unable to sign out.';
+  }
+}
+
+export async function signOutSupabaseAccount(
+  auth: SupabaseSignOutAuth | undefined = supabase?.auth,
+): Promise<SupabaseSignOutResult> {
+  if (!auth) {
+    return {
+      signedOut: true,
+      errorMessage: '',
+    };
+  }
+
+  const globalErrorMessage = await callSupabaseSignOut(auth);
+
+  if (!globalErrorMessage) {
+    return {
+      signedOut: true,
+      errorMessage: '',
+    };
+  }
+
+  const localErrorMessage = await callSupabaseSignOut(auth, { scope: 'local' });
+
+  if (!localErrorMessage) {
+    return {
+      signedOut: true,
+      errorMessage:
+        'Signed out on this device, but Supabase could not revoke the session everywhere.',
+    };
+  }
+
+  return {
+    signedOut: false,
+    errorMessage: globalErrorMessage,
+  };
 }
 
 export function useSupabaseAccountStore() {
@@ -190,9 +251,17 @@ export function useSupabaseAccountStore() {
     return account;
   }, []);
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    setLastError('');
+    const result = await signOutSupabaseAccount();
+
+    if (!result.signedOut) {
+      setLastError(result.errorMessage);
+      return;
+    }
+
     setCurrentAccount(null);
-    void supabase?.auth.signOut();
+    setLastError(result.errorMessage);
   }, []);
 
   useEffect(() => {

@@ -1,0 +1,180 @@
+/*
+ * Study Precalc — Colors & Type Foundations
+ * ------------------------------------------
+ * Design tokens extracted from the design system bundle at
+ * https://api.anthropic.com/v1/design/h/qnHx86OHTu0lQR5w6jZoRg
+ * (`colors_and_type.css`).
+ *
+ * `src/app/styles/app.css` is still the source of truth for current
+ * component styles. These tokens are additive — use them in new
+ * components so future migrations are mechanical.
+ *
+ * Naming:
+ *   --sp-*          → base tokens (raw colors, scale steps)
+ *   --sp-fg-*       → foreground text levels
+ *   --sp-surface-*  → background surfaces
+ *   --sp-border-*   → border tokens
+ *   --sp-status-*   → semantic status (success / danger / warning / info)
+ *   --sp-text-*     → semantic typography roles
+ */
+
+:root {
+  /* ---------- Brand ---------- */
+  --sp-brand-700: #0f766e; /* primary — buttons, accents, active states */
+  --sp-brand-600: #0d9488; /* hover (derived) */
+  --sp-brand-500: #14b8a6; /* lighter hint (derived) */
+  --sp-brand-200: #99f6e4; /* pill border, soft accent */
+  --sp-brand-100: #ccfbf1; /* light tint (derived) */
+  --sp-brand-50: #f0fdfa; /* faintest tint, sync card */
+  --sp-brand-fg-on-tint: #065f46; /* text on emerald tint */
+
+  /* ---------- Neutral / Slate Scale ---------- */
+  --sp-ink-900: #172033; /* primary text */
+  --sp-ink-700: #344256; /* secondary text */
+  --sp-ink-600: #475569; /* tertiary text */
+  --sp-ink-500: #526174; /* muted text, eyebrows */
+  --sp-ink-450: #4b627c; /* eyebrow variant */
+  --sp-ink-400: #8a98aa; /* disabled text */
+  --sp-ink-350: #a7b3c2; /* disabled bg */
+  --sp-ink-300: #cbd5e1; /* input border */
+  --sp-ink-250: #d8dee9; /* card border */
+  --sp-ink-200: #e2e8f0; /* chip bg */
+  --sp-ink-150: #e5eaf1; /* inner divider */
+  --sp-ink-100: #f1f5f9; /* archived bg */
+  --sp-ink-50: #f8fafc; /* subtle surface */
+  --sp-ink-0: #ffffff; /* surface white */
+
+  --sp-canvas: #f5f7fb; /* app background */
+
+  /* ---------- Accent ---------- */
+  --sp-accent-orange: #f97316; /* stat icons, timer icon */
+  --sp-accent-orange-fg: #9a3412; /* on tint */
+  --sp-accent-orange-bg: #fff7ed; /* draft pill bg */
+  --sp-accent-orange-border: #fed7aa;
+
+  /* ---------- Info / Blue ---------- */
+  --sp-info-700: #1d4ed8;
+  --sp-info-600: #2563eb; /* secondary CTA links */
+  --sp-info-500: #93c5fd; /* answered state */
+  --sp-info-300: #e0f2fe; /* preview meta bg */
+  --sp-info-100: #eff6ff; /* choice-selected bg */
+  --sp-info-fg-on-tint: #075985;
+
+  /* ---------- Status: Success ---------- */
+  --sp-success-700: #15803d;
+  --sp-success-600: #166534;
+  --sp-success-500: #0f766e; /* uses brand */
+  --sp-success-bg: #ecfdf5;
+  --sp-success-bg-soft: #f0fdf4;
+  --sp-success-border: #bbf7d0;
+  --sp-success-fg: #065f46;
+
+  /* ---------- Status: Danger ---------- */
+  --sp-danger-700: #991b1b;
+  --sp-danger-600: #b91c1c; /* destructive button */
+  --sp-danger-bg: #fef2f2;
+
+  /* ---------- Status: Warning ---------- */
+  --sp-warning-700: #92400e;
+  --sp-warning-600: #b45309;
+  --sp-warning-bg: #fffbeb;
+  --sp-warning-border: #fde68a;
+
+  /* ---------- Semantic Foreground ---------- */
+  --sp-fg-primary: var(--sp-ink-900);
+  --sp-fg-secondary: var(--sp-ink-500);
+  --sp-fg-muted: var(--sp-ink-450);
+  --sp-fg-on-brand: #ffffff;
+  --sp-fg-link: var(--sp-info-600);
+
+  /* ---------- Semantic Surfaces ---------- */
+  --sp-surface-canvas: var(--sp-canvas);
+  --sp-surface-card: var(--sp-ink-0);
+  --sp-surface-subtle: var(--sp-ink-50);
+  --sp-surface-inset: var(--sp-ink-100);
+
+  /* ---------- Semantic Borders ---------- */
+  --sp-border-card: var(--sp-ink-250);
+  --sp-border-input: var(--sp-ink-300);
+  --sp-border-divider: var(--sp-ink-150);
+  --sp-border-focus: var(--sp-brand-700);
+
+  /* ---------- Radii ---------- */
+  --sp-radius-sm: 6px; /* inner toggle */
+  --sp-radius-md: 8px; /* default — cards, buttons, inputs */
+  --sp-radius-pill: 999px; /* pills, badges, avatars */
+
+  /* ---------- Spacing scale (4px base) ---------- */
+  --sp-space-1: 4px;
+  --sp-space-2: 8px;
+  --sp-space-3: 10px;
+  --sp-space-4: 12px;
+  --sp-space-5: 14px;
+  --sp-space-6: 16px;
+  --sp-space-7: 18px;
+  --sp-space-8: 20px;
+  --sp-space-10: 24px;
+  --sp-space-12: 28px;
+
+  /* ---------- Elevation (borders > shadows; very rare insets) ---------- */
+  --sp-shadow-none: none;
+  --sp-shadow-focus-inset: inset 0 0 0 1px var(--sp-brand-700);
+  --sp-shadow-marked: inset 0 -4px 0 var(--sp-accent-orange);
+
+  /* ---------- Typography Families ---------- */
+  --sp-font-sans:
+    'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --sp-font-mono:
+    ui-monospace, 'SF Mono', 'Cascadia Code', 'Roboto Mono', Menlo, Consolas, monospace;
+  --sp-font-math: 'KaTeX_Main', 'Latin Modern Math', 'Cambria Math', serif;
+
+  /* ---------- Type Roles ----------
+   * Weights skew HEAVY (700–900). One of the distinctive visual
+   * fingerprints of the app — almost no light text anywhere.
+   */
+  --sp-text-display-size: clamp(1.4rem, 2.6vw, 2.1rem);
+  --sp-text-display-weight: 800;
+  --sp-text-display-leading: 1.15;
+
+  --sp-text-h1-size: 1.55rem;
+  --sp-text-h1-weight: 800;
+  --sp-text-h1-leading: 1.2;
+
+  --sp-text-h2-size: clamp(1.25rem, 2vw, 1.75rem);
+  --sp-text-h2-weight: 800;
+  --sp-text-h2-leading: 1.25;
+
+  --sp-text-h3-size: 1rem;
+  --sp-text-h3-weight: 800;
+  --sp-text-h3-leading: 1.3;
+
+  --sp-text-body-size: 1rem;
+  --sp-text-body-weight: 600;
+  --sp-text-body-leading: 1.5;
+
+  --sp-text-secondary-size: 0.95rem;
+  --sp-text-secondary-weight: 700;
+  --sp-text-secondary-leading: 1.5;
+
+  --sp-text-small-size: 0.86rem;
+  --sp-text-small-weight: 700;
+  --sp-text-small-leading: 1.45;
+
+  --sp-text-stat-size: 1.65rem;
+  --sp-text-stat-weight: 800;
+  --sp-text-stat-leading: 1.1;
+
+  --sp-text-stat-lg-size: 1.8rem;
+
+  --sp-text-eyebrow-size: 0.78rem;
+  --sp-text-eyebrow-weight: 800;
+  --sp-text-eyebrow-leading: 1.4;
+  --sp-text-eyebrow-transform: uppercase;
+  --sp-text-eyebrow-tracking: 0;
+
+  --sp-text-eyebrow-sm-size: 0.72rem;
+  --sp-text-eyebrow-sm-weight: 900;
+
+  --sp-text-pill-size: 0.74rem;
+  --sp-text-pill-weight: 900;
+}

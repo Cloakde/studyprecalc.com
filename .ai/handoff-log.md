@@ -33,6 +33,60 @@ Use this file as an append-only record whenever an agent finishes, pauses, or ha
 - Blockers: None.
 - Next recommended step: Codex to respond in `.ai/messages/from-codex.md`. DEC-001 (stack choice) should be revisited under the dual-target framing. PLAN-001 still unowned.
 
+### 2026-05-14 - Claude - REVIEW-001 reply
+
+- Status: Complete.
+- Files changed:
+  - Added `docs/reviews/2026-05-14-claude-reply-to-codex-response.md` — concessions on findings #4, #8, #11; adoption of Codex's three homepage findings (H1 focus state, H2 incomplete tab pattern, H3 misleading marketing copy); severity recalibration table; reshuffled work clusters (A–E); coordination proposal for who takes which cluster.
+  - Updated `docs/INDEX.md` to list the reply doc under Reviews.
+  - Appended a heads-up to `.ai/messages/from-claude.md` summarizing the concessions, recalibration, and proposed cluster split.
+- Verification: Read-only this turn. Verified the three contested findings before conceding: `supabase/schema.sql:508-509` column grants (#8), `node_modules/katex/dist/katex.mjs:149,6502` output enum (#11), `src/data/localAttemptStore.ts:335-346` synchronous read-merge-write path (#4).
+- Decisions made:
+  - All three Codex pushbacks (findings #4, #8, #11) verified and conceded.
+  - Three new homepage findings (H1/H2/H3) adopted from Codex's response.
+  - Final severity distribution: 1 Critical, 4 Important, 7 Medium, 5 Low, 1 WONTFIX.
+  - Work clusters renamed and reshuffled: A (security/data integrity, unchanged), B (homepage polish — new), C (persistence error visibility), D (lower-priority polish), E (deferred refactors).
+  - In-place edits to the main review doc are held until Codex confirms the recalibration in `from-codex.md`.
+- Blockers: None. Awaiting Codex's read of the reply and confirmation on the cluster split proposal (Claude takes B, Codex takes A).
+- Next recommended step: Codex reads the reply, confirms or counters the cluster proposal in `.ai/messages/from-codex.md`. Once confirmed, whichever agent landed first ticks REVIEW-001 items off in the main review doc.
+
+### 2026-05-14 - Claude - REVIEW-001
+
+- Status: Complete.
+- Files changed:
+  - Added `docs/reviews/2026-05-14-codebase-review.md` — 16 findings (4 critical, 6 important, 6 a11y/quality) plus 3 non-issues for context. Grouped into four shippable clusters: A (security/data integrity), B (silent failures), C (a11y/perf), D (refactor). Each finding has file:line, severity, root cause, and starting fix direction.
+  - Updated `docs/INDEX.md` to add a `Reviews` section between Planning and Decisions.
+  - Updated `.ai/task-board.md` — REVIEW-001 Done, with pointer to the review doc and instructions to split into REVIEW-001A…D when picked up.
+  - Appended a heads-up to `.ai/messages/from-claude.md` summarizing the four clusters and the four critical items.
+- Verification: None — read-only audit. No source files were modified. Two general-purpose review agents ran in parallel (one for bugs/security, one for code-quality/a11y); their findings were consolidated, deduplicated, and prioritized after manual verification on the highest-impact items (`MathText.tsx`, `accountStore.ts`, `SessionPractice.tsx`, `App.tsx`).
+- Decisions made:
+  - Audit deliverable lives in `docs/reviews/` (new folder) keyed by date — chronological and discoverable.
+  - Findings doc is mutable: as items land, mark the heading `— DONE (PR #N)`; if a finding turns out wrong, mark `WONTFIX` with a reason rather than silently dropping it.
+  - The four findings tagged Critical are the cluster I'd ship first; Group A in the doc.
+- Blockers: None.
+- Next recommended step: Codex (or any agent) picks a group, claims scope in `.ai/status.md`, drops a note in `.ai/messages/from-codex.md` identifying which group, and ticks items off in the review doc as PRs land. Groups A and C are parallel-safe with each other.
+
+### 2026-05-14 - Claude - HOME-001
+
+- Status: Complete.
+- Files changed:
+  - Added `src/app/components/Home.tsx` — TypeScript port of the Home.jsx from the design bundle (`api.anthropic.com/v1/design/h/qnHx86OHTu0lQR5w6jZoRg`). Uses real `lucide-react` icons, typed props, interactive sample question with three difficulty levels.
+  - Added `src/app/styles/home.css` — homepage-only styles (nav, hero with dashboard preview + sparkline, stats band, feature grid, sample question card with College Board serif treatment, units, dark CTA, footer). Also added `.auth-back-home` for the new back affordance.
+  - Added `src/app/styles/tokens.css` — design tokens (`--sp-brand-*`, ink scale, status colors, type roles, spacing, radii) extracted from the design bundle's `colors_and_type.css`. Additive — `src/app/styles/app.css` remains the source of truth for current component styles.
+  - Added `public/favicon.svg` — teal `SP` monogram placeholder favicon from the design bundle.
+  - Updated `src/app/main.tsx` to import `tokens.css` (before app.css) and `home.css` (after).
+  - Updated `index.html` — title to "Study Precalc · AP Precalculus practice", favicon link, Google Fonts preconnect + Inter (400–900) + Source Serif 4 (italic + roman) for the AP-exam-styled sample question.
+  - Updated `src/app/App.tsx` — added `unauthView` state (`'home' | 'auth'`, defaults to `'home'`). When unauthenticated, shows `Home` by default and `AccountAuth` only after "Sign in" / "Get started"; resets to `'home'` on logout.
+  - Updated `src/app/components/AccountAuth.tsx` — added optional `onBackToHome` prop that renders a "Back to home" affordance at the top of the auth panel.
+- Verification: `npm run lint` (clean), `npm run build` (tsc + Vite build, 10.13s, 438 KB main / 120 KB gzip), `npm test` (104/104 passing across 22 files), `npm run validate:content` (0 questions, no errors — bank is intentionally empty per CONTENT-004).
+- Decisions made:
+  - The design bundle's primary new contribution is the **public marketing homepage**; Auth/Dashboard/Practice/Session/Review screens in the bundle are reconstructions of what already ships, so we did not regenerate them.
+  - Adopted the design tokens (`tokens.css`) as additive — no migration of `app.css` in this task. New components should prefer `--sp-*` tokens.
+  - College Board serif treatment for the sample question is scoped to `.home-sample__card` only — the authed Practice screen stays faithful to the upstream visual.
+  - Inter is loaded from Google Fonts in `index.html` for cross-machine fidelity; the upstream stylesheet still falls through to system fonts if the import fails.
+- Blockers: None.
+- Next recommended step: Owner activation of Supabase + Vercel (apply `supabase/schema.sql`, deploy, run write smoke). Visual QA pass on the homepage at deploy time (the sparkline, stats band, and CTA section haven't been exercised against the real production layout yet).
+
 ### 2026-05-13 - Claude - PLAN-001
 
 - Status: Complete.
@@ -304,3 +358,27 @@ Use this file as an append-only record whenever an agent finishes, pauses, or ha
 - Live smoke: Ran `npm run smoke:supabase`; it correctly failed current production-readiness checks because the configured Supabase project has not yet applied the required SQL/bucket setup. Failing checks included `validate_invite RPC`, `anon unpublished content access`, and `question-images bucket`.
 - Decisions made: The default smoke remains read-only. `SMOKE_WRITE=1` opts into a generated-image write smoke that uploads, publishes, checks signed URL behavior, archives, verifies student denial after archive when student credentials are provided, and cleans up. Supabase image upload now removes the Storage object if metadata insert fails.
 - Next step: Owner applies `supabase/schema.sql`, bootstraps real admin/student smoke accounts, configures/redeploys Vercel, then reruns `npm run smoke:supabase` and the M8 browser smoke checklist.
+
+### 2026-05-14 - Codex - Review of Claude Homepage/Audit Work
+
+- Status: Complete for documentation only. No source fixes were made.
+- Files changed: Added `docs/reviews/2026-05-14-codex-response-to-claude-review.md`; updated `docs/INDEX.md`, `.ai/status.md`, and `.ai/handoff-log.md`.
+- Verification: Ran `npx prettier --write` on the new review/index/coordination files and `git diff --check`.
+- Decisions made: Agreed that Claude's homepage auth routing is sound. Flagged homepage keyboard focus, incomplete ARIA tab usage, and misleading empty-bank content claims. Agreed with most Claude audit findings, downgraded several severities, and disagreed with the profile-role update finding because column-level grants prevent browser clients from updating `role`.
+- Next step: If fixing the audit findings, start with logout, content-write ordering, media-link sync safety, focus-visible styles, incomplete tab roles, and homepage copy.
+
+### 2026-05-14 - Agent E / Codex - REVIEW-001C
+
+- Status: Complete for persistence error visibility and revoked invite auditability.
+- Files changed: Updated `src/data/supabase/attemptStore.ts`, `src/data/supabase/sessionStore.ts`, `src/data/supabase/inviteStore.ts`, `src/domain/invites/*`, `src/app/components/AdminClassManager.tsx`, `tests/unit/inviteDomain.test.ts`, and `tests/unit/supabaseInviteMapping.test.ts`; updated coordination files.
+- Verification: Ran `npm test -- invite`, `npm test -- supabaseInviteMapping supabaseMapping`, `npx tsc --noEmit --pretty false`, scoped ESLint for invite/persistence files, `npm test` (110 tests), `npm run lint`, `npm run build`, and `git diff --check`. All passed; diff check reported existing CRLF warnings only.
+- Decisions made: Kept attempt/session save/remove/clear APIs synchronous and optimistic, but now async Supabase write/delete failures are captured in each store's existing `lastError`. Revoked invites now stay in domain/admin records with `revokedAt`, validate as unavailable with a `revoked` status, and remain visible in the admin invite audit list.
+- Blockers: None in Agent E scope.
+
+### 2026-05-14 - Codex + Six Agents - REVIEW-001 Execution
+
+- Status: Complete. All six review-fix agents have been integrated.
+- Files changed: Updated homepage files, account/session/math components, Supabase account/content/attempt/session/invite stores, invite domain types, admin class invite UI, review docs, repo hygiene, and related tests.
+- Verification: Ran `npm run validate:content`, `npm test` (110 tests), `npm run lint`, `npm run build`, confirmed `http://127.0.0.1:5173/` returns HTTP 200, and ran `git diff --check`. All passed; diff check reported existing CRLF warnings only.
+- Decisions made: Preserved Claude's homepage direction while making the marketing copy honest for an empty starter bank. Kept `.claude/` ignored. Surfaced cloud persistence failures through existing store `lastError` paths instead of changing persistence API shapes during this hardening pass.
+- Next recommended step: Owner applies the Supabase SQL/bucket setup and redeploys through Vercel so live cloud smoke tests can run against `studyprecalc.com`.
