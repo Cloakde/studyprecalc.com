@@ -13,6 +13,7 @@ export type SmokeConfig = {
   adminCredentials?: {
     email: string;
     password: string;
+    mfaCode?: string;
   };
   studentCredentials?: {
     email: string;
@@ -72,6 +73,7 @@ export function parseSupabaseSmokeEnv(env: SmokeEnvInput): {
   const supabaseAnonKey = readEnvValue(env, 'VITE_SUPABASE_ANON_KEY');
   const adminEmail = readEnvValue(env, 'SMOKE_ADMIN_EMAIL');
   const adminPassword = readEnvValue(env, 'SMOKE_ADMIN_PASSWORD');
+  const adminMfaCode = readEnvValue(env, 'SMOKE_ADMIN_MFA_CODE');
   const studentEmail = readEnvValue(env, 'SMOKE_STUDENT_EMAIL');
   const studentPassword = readEnvValue(env, 'SMOKE_STUDENT_PASSWORD');
   const issues: SmokeEnvIssue[] = [];
@@ -124,6 +126,7 @@ export function parseSupabaseSmokeEnv(env: SmokeEnvInput): {
             adminCredentials: {
               email: adminEmail,
               password: adminPassword,
+              ...(adminMfaCode ? { mfaCode: adminMfaCode } : {}),
             },
           }
         : {}),
@@ -159,6 +162,17 @@ function createSmokePngBlob(): Blob {
 
 function createSmokeId(): string {
   return `smoke-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+export function createAdminMfaCodeRequiredResult(
+  name: string,
+  currentLevel: string | null,
+): SmokeResult {
+  return {
+    name,
+    status: 'fail',
+    message: `Admin account has a verified MFA factor and current session AAL is ${currentLevel ?? 'unknown'}; set SMOKE_ADMIN_MFA_CODE to run the TOTP challenge.`,
+  };
 }
 
 async function ignoreCleanupError(cleanup: PromiseLike<unknown>): Promise<void> {
@@ -205,9 +219,94 @@ async function signInSmokeAdmin(
     };
   }
 
+  const mfaResult = await verifyAdminMfaIfRequired(config, adminClient, 'admin login');
+
+  if (mfaResult) {
+    await ignoreCleanupError(adminClient.auth.signOut());
+
+    return {
+      result: mfaResult,
+    };
+  }
+
   return {
     userId: signInData.user.id,
   };
+}
+
+async function verifyAdminMfaIfRequired(
+  config: SmokeConfig,
+  adminClient: SupabaseClient,
+  resultName: string,
+): Promise<SmokeResult | undefined> {
+  const { data: factors, error: factorsError } = await adminClient.auth.mfa.listFactors();
+
+  if (factorsError) {
+    return {
+      name: resultName,
+      status: 'fail',
+      message: `MFA factor lookup failed: ${factorsError.message}`,
+    };
+  }
+
+  const verifiedTotpFactor = factors?.totp?.[0];
+
+  if (!verifiedTotpFactor) {
+    return undefined;
+  }
+
+  const { data: aal, error: aalError } =
+    await adminClient.auth.mfa.getAuthenticatorAssuranceLevel();
+
+  if (aalError) {
+    return {
+      name: resultName,
+      status: 'fail',
+      message: `MFA AAL check failed: ${aalError.message}`,
+    };
+  }
+
+  if (aal.currentLevel === 'aal2') {
+    return undefined;
+  }
+
+  if (!config.adminCredentials?.mfaCode) {
+    return createAdminMfaCodeRequiredResult(resultName, aal.currentLevel);
+  }
+
+  const { error: verifyError } = await adminClient.auth.mfa.challengeAndVerify({
+    factorId: verifiedTotpFactor.id,
+    code: config.adminCredentials.mfaCode,
+  });
+
+  if (verifyError) {
+    return {
+      name: resultName,
+      status: 'fail',
+      message: `MFA challenge verification failed: ${verifyError.message}`,
+    };
+  }
+
+  const { data: verifiedAal, error: verifiedAalError } =
+    await adminClient.auth.mfa.getAuthenticatorAssuranceLevel();
+
+  if (verifiedAalError) {
+    return {
+      name: resultName,
+      status: 'fail',
+      message: `MFA post-verification AAL check failed: ${verifiedAalError.message}`,
+    };
+  }
+
+  if (verifiedAal.currentLevel !== 'aal2') {
+    return {
+      name: resultName,
+      status: 'fail',
+      message: `MFA challenge completed but current session AAL is ${verifiedAal.currentLevel ?? 'unknown'}, expected aal2.`,
+    };
+  }
+
+  return undefined;
 }
 
 async function checkInviteRpc(

@@ -431,7 +431,7 @@ $$;
 
 grant execute on function public.validate_invite(text, text) to anon, authenticated;
 
-create or replace function public.is_admin()
+create or replace function public.has_admin_role()
 returns boolean
 language sql
 stable
@@ -444,6 +444,17 @@ as $$
     where id = auth.uid()
       and role = 'admin'
   );
+$$;
+
+create or replace function public.is_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select public.has_admin_role()
+    and coalesce(auth.jwt() ->> 'aal', '') = 'aal2';
 $$;
 
 create or replace function public.is_class_member(target_class_id uuid)

@@ -33,3 +33,30 @@ The six-agent REVIEW-001 execution pass is integrated.
 - Agent F reconciled review docs and repo hygiene.
 
 I also added app-level surfacing for signed-in account/persistence errors and kept `.claude/` ignored.
+
+### 2026-05-14 - From Codex
+
+Starting AUTH-007 for admin-level 2FA/MFA. Planned split:
+
+- Agent MFA-1 owns the Supabase MFA data wrapper and unit tests.
+- Agent MFA-2 owns the admin MFA setup/challenge UI component and its scoped CSS.
+- Agent MFA-3 owns Supabase SQL/RLS changes so admin actions require `aal2`.
+- Agent MFA-4 owns smoke-script support for optional admin MFA verification.
+- Agent MFA-5 owns ADR/runbook/index docs.
+- Agent MFA-6 performs read-only QA across the integrated result.
+
+Codex will wire the App gate and final verification.
+
+### 2026-05-15 - From Codex
+
+AUTH-007 is integrated. Cloud admins now hit an `AdminMfaGate` until Supabase reports `aal2`, admin tabs/actions stay hidden until then, and Supabase RLS/Storage admin policies also require `aal2`. The local dev admin bypass remains local-only.
+
+Verification passed with content validation, 120 unit tests, lint, build, targeted MFA/smoke checks, and browser opening of the local home/sign-in surface. Browser typing into the email input is still blocked by the browser automation plugin, so local admin form interaction was not completed through the browser.
+
+### 2026-05-14 - Agent MFA-5 / Codex
+
+Documenting AUTH-007 owner-facing MFA requirements. Scope is limited to the admin MFA ADR,
+operations runbooks, docs index, and this message file. The intended production contract is:
+frontend admin MFA gate for usability, Supabase RLS/Storage `aal2` checks as enforcement, local dev
+admin bypass only for browser-local development, and optional smoke support through
+`SMOKE_ADMIN_MFA_CODE`.

@@ -29,8 +29,9 @@ Codex can verify:
 - The app can run in cloud mode when browser-safe Supabase env vars are present.
 - After Supabase SQL is installed, `npm run smoke:supabase` can verify the invite RPC, unpublished
   content access, and optional admin login.
-- Cloud image upload testing requires a real Supabase admin account. The local dev-only admin is for
-  browser-local authoring and does not prove production Storage access.
+- Admin smoke and cloud image upload testing require a real Supabase admin account with TOTP MFA
+  verified to `aal2`. The local dev-only admin is for browser-local authoring and does not prove
+  production Storage access, admin RLS, or MFA enforcement.
 
 Owner must verify:
 
@@ -74,7 +75,8 @@ Owner, in Supabase SQL Editor:
 4. Sign up with the matching owner email and invite code.
 5. Confirm email if Supabase email confirmation is enabled.
 6. Sign in and confirm the `Admin` badge plus `Manage Content` and `Classes` tabs are visible.
-7. Run the profile and invite verification queries from the Supabase setup runbook.
+7. Complete the admin TOTP setup gate and verify the session reaches `aal2`.
+8. Run the profile, invite, and MFA verification queries from the Supabase setup runbook.
 
 Codex can verify the local UI path exists. The owner must create the production invite and confirm
 the production account.
@@ -84,6 +86,7 @@ Evidence to keep:
 - Returned one-time invite row with the code stored outside Git.
 - Screenshot or checkpoint showing `Cloud account`, the `Admin` badge, `Manage Content`, and
   `Classes`.
+- Screenshot/checkpoint showing the admin MFA gate completed.
 - SQL results showing the owner profile has `role = 'admin'` and the invite has `consumed_at` and
   `consumed_by`.
 
@@ -150,6 +153,7 @@ Owner, in Vercel:
 4. Open the generated `*.vercel.app` URL.
 5. Confirm the login screen says `Cloud account`.
 6. Sign in as the owner admin.
+7. Complete the admin MFA gate if this browser session has not already reached `aal2`.
 
 Codex can verify a deployment URL after the owner shares it or after public DNS is live.
 
@@ -185,16 +189,18 @@ Evidence to keep:
 Owner or Codex after deployment:
 
 1. Run `npm run smoke:supabase` locally after `.env` points at the production Supabase project.
-2. Optionally set `SMOKE_ADMIN_EMAIL` and `SMOKE_ADMIN_PASSWORD`, then rerun
-   `npm run smoke:supabase` to verify admin login and `profiles.role = admin`.
+2. Optionally set `SMOKE_ADMIN_EMAIL`, `SMOKE_ADMIN_PASSWORD`, and `SMOKE_ADMIN_MFA_CODE`, then
+   rerun `npm run smoke:supabase` to verify admin login, `profiles.role = admin`, and MFA `aal2`
+   when the account has TOTP enabled.
 3. For the automated cloud image write smoke, set `SMOKE_WRITE=1`, `SMOKE_ADMIN_EMAIL`,
-   `SMOKE_ADMIN_PASSWORD`, `SMOKE_STUDENT_EMAIL`, and `SMOKE_STUDENT_PASSWORD`, then rerun
-   `npm run smoke:supabase`. The script uploads a generated image, publishes a temporary question,
-   checks admin/student signed URL behavior, archives it, and cleans up.
+   `SMOKE_ADMIN_PASSWORD`, `SMOKE_ADMIN_MFA_CODE`, `SMOKE_STUDENT_EMAIL`, and
+   `SMOKE_STUDENT_PASSWORD`, then rerun `npm run smoke:supabase`. The script uploads a generated
+   image, publishes a temporary question, checks admin/student signed URL behavior, archives it, and
+   cleans up.
 4. Open `https://studyprecalc.com`.
 5. Confirm the auth screen says `Cloud account`.
 6. Sign in as the owner admin.
-7. Confirm `Admin`, `Manage Content`, and `Classes` are visible.
+7. Complete the admin MFA gate and confirm `Admin`, `Manage Content`, and `Classes` are visible.
 8. Create a class and a student invite.
 9. Run the invite checks in
    [Invite Enforcement Smoke Test](supabase-setup.md#invite-enforcement-smoke-test).
@@ -220,13 +226,14 @@ for SQL verification, invite/account confirmation, and any private production da
 
 The dev-only local admin (`admin@studyprecalc.local` / `localadmin`) is not valid evidence for
 production Storage or RLS. It uses browser-local fallback and cannot prove that Supabase Auth,
-Storage, media metadata, or student visibility work in the cloud.
+Storage, media metadata, admin MFA, or student visibility work in the cloud.
 
 Evidence to keep:
 
 - `npm run smoke:supabase` output, including `[PASS] validate_invite RPC`,
   `[PASS] anon unpublished content access`, `[PASS] question-images bucket`, and either
-  `[PASS] admin login` or a documented skip if admin smoke credentials were intentionally omitted.
+  `[PASS] admin login` plus MFA output when `SMOKE_ADMIN_MFA_CODE` is supplied, or a documented skip
+  if admin smoke credentials were intentionally omitted.
 - If write smoke is run, `npm run smoke:supabase` output showing `[PASS] cloud image write path`.
 - SQL output from invite enforcement and content publishing checks.
 - Screenshot/checkpoint showing the admin published an original smoke question.

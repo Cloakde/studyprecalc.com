@@ -51,7 +51,7 @@ The script is intended to be rerunnable. It creates or updates:
 - Functions and triggers for profile creation, invite validation, admin checks, class membership,
   and `updated_at` timestamps.
 - Row Level Security policies for student-owned progress, admin-managed content, classes, invites,
-  and media metadata.
+  media metadata, and admin `aal2` enforcement.
 - A private Storage bucket named `question-images` with a 1 MB file limit and these MIME types:
   `image/png`, `image/jpeg`, `image/webp`, and `image/gif`.
 
@@ -98,7 +98,8 @@ order by schemaname, tablename, policyname;
 ```
 
 Expected result: policies for student-owned progress, admin-managed content, admin-managed invites,
-class access, media metadata, and `question-images` storage objects.
+class access, media metadata, and `question-images` storage objects. Admin-managed write policies
+should require both `profiles.role = 'admin'` and an `aal2` Supabase session.
 
 Save these three query results with the activation evidence.
 
@@ -116,6 +117,9 @@ In Supabase Auth URL configuration:
 
 Email/password auth must be enabled. If email confirmation is enabled, account creation will show a
 confirmation notice and the user must confirm email before login.
+
+Enable Supabase Auth MFA with TOTP factors for production admins. Do not require MFA for student
+accounts at launch; the app and RLS policies require `aal2` only for admin-managed actions.
 
 ## Storage Bucket
 
@@ -147,8 +151,9 @@ Use this checklist when testing cloud image authoring.
 Local development:
 
 1. Set `.env` with `VITE_SUPABASE_URL` and the browser-safe `VITE_SUPABASE_ANON_KEY`.
-2. Run `npm run dev`, then sign in with a real Supabase admin account. The dev-only local admin uses
-   browser-local fallback and is not a cloud Storage upload test or production RLS check.
+2. Run `npm run dev`, then sign in with a real Supabase admin account and complete the MFA gate. The
+   dev-only local admin uses browser-local fallback and is not a cloud Storage upload test,
+   production RLS check, or MFA check.
 3. If Supabase env vars are absent, uploaded images remain local browser references such as
    `local-image:<id>` and are not available across browsers or devices.
 4. Upload only PNG, JPEG, WebP, or GIF images under 1 MB.
@@ -164,10 +169,11 @@ Production:
 2. Run the full contents of `supabase/schema.sql` in the production Supabase SQL Editor.
 3. Verify the `question-images` bucket exists, is private, has `file_size_limit = 1048576`, and lists
    `image/png`, `image/jpeg`, `image/webp`, and `image/gif` as allowed MIME types.
-4. Sign in as an admin and upload one original smoke image under 1 MB.
-5. Save the draft and verify the image appears for the admin.
-6. Publish the question and verify the image appears for a signed-in student.
-7. Archive the question and verify the student can no longer read the question or its linked image.
+4. Sign in as an admin and complete the MFA gate so the session is `aal2`.
+5. Upload one original smoke image under 1 MB.
+6. Save the draft and verify the image appears for the admin.
+7. Publish the question and verify the image appears for a signed-in student.
+8. Archive the question and verify the student can no longer read the question or its linked image.
 
 Evidence to keep: deployed app URL, admin screenshot/checkpoint after upload, student
 screenshot/checkpoint after publish, student screenshot/checkpoint after archive, and the media
@@ -179,6 +185,7 @@ Optional CLI write smoke after the admin and student smoke accounts exist:
 SMOKE_WRITE=1 \
 SMOKE_ADMIN_EMAIL=owner@example.com \
 SMOKE_ADMIN_PASSWORD=replace-with-admin-password \
+SMOKE_ADMIN_MFA_CODE=123456 \
 SMOKE_STUDENT_EMAIL=student@example.com \
 SMOKE_STUDENT_PASSWORD=replace-with-student-password \
 npm run smoke:supabase
@@ -187,7 +194,8 @@ npm run smoke:supabase
 Expected result: `[PASS] cloud image write path`. The script uploads a tiny generated PNG, creates
 metadata and question-media rows, publishes a temporary question, creates fresh signed URLs for admin
 and student sessions, archives the temporary question, verifies student image access is denied after
-archive, and cleans up the rows and Storage object.
+archive, and cleans up the rows and Storage object. Use the current six-digit TOTP value for
+`SMOKE_ADMIN_MFA_CODE`; omit it only when intentionally testing an admin account without MFA.
 
 ## Bootstrap The First Admin
 
@@ -220,9 +228,11 @@ Then:
 4. Create the owner account with the matching email address.
 5. Confirm the email if Supabase email confirmation is enabled.
 6. Log in and confirm the header shows the `Admin` badge plus `Manage Content` and `Classes` tabs.
+7. Complete the admin MFA setup gate by scanning the TOTP QR code and entering the current code.
+8. Confirm the admin tabs remain available after the session reaches `aal2`.
 
-Evidence to keep: the returned invite row, the email confirmation checkpoint if enabled, and a
-screenshot/checkpoint showing the signed-in admin UI.
+Evidence to keep: the returned invite row, the email confirmation checkpoint if enabled, the admin
+MFA checkpoint, and a screenshot/checkpoint showing the signed-in admin UI.
 
 Verify in SQL:
 
@@ -243,6 +253,28 @@ where code = public.normalize_invite_code('<PASTE_RETURNED_CODE>');
 Expected result: `consumed_at` and `consumed_by` are populated.
 
 Save both admin verification query results with the activation evidence.
+
+Verify MFA state in SQL:
+
+```sql
+select
+  user_id,
+  factor_type,
+  status,
+  created_at,
+  updated_at
+from auth.mfa_factors
+where user_id = (
+  select id
+  from auth.users
+  where lower(trim(email)) = lower(trim('owner@example.com'))
+)
+order by created_at desc;
+```
+
+Expected result: at least one `totp` factor with `status = 'verified'`.
+
+Save this query result with the activation evidence.
 
 If the owner account already exists but is not an admin, promote it from the SQL Editor:
 
@@ -272,11 +304,12 @@ Save the returned promotion row if this fallback is used.
 Admins can create invites from the app after bootstrap:
 
 1. Log in as an admin.
-2. Open `Classes`.
-3. Create a class.
-4. Select that class in `Create Invite`.
-5. Optionally enter a student email and expiration date.
-6. Select `Create Invite`, then copy the generated code.
+2. Complete the MFA gate if the current session is not already `aal2`.
+3. Open `Classes`.
+4. Create a class.
+5. Select that class in `Create Invite`.
+6. Optionally enter a student email and expiration date.
+7. Select `Create Invite`, then copy the generated code.
 
 Student signup flow:
 
@@ -397,15 +430,16 @@ no-invite submit path, so treat any successful no-invite account creation as a p
 Use only original throwaway content for this test.
 
 1. Log in as an admin.
-2. Open `Manage Content`.
-3. Create a text-only MCQ with a unique ID such as `smoke-publish-001`.
-4. Fill in the required metadata: unit, topic, skill, section, difficulty, calculator policy, and
+2. Complete the MFA gate if the current session is not already `aal2`.
+3. Open `Manage Content`.
+4. Create a text-only MCQ with a unique ID such as `smoke-publish-001`.
+5. Fill in the required metadata: unit, topic, skill, section, difficulty, calculator policy, and
    tags.
-5. Fill in the prompt, four choices, correct choice, choice explanations, explanation summary,
+6. Fill in the prompt, four choices, correct choice, choice explanations, explanation summary,
    solution steps, and at least one common mistake.
-6. Confirm the publish checklist says the question is ready.
-7. Select `Publish`.
-8. Select `Refresh Library`.
+7. Confirm the publish checklist says the question is ready.
+8. Select `Publish`.
+9. Select `Refresh Library`.
 
 Verify the published row:
 
@@ -463,14 +497,15 @@ Use only original throwaway images for this test. A simple generated graph or ha
 is enough. Do not use AP or College Board assets unless rights are confirmed.
 
 1. Log in as an admin.
-2. Open `Manage Content`.
-3. Create a question with a unique ID such as `smoke-image-001`.
-4. Upload one PNG, JPEG, WebP, or GIF under 1 MB to the question prompt or explanation.
-5. Save the question as a draft.
-6. Refresh the page and confirm the admin can still see the image.
-7. Select `Publish`.
-8. Sign in as a student in a private window or different browser profile.
-9. Confirm the published question appears in Practice and the image renders.
+2. Complete the MFA gate if the current session is not already `aal2`.
+3. Open `Manage Content`.
+4. Create a question with a unique ID such as `smoke-image-001`.
+5. Upload one PNG, JPEG, WebP, or GIF under 1 MB to the question prompt or explanation.
+6. Save the question as a draft.
+7. Refresh the page and confirm the admin can still see the image.
+8. Select `Publish`.
+9. Sign in as a student in a private window or different browser profile.
+10. Confirm the published question appears in Practice and the image renders.
 
 Verify the storage bucket:
 
@@ -532,6 +567,8 @@ student published-image screenshot/checkpoint, student archived-question checkpo
   not expired, not revoked, and matches the email if an email was set.
 - Admin tabs are missing: verify `public.profiles.role = 'admin'` for that user, then sign out and
   sign back in.
+- Admin actions fail after login: complete the TOTP MFA gate and confirm the Supabase session is
+  `aal2`; production RLS rejects admin writes from password-only sessions.
 - Students cannot see a question: verify `public.questions.status = 'published'` and
   `is_published = true`.
 - Students cannot see a question image: verify the question is published, the image has rows in

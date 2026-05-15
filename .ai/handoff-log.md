@@ -382,3 +382,51 @@ Use this file as an append-only record whenever an agent finishes, pauses, or ha
 - Verification: Ran `npm run validate:content`, `npm test` (110 tests), `npm run lint`, `npm run build`, confirmed `http://127.0.0.1:5173/` returns HTTP 200, and ran `git diff --check`. All passed; diff check reported existing CRLF warnings only.
 - Decisions made: Preserved Claude's homepage direction while making the marketing copy honest for an empty starter bank. Kept `.claude/` ignored. Surfaced cloud persistence failures through existing store `lastError` paths instead of changing persistence API shapes during this hardening pass.
 - Next recommended step: Owner applies the Supabase SQL/bucket setup and redeploys through Vercel so live cloud smoke tests can run against `studyprecalc.com`.
+
+### 2026-05-14 - Agent MFA-5 / Codex - AUTH-007 Docs
+
+- Status: Complete for owner docs and ADR scope.
+- Files changed: Added `docs/decisions/0010-admin-mfa-enforcement.md`; updated `docs/operations/deployment.md`, `docs/operations/production-activation.md`, `docs/operations/supabase-setup.md`, `docs/INDEX.md`, `.ai/messages/from-codex.md`, and coordination status.
+- Verification: Ran `npx prettier --write` on the touched docs, scoped `npx prettier --check`, and scoped `git diff --check`. All passed.
+- Decisions made: Documented production admin-only TOTP MFA with frontend gating plus Supabase RLS/Storage `aal2` enforcement, preserved local dev admin MFA bypass for browser-local work, and documented `SMOKE_ADMIN_MFA_CODE` for admin smoke checks.
+- Next recommended step: Final AUTH-007 integration should verify the implemented UI, RLS, and smoke script behavior match ADR 0010.
+
+### 2026-05-14 - Agent MFA-3 - AUTH-007
+
+- Status: Complete for Supabase RLS/AAL2 enforcement.
+- Files changed: Updated `supabase/schema.sql` and `supabase/README.md`; coordination status/handoff files only.
+- Verification: Ran scoped `rg` checks for Supabase admin/MFA helpers and `git diff --check -- supabase/schema.sql supabase/README.md`. Checks passed; diff check reported CRLF warnings only for the touched Supabase files.
+- Decisions made: Added `public.has_admin_role()` as the role-only helper and made `public.is_admin()` require both an admin profile and `auth.jwt()->>'aal' = 'aal2'`, so existing admin RLS/storage policies now require MFA while user-owned attempt/session policies remain unchanged for normal users.
+- Next recommended step: Apply `supabase/schema.sql` in Supabase after the MFA UI/smoke work lands, then verify real admin actions with and without an `aal2` session.
+
+### 2026-05-14 - Agent MFA-4 - AUTH-007
+
+- Status: Complete for Supabase smoke admin MFA support.
+- Files changed: Updated `scripts/smoke-supabase.ts` and `tests/unit/supabaseSmoke.test.ts`; coordination status/handoff files only.
+- Verification: Ran `npm test -- supabaseSmoke`, `npx prettier --check scripts/smoke-supabase.ts tests/unit/supabaseSmoke.test.ts`, scoped `npx eslint scripts/smoke-supabase.ts tests/unit/supabaseSmoke.test.ts`, and scoped `npx tsc --noEmit --pretty false ... scripts/smoke-supabase.ts tests/unit/supabaseSmoke.test.ts`. All passed. Repo-wide `npx tsc --noEmit --pretty false` is currently blocked by concurrent `tests/unit/supabaseAdminMfaStore.test.ts` typing work outside MFA-4 scope.
+- Decisions made: `SMOKE_ADMIN_MFA_CODE` is optional and only used when the signed-in admin has a verified TOTP factor and the current session is not `aal2`. Admins without verified TOTP factors keep the early-setup smoke path. Missing MFA code now returns a clear failing smoke result so admin login reports the MFA requirement and write smoke cannot silently proceed with an `aal1` admin session.
+- Next recommended step: After the full AUTH-007 integration lands and Supabase SQL is applied, rerun `SMOKE_WRITE=1 npm run smoke:supabase` with real admin credentials plus a current TOTP code.
+
+### 2026-05-15 - Agent MFA-2 - AUTH-007
+
+- Status: Complete for admin MFA UI component scope.
+- Files changed: Added `src/app/components/AdminMfaGate.tsx` and `src/app/styles/admin-mfa.css`; updated coordination status/handoff files only.
+- Verification: Ran `npx prettier --write src/app/components/AdminMfaGate.tsx src/app/styles/admin-mfa.css`, `npx eslint src/app/components/AdminMfaGate.tsx`, targeted `npx tsc --noEmit ... src/app/components/AdminMfaGate.tsx`, and scoped `git diff --check -- src/app/components/AdminMfaGate.tsx src/app/styles/admin-mfa.css`. All passed.
+- Decisions made: Kept the component reusable and App-wiring ready with generic `requirement` and `enrollment` data plus `startEnrollment`, `verifyEnrollment`, `verifyChallenge`, `refresh`, and `clearError` callbacks. The UI covers loading, setup, challenge, verified, notice, and alert states without touching App or main.
+- Next recommended step: Integrator wires `AdminMfaGate` into the admin route/gate after the MFA store contract settles.
+
+### 2026-05-15 - Agent MFA-1 - AUTH-007
+
+- Status: Complete for Supabase admin MFA data store scope.
+- Files changed: Added `src/data/supabase/adminMfaStore.ts` and `tests/unit/supabaseAdminMfaStore.test.ts`; updated coordination status/handoff files only.
+- Verification: Ran `npm test -- supabaseAdminMfaStore`, scoped ESLint for the MFA store/test files, `npx tsc --noEmit --pretty false`, and scoped Prettier check. All passed.
+- Decisions made: Exposed pure MFA helpers for code normalization, preferred TOTP factor selection, and admin requirement derivation. Added a mockable store helper around `supabase.auth.mfa.listFactors`, `getAuthenticatorAssuranceLevel`, `enroll`, and `challengeAndVerify`, plus a React hook with `lastError` and `clearLastError` that remains inert when Supabase MFA is unavailable.
+- Next recommended step: Integrator wires `useSupabaseAdminMfaStore` to `AdminMfaGate` and admin gating.
+
+### 2026-05-15 - Codex + Agents - AUTH-007
+
+- Status: Complete for repo-side admin 2FA/MFA enforcement. Live verification still requires applying `supabase/schema.sql`, redeploying, and signing in with a real Supabase admin.
+- Files changed: Added Supabase admin MFA store/tests, admin MFA gate UI/CSS, ADR 0010, smoke-script MFA support, and admin MFA docs. Updated `src/app/App.tsx`, Supabase schema/RLS/Storage policies, Supabase README, deployment/activation runbooks, task board, status, and messages.
+- Verification: Ran targeted `npm test -- supabaseAdminMfaStore supabaseSmoke`, targeted ESLint and TypeScript, `npm run validate:content`, `npm test` (120 tests), `npm run lint`, `npm run build`, and browser-opened `http://127.0.0.1:5173/` to confirm the home/sign-in surface. Browser form automation could not type into the email field due the existing browser plugin issue.
+- Decisions made: Production admin authorization now means `profiles.role = 'admin'` plus Supabase Auth `aal2`; `public.has_admin_role()` remains role-only for diagnostics, while `public.is_admin()` enforces role plus MFA. Cloud admin tabs/actions are gated by `AdminMfaGate`; local dev admin bypass remains local-only.
+- Next recommended step: Owner applies the updated SQL, logs in as the real admin, completes the TOTP gate, sets `SMOKE_ADMIN_MFA_CODE` when running smoke checks, and redeploys Vercel.

@@ -36,3 +36,18 @@ update public.profiles
 set role = 'admin'
 where email = 'your-email@example.com';
 ```
+
+## Admin MFA
+
+Production admin actions require both:
+
+- `public.profiles.role = 'admin'`
+- a Supabase Auth JWT with `aal = 'aal2'`
+
+After creating or promoting the owner admin, enroll and verify TOTP MFA in the app before managing
+questions, classes, invites, media records, or `question-images` storage. Admin accounts without an
+active `aal2` session can still read their own profile row, but RLS/storage policies deny elevated
+admin table and storage access until MFA is verified.
+
+For SQL Editor diagnostics, `public.has_admin_role()` checks the profile role only. Runtime RLS and
+Storage policies use `public.is_admin()`, which requires the admin role and `aal2`.

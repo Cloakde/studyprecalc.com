@@ -49,6 +49,7 @@
 | MEDIA-005   | Add cloud image storage docs and smoke coverage       | Codex + Agents   | Done   | Updated runbooks/authoring docs for limits, stable refs, signed URLs, rights, and production storage smoke checks.                                                                              |
 | PROD-005    | Expand Supabase live smoke preflight                  | Codex + Agents   | Done   | Added Storage bucket/media schema checks and optional `SMOKE_WRITE=1` cloud image write smoke with cleanup.                                                                                     |
 | PROD-006    | Finalize owner activation checklist                   | Codex + Agents   | Done   | Tightened M8 runbooks for SQL, real admin signup, Vercel deploy, image smoke, student visibility, and rollback evidence.                                                                        |
+| AUTH-007    | Add admin-level 2FA/MFA enforcement                   | Codex + Agents   | Done   | Added Supabase TOTP MFA setup/challenge UI, require `aal2` before cloud admin tabs/actions, updated RLS/storage policies, smoke support, and owner docs.                                        |
 
 ## Later
 

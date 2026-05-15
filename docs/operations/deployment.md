@@ -162,23 +162,25 @@ App-level checks:
 1. Open `https://studyprecalc.com`.
 2. Confirm the auth screen says `Cloud account`.
 3. Sign in as the owner admin.
-4. Confirm the `Admin` badge, `Manage Content`, and `Classes` tabs are visible.
-5. Create a class and student invite.
-6. Run the content publishing smoke test in [Supabase setup](supabase-setup.md).
-7. Run the cloud image storage smoke test in [Supabase setup](supabase-setup.md) with an original
+4. Complete the admin TOTP MFA gate if the session is not already `aal2`.
+5. Confirm the `Admin` badge, `Manage Content`, and `Classes` tabs are visible.
+6. Create a class and student invite.
+7. Run the content publishing smoke test in [Supabase setup](supabase-setup.md).
+8. Run the cloud image storage smoke test in [Supabase setup](supabase-setup.md) with an original
    PNG, JPEG, WebP, or GIF under 1 MB.
-8. Sign up as a student with an invite in a different browser profile or private window.
-9. Confirm published question images render for the student and unpublished or archived image-linked
-   questions are not readable.
-10. Submit one practice attempt and confirm the dashboard updates.
+9. Sign up as a student with an invite in a different browser profile or private window.
+10. Confirm published question images render for the student and unpublished or archived image-linked
+    questions are not readable.
+11. Submit one practice attempt and confirm the dashboard updates.
 
 Use a real Supabase admin account for these checks. The local dev-only admin proves only
-browser-local authoring and is not valid evidence for production Auth, Storage, RLS, or student
-visibility.
+browser-local authoring and is not valid evidence for production Auth, Storage, RLS, MFA, or student
+visibility. Admin UI gates should be treated as usability; RLS and Storage policies must also reject
+admin writes unless the Supabase session is `aal2`.
 
-Evidence to keep: admin UI checkpoint, student private-window checkpoint, Supabase smoke script
-output, SQL query results from the linked Supabase smoke tests, and dashboard persistence
-checkpoint.
+Evidence to keep: admin MFA checkpoint, admin UI checkpoint, student private-window checkpoint,
+Supabase smoke script output, SQL query results from the linked Supabase smoke tests, and dashboard
+persistence checkpoint.
 
 Supabase Auth domain checks:
 

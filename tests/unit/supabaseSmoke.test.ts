@@ -1,4 +1,5 @@
 import {
+  createAdminMfaCodeRequiredResult,
   formatSmokeResults,
   getSmokeExitCode,
   parseSupabaseSmokeEnv,
@@ -43,6 +44,7 @@ describe('Supabase smoke helpers', () => {
       VITE_SUPABASE_ANON_KEY: ' anon-key ',
       SMOKE_ADMIN_EMAIL: ' admin@example.com ',
       SMOKE_ADMIN_PASSWORD: ' password ',
+      SMOKE_ADMIN_MFA_CODE: ' 123456 ',
       SMOKE_STUDENT_EMAIL: ' student@example.com ',
       SMOKE_STUDENT_PASSWORD: ' student-password ',
       SMOKE_INVALID_INVITE_CODE: ' intentionally-missing ',
@@ -58,6 +60,7 @@ describe('Supabase smoke helpers', () => {
       adminCredentials: {
         email: 'admin@example.com',
         password: 'password',
+        mfaCode: '123456',
       },
       studentCredentials: {
         email: 'student@example.com',
@@ -91,6 +94,21 @@ describe('Supabase smoke helpers', () => {
         message: 'SMOKE_ADMIN_EMAIL and SMOKE_ADMIN_PASSWORD must be provided together.',
       },
     ]);
+  });
+
+  it('does not require an MFA code just to parse admin credentials', () => {
+    const result = parseSupabaseSmokeEnv({
+      VITE_SUPABASE_URL: 'https://example.supabase.co',
+      VITE_SUPABASE_ANON_KEY: 'anon-key',
+      SMOKE_ADMIN_EMAIL: 'admin@example.com',
+      SMOKE_ADMIN_PASSWORD: 'password',
+    });
+
+    expect(result.issues).toEqual([]);
+    expect(result.config?.adminCredentials).toEqual({
+      email: 'admin@example.com',
+      password: 'password',
+    });
   });
 
   it('requires student email and password together', () => {
@@ -142,5 +160,14 @@ describe('Supabase smoke helpers', () => {
         { name: 'rpc', status: 'fail', message: 'missing' },
       ]),
     ).toBe(1);
+  });
+
+  it('formats the admin MFA requirement as a failing smoke result', () => {
+    expect(createAdminMfaCodeRequiredResult('admin login', 'aal1')).toEqual({
+      name: 'admin login',
+      status: 'fail',
+      message:
+        'Admin account has a verified MFA factor and current session AAL is aal1; set SMOKE_ADMIN_MFA_CODE to run the TOTP challenge.',
+    });
   });
 });

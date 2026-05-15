@@ -43,9 +43,9 @@ One-line map of every doc and folder in this repo. Update this when you add, rem
 
 ## Operations (`docs/operations/`)
 
-- [docs/operations/production-activation.md](operations/production-activation.md) - owner-facing M6 checklist for local verification, Supabase activation, Vercel deployment, domain connection, smoke tests, and rollback.
+- [docs/operations/production-activation.md](operations/production-activation.md) - owner-facing M8 checklist for local verification, Supabase activation, admin MFA, Vercel deployment, domain connection, smoke tests, and rollback.
 - [docs/operations/deployment.md](operations/deployment.md) - Vercel deployment, environment variables, `studyprecalc.com` domain setup, deploy checks, and rollback.
-- [docs/operations/supabase-setup.md](operations/supabase-setup.md) - Supabase SQL, environment variables, Auth, Storage, first admin bootstrap, invite setup, and content publishing smoke tests.
+- [docs/operations/supabase-setup.md](operations/supabase-setup.md) - Supabase SQL, environment variables, Auth/MFA, Storage, first admin bootstrap, invite setup, and content publishing smoke tests.
 
 ## Planning (`docs/planning/`)
 
@@ -68,6 +68,7 @@ One-line map of every doc and folder in this repo. Update this when you add, rem
 - [docs/decisions/0007-supabase-cloud-backend.md](decisions/0007-supabase-cloud-backend.md) - Supabase Auth/Postgres/Storage as the first cloud backend.
 - [docs/decisions/0008-vercel-first-web-deploy.md](decisions/0008-vercel-first-web-deploy.md) - Vercel as the first public deployment target for `studyprecalc.com`.
 - [docs/decisions/0009-local-dev-admin.md](decisions/0009-local-dev-admin.md) - Local-only development admin login and admin-gated content management.
+- [docs/decisions/0010-admin-mfa-enforcement.md](decisions/0010-admin-mfa-enforcement.md) - Admin-only TOTP MFA with frontend gating and Supabase `aal2` RLS enforcement.
 
 ## Source Tree (`src/`)
 

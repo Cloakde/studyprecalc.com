@@ -15,6 +15,7 @@ import { useManagedQuestionBank } from '../data/localQuestionStore';
 import { useLocalSessionStore } from '../data/localSessionStore';
 import { questionBank as seedQuestionBank, questionSetVersion } from '../data/seed/questionBank';
 import { useSupabaseAccountStore } from '../data/supabase/accountStore';
+import { useSupabaseAdminMfaStore } from '../data/supabase/adminMfaStore';
 import { useSupabaseClassStore } from '../data/supabase/classStore';
 import { isSupabaseConfigured } from '../data/supabase/client';
 import { useSupabaseAttemptStore } from '../data/supabase/attemptStore';
@@ -24,6 +25,7 @@ import { useSupabaseQuestionContentStore } from '../data/supabase/questionConten
 import { useSupabaseSessionStore } from '../data/supabase/sessionStore';
 import { AccountAuth } from './components/AccountAuth';
 import { AdminClassManager } from './components/AdminClassManager';
+import { AdminMfaGate, type AdminMfaRequirement } from './components/AdminMfaGate';
 import { AttemptReview } from './components/AttemptReview';
 import { ContentManager, type ContentManagerImageUploadContext } from './components/ContentManager';
 import { Home } from './components/Home';
@@ -36,6 +38,51 @@ type AppMode = 'dashboard' | 'practice' | 'session' | 'review' | 'manage' | 'cla
 const localDevAdminEmail = 'admin@studyprecalc.local';
 const localDevAdminPassword = 'localadmin';
 const localDevAdminSessionKey = 'precalcapp.local-dev-admin.active';
+
+function getAdminMfaGateRequirement({
+  account,
+  factorId,
+  isLoading,
+  requirementStatus,
+}: {
+  account: PublicAccount | null;
+  factorId?: string;
+  isLoading: boolean;
+  requirementStatus?: string;
+}): AdminMfaRequirement {
+  if (isLoading) {
+    return {
+      state: 'loading',
+      accountLabel: account?.email,
+      message: 'Checking admin MFA status before unlocking protected tools.',
+    };
+  }
+
+  if (requirementStatus === 'satisfied') {
+    return {
+      state: 'verified',
+      accountLabel: account?.email,
+      factorId,
+      message: 'Admin MFA is verified for this Supabase session.',
+    };
+  }
+
+  if (requirementStatus === 'verification-required') {
+    return {
+      state: 'challenge_required',
+      accountLabel: account?.email,
+      factorId,
+      message: 'Enter your authenticator code to unlock admin tools.',
+    };
+  }
+
+  return {
+    state: 'setup_required',
+    accountLabel: account?.email,
+    factorId,
+    message: 'Set up 2FA before using production admin tools.',
+  };
+}
 
 function createLocalDevAdminAccount(): PublicAccount {
   return {
@@ -82,9 +129,19 @@ export function App() {
   const supabaseAccountStore = useSupabaseAccountStore();
   const cloudOrLocalAccountStore = isSupabaseConfigured ? supabaseAccountStore : localAccountStore;
   const currentAccount = localDevAdminAccount ?? cloudOrLocalAccountStore.currentAccount;
-  const canManageContent = currentAccount?.role === 'admin';
   const accountId = currentAccount?.id;
   const isCloudBackendActive = isSupabaseConfigured && !localDevAdminAccount;
+  const isCloudAdminAccount = isCloudBackendActive && currentAccount?.role === 'admin';
+  const adminMfaStore = useSupabaseAdminMfaStore({
+    enabled: isCloudAdminAccount,
+  });
+  const [isStartingAdminMfaEnrollment, setIsStartingAdminMfaEnrollment] = useState(false);
+  const [isVerifyingAdminMfaEnrollment, setIsVerifyingAdminMfaEnrollment] = useState(false);
+  const [isVerifyingAdminMfaChallenge, setIsVerifyingAdminMfaChallenge] = useState(false);
+  const [adminMfaNotice, setAdminMfaNotice] = useState('');
+  const canManageContent =
+    currentAccount?.role === 'admin' &&
+    (!isCloudAdminAccount || adminMfaStore.requirement.isSatisfied);
   const localQuestionStore = useManagedQuestionBank(seedQuestionBank);
   const cloudQuestionStore = useSupabaseQuestionContentStore({
     enabled: isCloudBackendActive && Boolean(accountId),
@@ -107,13 +164,13 @@ export function App() {
   } = activeQuestionStore;
   const localInviteStore = useLocalInviteStore();
   const cloudInviteStore = useSupabaseInviteStore({
-    enabled: isCloudBackendActive && Boolean(accountId),
+    enabled: isCloudBackendActive && canManageContent && Boolean(accountId),
     userId: accountId,
   });
   const activeInviteStore = isCloudBackendActive ? cloudInviteStore : localInviteStore;
   const localClassStore = useLocalClassStore();
   const cloudClassStore = useSupabaseClassStore({
-    enabled: isCloudBackendActive && Boolean(accountId),
+    enabled: isCloudBackendActive && canManageContent && Boolean(accountId),
     userId: accountId,
   });
   const activeClassStore = isCloudBackendActive ? cloudClassStore : localClassStore;
@@ -163,11 +220,102 @@ export function App() {
     [accountId],
   );
 
+  const adminMfaRequirement = getAdminMfaGateRequirement({
+    account: currentAccount,
+    factorId: adminMfaStore.enrollment?.factorId ?? adminMfaStore.preferredFactor?.id,
+    isLoading: adminMfaStore.isLoading,
+    requirementStatus: adminMfaStore.requirement.status,
+  });
+  const adminMfaEnrollment = adminMfaStore.enrollment
+    ? {
+        factorId: adminMfaStore.enrollment.factorId,
+        qrCodeUrl: adminMfaStore.enrollment.qrCode,
+        manualSecret: adminMfaStore.enrollment.secret,
+        issuer: 'Study Precalc',
+        accountLabel: currentAccount?.email,
+      }
+    : null;
+  const shouldShowAdminMfaGate = isCloudAdminAccount && !adminMfaStore.requirement.isSatisfied;
+
+  const clearAdminMfaMessages = useCallback(() => {
+    setAdminMfaNotice('');
+    adminMfaStore.clearLastError();
+  }, [adminMfaStore]);
+
+  const startAdminMfaEnrollment = useCallback(async () => {
+    setAdminMfaNotice('');
+    setIsStartingAdminMfaEnrollment(true);
+
+    try {
+      await adminMfaStore.startTotpEnrollment(
+        currentAccount?.email
+          ? `Study Precalc admin (${currentAccount.email})`
+          : 'Study Precalc admin',
+      );
+      setAdminMfaNotice('Scan the QR code, then enter the current authenticator code.');
+    } finally {
+      setIsStartingAdminMfaEnrollment(false);
+    }
+  }, [adminMfaStore, currentAccount?.email]);
+
+  const verifyAdminMfaEnrollment = useCallback(
+    async ({ code, factorId }: { code: string; factorId?: string }) => {
+      const activeFactorId = factorId ?? adminMfaStore.enrollment?.factorId;
+
+      if (!activeFactorId) {
+        throw new Error('Start MFA setup before verifying a code.');
+      }
+
+      setAdminMfaNotice('');
+      setIsVerifyingAdminMfaEnrollment(true);
+
+      try {
+        await adminMfaStore.verifyTotpEnrollment(activeFactorId, code);
+        setAdminMfaNotice('Admin MFA is verified. Protected admin tools are unlocked.');
+      } finally {
+        setIsVerifyingAdminMfaEnrollment(false);
+      }
+    },
+    [adminMfaStore],
+  );
+
+  const verifyAdminMfaChallenge = useCallback(
+    async ({ code, factorId }: { code: string; factorId?: string }) => {
+      const activeFactorId = factorId ?? adminMfaStore.preferredFactor?.id;
+
+      if (!activeFactorId) {
+        throw new Error('No verified MFA factor is available for this account.');
+      }
+
+      setAdminMfaNotice('');
+      setIsVerifyingAdminMfaChallenge(true);
+
+      try {
+        await adminMfaStore.verifyTotpFactor(activeFactorId, code);
+        setAdminMfaNotice('Admin MFA is verified. Protected admin tools are unlocked.');
+      } finally {
+        setIsVerifyingAdminMfaChallenge(false);
+      }
+    },
+    [adminMfaStore],
+  );
+
   useEffect(() => {
     if (currentAccount) {
       setMode('dashboard');
     }
   }, [currentAccount?.id, currentAccount]);
+
+  useEffect(() => {
+    if (!isCloudAdminAccount) {
+      setAdminMfaNotice('');
+      return;
+    }
+
+    if (adminMfaStore.requirement.isSatisfied) {
+      void refreshContent();
+    }
+  }, [adminMfaStore.requirement.isSatisfied, isCloudAdminAccount, refreshContent]);
 
   useEffect(() => {
     if (!canManageContent && (mode === 'manage' || mode === 'classes')) {
@@ -278,6 +426,11 @@ export function App() {
           <p className="eyebrow">AP Precalculus Practice</p>
           <strong>{currentAccount.displayName}</strong>
           {currentAccount.role === 'admin' ? <span className="account-role">Admin</span> : null}
+          {isCloudAdminAccount ? (
+            <span className="account-role account-role--security">
+              {adminMfaStore.requirement.isSatisfied ? '2FA Verified' : '2FA Required'}
+            </span>
+          ) : null}
         </div>
         <button className="ghost-button" onClick={logoutAccount} type="button">
           <UserCircle aria-hidden="true" />
@@ -290,6 +443,27 @@ export function App() {
           <AlertCircle aria-hidden="true" />
           {signedInError}
         </div>
+      ) : null}
+      {shouldShowAdminMfaGate ? (
+        <main className="admin-mfa-shell">
+          <AdminMfaGate
+            clearError={clearAdminMfaMessages}
+            enrollment={adminMfaEnrollment}
+            error={adminMfaStore.lastError}
+            isRefreshing={adminMfaStore.isLoading}
+            isStartingEnrollment={isStartingAdminMfaEnrollment}
+            isVerifyingChallenge={isVerifyingAdminMfaChallenge}
+            isVerifyingEnrollment={isVerifyingAdminMfaEnrollment}
+            notice={adminMfaNotice}
+            refresh={async () => {
+              await adminMfaStore.refresh();
+            }}
+            requirement={adminMfaRequirement}
+            startEnrollment={startAdminMfaEnrollment}
+            verifyChallenge={verifyAdminMfaChallenge}
+            verifyEnrollment={verifyAdminMfaEnrollment}
+          />
+        </main>
       ) : null}
       <nav className="mode-tabs" aria-label="Application sections">
         <button
