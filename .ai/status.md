@@ -4,14 +4,14 @@ Last updated: 2026-05-15
 
 ## Current Phase
 
-Confirm-password signup update is complete. Production activation still remains blocked on owner-side
-Supabase SQL/bucket/account setup and optional `www` DNS configuration.
+Dashboard/review design implementation is complete. Production activation still remains blocked on
+owner-side Supabase SQL/bucket/account setup and optional `www` DNS configuration.
 
 ## Active Ownership
 
-| Agent | Task                                 | File Scope                                                                                                        | Status |
-| ----- | ------------------------------------ | ----------------------------------------------------------------------------------------------------------------- | ------ |
-| Codex | Add confirm-password check to signup | `src/app/components/AccountAuth.tsx`, `src/app/components/accountAuthValidation.ts`, `tests/unit/*auth*`, `.ai/*` | Done   |
+| Agent | Task                                     | File Scope                                                                                                           | Status |
+| ----- | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------- | ------ |
+| Codex | Implement dashboard/review design bundle | `src/app/components/StudentDashboard.tsx`, `src/app/components/AttemptReview.tsx`, `src/app/styles/app.css`, `.ai/*` | Done   |
 
 ## Notes
 
@@ -87,6 +87,8 @@ Supabase SQL/bucket/account setup and optional `www` DNS configuration.
   overflow fixes.
 - EXAM-001/EXAM-002 are now tracked as future roadmap items: unit practice exams for Units 1-4
   and AP prep exams restricted to Units 1-3.
+- DESIGN-001 applies the fetched Claude Design dashboard/review direction to the real student
+  dashboard and attempt review surfaces while leaving the already-refreshed homepage unchanged.
 
 ## Last Verification
 
@@ -143,3 +145,7 @@ Prettier/ESLint for the touched tests, and `npx tsc --noEmit --pretty false`. Al
 2026-05-15: Codex completed the exam-mode roadmap update and ran targeted Prettier plus `git diff --check` for the touched docs/coordination files.
 2026-05-15: Codex completed AUTH-010 and ran `npm test -- inviteDomain localInviteStore supabaseInviteMapping integrationHarness`, `npm test` (197 tests), `npm run lint`, `npm run build`, `npm run validate:content`, and `git diff --check`. All passed; `git diff --check` reported the existing CRLF warning for `supabase/schema.sql` only.
 2026-05-15: Codex completed AUTH-011 and ran `npm test -- accountAuth supabaseAccountStore localAccountStore`, `npm run lint`, `npm test` (199 tests), `npm run build`, `npm run validate:content`, and `git diff --check`. All passed; build still reports the existing large-chunk warning.
+2026-05-15: Codex completed DESIGN-001 and ran `npm run lint`, `npx tsc --noEmit --pretty false`,
+`npm test` (199 tests), `npm run build`, `npm run validate:content`, `git diff --check`, and an
+HTTP smoke for `http://127.0.0.1:5173/`. All passed; build still reports the existing large-chunk
+warning. Browser/CDP automation was unavailable because no local debugging target responded.

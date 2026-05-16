@@ -612,3 +612,10 @@ Use this file as an append-only record whenever an agent finishes, pauses, or ha
 - Files changed: Updated `AccountAuth` signup UI, added `accountAuthValidation`, added focused account-auth validation tests, and updated coordination files.
 - Summary: Invite-unlocked signup now requires a Confirm Password field and blocks account creation with `Passwords do not match.` before calling the auth backend.
 - Verification: Ran `npm test -- accountAuth supabaseAccountStore localAccountStore`, `npm run lint`, `npm test` (199 tests), `npm run build`, `npm run validate:content`, and `git diff --check`. All passed; build still reports the existing large-chunk warning.
+
+### 2026-05-15 - Codex - DESIGN-001 Dashboard/Review Design
+
+- Status: Complete.
+- Files changed: Updated `src/app/components/StudentDashboard.tsx`, `src/app/components/AttemptReview.tsx`, `src/app/styles/app.css`, and coordination files.
+- Summary: Fetched and read the Claude Design bundle/readme/chats, then implemented the relevant current direction: a coordinate-plane student dashboard with visual stat cards, unit mini-plots, recommended-session preview, weak-topic rows, and compact session history; plus a denser attempt review screen with summary cards, type/unit/search filters, score states, prompt context, and response previews. Homepage scope was intentionally left unchanged because the design notes already marked it as mostly good after HOME-002.
+- Verification: Ran `npm run lint`, `npx tsc --noEmit --pretty false`, `npm test` (199 tests), `npm run build`, `npm run validate:content`, `git diff --check`, and an HTTP smoke for `http://127.0.0.1:5173/`. All passed; build still reports the existing large-chunk warning. Browser/CDP automation was unavailable because no local debugging target responded.

@@ -79,6 +79,7 @@
 | CONTENT-013 | M22 content QA dashboard                              | Codex + Worker 11 | Done    | Expanded readiness helpers and Content Manager launch QA dashboard with filters, grouping, counts, and action messages.                                                                                                                                                                        |
 | CONTENT-014 | M22 first-pack launch checklist                       | Codex + Worker 12 | Done    | Added local `npm run check:first-pack` tooling/docs/tests and placeholder launch blockers for unfinished templates.                                                                                                                                                                            |
 | HOME-002    | Apply owner-provided homepage UI update               | Codex             | Done    | Applied the Study Precalc Design System zip homepage refresh, added mobile overflow hardening, and verified lint/tests/build/content validation plus HTTP/CDP mobile smoke.                                                                                                                    |
+| DESIGN-001  | Implement dashboard/review design bundle              | Codex             | Done    | Ported the latest Claude Design dashboard and review visual language into the real `StudentDashboard` and `AttemptReview` surfaces without changing homepage scope.                                                                                                                            |
 
 ## Later
 
