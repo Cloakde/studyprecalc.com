@@ -7,11 +7,13 @@ export type ContentReadinessIssueCategory =
   | 'accessibility'
   | 'explanation'
   | 'frq'
+  | 'media'
   | 'metadata'
   | 'publishing';
 
 export const contentReadinessIssueCategories: ContentReadinessIssueCategory[] = [
   'publishing',
+  'media',
   'metadata',
   'explanation',
   'frq',
@@ -22,6 +24,7 @@ export const contentReadinessIssueCategoryLabels: Record<ContentReadinessIssueCa
   accessibility: 'Accessibility',
   explanation: 'Explanation',
   frq: 'FRQ scoring',
+  media: 'Media',
   metadata: 'Metadata',
   publishing: 'Publishing',
 };
@@ -57,13 +60,17 @@ export type ContentReadinessIssueCode =
   | 'missing-frq-rubric-description'
   | 'missing-frq-sample-response'
   | 'missing-image-alt-text'
+  | 'missing-image-caption'
   | 'missing-prompt'
   | 'missing-question-id'
   | 'missing-skill'
   | 'missing-tags'
   | 'missing-topic'
   | 'missing-unit'
+  | 'missing-video-duration'
+  | 'missing-video-thumbnail'
   | 'missing-video-transcript'
+  | 'placeholder-media-url'
   | 'template-placeholder'
   | 'weak-image-alt-text'
   | 'weak-tags';
@@ -215,6 +222,8 @@ const contentReadinessActionMessages: Record<ContentReadinessIssueCode, string> 
     'Describe what earns each rubric point in student-facing language.',
   'missing-frq-sample-response':
     'Add a sample response for students to compare after attempting the FRQ.',
+  'missing-image-caption':
+    'Add a short caption that names the prompt or explanation visual for student review.',
   'missing-image-alt-text': 'Write alt text that communicates the image, graph, or table content.',
   'missing-prompt': 'Add the student-facing question prompt.',
   'missing-question-id': 'Add a stable, unique question ID.',
@@ -222,7 +231,13 @@ const contentReadinessActionMessages: Record<ContentReadinessIssueCode, string> 
   'missing-tags': 'Add searchable tags for review, assignment, and import QA.',
   'missing-topic': 'Add the topic used for practice filters and dashboard reporting.',
   'missing-unit': 'Add the AP Precalculus unit or local course unit.',
+  'missing-video-duration':
+    'Add the external video duration in seconds so students can plan review time.',
+  'missing-video-thumbnail':
+    'Add a thumbnail image for external video explanations before launch review.',
   'missing-video-transcript': 'Add a transcript path for every attached video explanation.',
+  'placeholder-media-url':
+    'Replace placeholder media URLs with final owner-controlled images, transcripts, or videos.',
   'template-placeholder': 'Replace every OWNER_TODO template placeholder with final content.',
   'weak-image-alt-text':
     'Replace generic alt text with the specific math information shown in the image.',
@@ -338,18 +353,40 @@ function isLocalVideoPath(path: string | undefined): boolean {
   return trimText(path).startsWith('local-video:');
 }
 
-function questionUsesLocalMedia(question: Question): boolean {
-  const questionAssetsUseLocalMedia = question.assets?.some((asset) =>
-    isLocalImagePath(asset.path),
-  );
-  const explanationAssetsUseLocalMedia = question.explanation.assets?.some((asset) =>
-    isLocalImagePath(asset.path),
-  );
-  const videoUsesLocalMedia = isLocalVideoPath(question.explanation.video?.url);
+function isHttpUrl(value: string | undefined): boolean {
+  const trimmedValue = trimText(value);
 
-  return Boolean(
-    questionAssetsUseLocalMedia || explanationAssetsUseLocalMedia || videoUsesLocalMedia,
-  );
+  if (!trimmedValue) {
+    return false;
+  }
+
+  try {
+    const url = new URL(trimmedValue);
+
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+function isPlaceholderMediaReference(value: string | undefined): boolean {
+  const trimmedValue = trimText(value);
+
+  if (!trimmedValue) {
+    return false;
+  }
+
+  if (/\b(OWNER_TODO|placeholder)\b/i.test(trimmedValue)) {
+    return true;
+  }
+
+  if (!isHttpUrl(trimmedValue)) {
+    return false;
+  }
+
+  const hostname = new URL(trimmedValue).hostname.toLowerCase();
+
+  return hostname === 'example.com' || hostname === 'example.org' || hostname.endsWith('.example');
 }
 
 function checkMetadata(
@@ -568,6 +605,36 @@ function checkExplanation(question: Question, questionId: string, issues: Mutabl
     );
   }
 
+  if (isHttpUrl(video?.url)) {
+    if (!hasText(video?.thumbnailPath)) {
+      addIssue(
+        issues,
+        {
+          code: 'missing-video-thumbnail',
+          category: 'media',
+          severity: 'warning',
+          fieldPath: 'explanation.video.thumbnailPath',
+          message: 'Add a thumbnail image for the external video explanation.',
+        },
+        questionId,
+      );
+    }
+
+    if (video?.durationSeconds === undefined) {
+      addIssue(
+        issues,
+        {
+          code: 'missing-video-duration',
+          category: 'media',
+          severity: 'warning',
+          fieldPath: 'explanation.video.durationSeconds',
+          message: 'Add the external video duration in seconds for student planning.',
+        },
+        questionId,
+      );
+    }
+  }
+
   if (
     video?.durationSeconds !== undefined &&
     (!Number.isInteger(video.durationSeconds) || video.durationSeconds <= 0)
@@ -584,6 +651,30 @@ function checkExplanation(question: Question, questionId: string, issues: Mutabl
       questionId,
     );
   }
+
+  const videoMediaReferences: Array<[fieldPath: string, value: string | undefined]> = [
+    ['explanation.video.url', video?.url],
+    ['explanation.video.thumbnailPath', video?.thumbnailPath],
+    ['explanation.video.transcriptPath', video?.transcriptPath],
+  ];
+
+  videoMediaReferences.forEach(([fieldPath, value]) => {
+    if (!isPlaceholderMediaReference(value)) {
+      return;
+    }
+
+    addIssue(
+      issues,
+      {
+        code: 'placeholder-media-url',
+        category: 'media',
+        severity: 'blocker',
+        fieldPath,
+        message: 'Replace placeholder video media URLs before publishing.',
+      },
+      questionId,
+    );
+  });
 }
 
 function checkAssets(
@@ -593,7 +684,22 @@ function checkAssets(
   issues: MutableIssueList,
 ) {
   assets?.forEach((asset, assetIndex) => {
-    const fieldPath = `${fieldPathPrefix}[${assetIndex}].alt`;
+    const assetFieldPath = `${fieldPathPrefix}[${assetIndex}]`;
+    const altFieldPath = `${assetFieldPath}.alt`;
+
+    if (isPlaceholderMediaReference(asset.path)) {
+      addIssue(
+        issues,
+        {
+          code: 'placeholder-media-url',
+          category: 'media',
+          severity: 'blocker',
+          fieldPath: `${assetFieldPath}.path`,
+          message: 'Replace placeholder image media URLs before publishing.',
+        },
+        questionId,
+      );
+    }
 
     if (!hasText(asset.alt)) {
       addIssue(
@@ -602,8 +708,8 @@ function checkAssets(
           code: 'missing-image-alt-text',
           category: 'accessibility',
           severity: 'blocker',
-          fieldPath,
-          message: 'Add descriptive alt text for every question image, graph, or table.',
+          fieldPath: altFieldPath,
+          message: `Add descriptive alt text for every ${fieldPathPrefix === 'assets' ? 'prompt' : 'explanation'} image, graph, or table.`,
         },
         questionId,
       );
@@ -617,7 +723,7 @@ function checkAssets(
           code: 'weak-image-alt-text',
           category: 'accessibility',
           severity: 'warning',
-          fieldPath,
+          fieldPath: altFieldPath,
           message:
             'Replace generic image alt text with what the student needs to know from the image.',
         },
@@ -625,14 +731,82 @@ function checkAssets(
       );
     }
 
-    checkTemplatePlaceholder(asset.alt, fieldPath, questionId, issues);
-    checkTemplatePlaceholder(
-      asset.caption,
-      `${fieldPathPrefix}[${assetIndex}].caption`,
-      questionId,
+    if ((asset.type === 'graph' || asset.type === 'table') && !hasText(asset.caption)) {
+      addIssue(
+        issues,
+        {
+          code: 'missing-image-caption',
+          category: 'media',
+          severity: 'warning',
+          fieldPath: `${assetFieldPath}.caption`,
+          message: `Add a short caption for this ${fieldPathPrefix === 'assets' ? 'prompt' : 'explanation'} ${asset.type}.`,
+        },
+        questionId,
+      );
+    }
+
+    checkTemplatePlaceholder(asset.alt, altFieldPath, questionId, issues);
+    checkTemplatePlaceholder(asset.caption, `${assetFieldPath}.caption`, questionId, issues);
+  });
+}
+
+function checkLocalMediaReferences(
+  question: Question,
+  questionId: string,
+  issues: MutableIssueList,
+) {
+  question.assets?.forEach((asset, assetIndex) => {
+    if (!isLocalImagePath(asset.path)) {
+      return;
+    }
+
+    addIssue(
       issues,
+      {
+        code: 'local-media-publish-blocker',
+        category: 'media',
+        severity: 'blocker',
+        fieldPath: `assets[${assetIndex}].path`,
+        message:
+          'Prompt images stored in one browser profile must be uploaded to cloud storage before publishing.',
+      },
+      questionId,
     );
   });
+
+  question.explanation.assets?.forEach((asset, assetIndex) => {
+    if (!isLocalImagePath(asset.path)) {
+      return;
+    }
+
+    addIssue(
+      issues,
+      {
+        code: 'local-media-publish-blocker',
+        category: 'media',
+        severity: 'blocker',
+        fieldPath: `explanation.assets[${assetIndex}].path`,
+        message:
+          'Explanation images stored in one browser profile must be uploaded to cloud storage before publishing.',
+      },
+      questionId,
+    );
+  });
+
+  if (isLocalVideoPath(question.explanation.video?.url)) {
+    addIssue(
+      issues,
+      {
+        code: 'local-media-publish-blocker',
+        category: 'media',
+        severity: 'blocker',
+        fieldPath: 'explanation.video.url',
+        message:
+          'Local draft videos cannot be published; use an approved external video link before student release.',
+      },
+      questionId,
+    );
+  }
 }
 
 function checkMcq(
@@ -905,19 +1079,8 @@ export function getContentReadinessIssues(
     checkFrq(question, questionId, issues);
   }
 
-  if (options.disallowLocalMedia && status !== 'archived' && questionUsesLocalMedia(question)) {
-    addIssue(
-      issues,
-      {
-        code: 'local-media-publish-blocker',
-        category: 'publishing',
-        severity: 'blocker',
-        fieldPath: 'assets',
-        message:
-          'Cloud-published questions cannot use browser-local images or videos. Upload images to cloud storage and use an external video link.',
-      },
-      questionId,
-    );
+  if (options.disallowLocalMedia && status !== 'archived') {
+    checkLocalMediaReferences(question, questionId, issues);
   }
 
   return issues;
@@ -1025,6 +1188,7 @@ function createDashboardCounts(
     accessibility: 0,
     explanation: 0,
     frq: 0,
+    media: 0,
     metadata: 0,
     publishing: 0,
   };

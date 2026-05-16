@@ -44,8 +44,26 @@ Optional helper if present:
 npm run check:production-readiness
 ```
 
-This checks production env shape plus DNS/HTTP reachability. It supplements, but does not replace,
-the Vercel dashboard, registrar, and live browser evidence.
+This checks production env shape, DNS/HTTP reachability, and final owner-confirmed launch evidence.
+It supplements, but does not replace, the Vercel dashboard, registrar, Supabase dashboard, and live
+browser evidence.
+
+Before treating the helper as a launch gate, set these only after the evidence exists:
+
+```sh
+READINESS_SUPABASE_EVIDENCE=confirmed
+READINESS_BUCKET_EVIDENCE=confirmed
+READINESS_BACKUP_EXPORT_PLAN=confirmed
+READINESS_PRODUCTION_BLOCKERS=none
+npm run check:production-readiness
+```
+
+If `www.studyprecalc.com` is intentionally deferred, leave `READINESS_WWW_DOMAIN` unset and record
+the deferral in the launch evidence packet. If `www` should work at launch, run:
+
+```sh
+READINESS_WWW_DOMAIN=www.studyprecalc.com npm run check:production-readiness
+```
 
 ## Vercel Environment Variables
 
@@ -197,6 +215,13 @@ admin writes unless the Supabase session is `aal2`.
 Evidence to keep: admin MFA checkpoint, admin UI checkpoint, student private-window checkpoint,
 Supabase smoke script output, SQL query results from the linked Supabase smoke tests, and dashboard
 persistence checkpoint.
+
+Before the first public launch, also keep one backup/export checkpoint:
+
+- Export the owner-authored question pack or record the Supabase table export used as the source of
+  truth.
+- Record the Storage evidence for the `question-images` bucket and the smoke image path.
+- Record the Vercel deployment ID or URL that can be promoted as the rollback point.
 
 Use only original smoke questions and original or owner-approved images. Do not use AP, College
 Board, or third-party copyrighted questions, images, rubrics, or explanations unless the owner has

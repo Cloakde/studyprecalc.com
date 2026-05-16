@@ -177,6 +177,74 @@ describe('session result helpers', () => {
       reason: 'Recent work is trending down here.',
       availableQuestionIds: [testMcqQuestion.id],
     });
+    expect(analytics.retrySets).toEqual([
+      expect.objectContaining({
+        unit: testMcqQuestion.unit,
+        topic: testMcqQuestion.topic,
+        skill: testMcqQuestion.skill,
+        missedCount: 1,
+        questionIds: [testMcqQuestion.id],
+        availableQuestionIds: [testMcqQuestion.id],
+        lastMissedAt: '2026-05-13T11:01:00.000Z',
+      }),
+    ]);
+    expect(analytics.progressReadiness).toMatchObject({
+      totalQuestionCount: 1,
+      practicedQuestionCount: 1,
+      practicedQuestionIds: [testMcqQuestion.id],
+      scoredRecordCount: 2,
+      pendingManualScoreCount: 0,
+      retrySetCount: 1,
+      retryQuestionCount: 1,
+      readyForClassProgress: true,
+      lastActivityAt: '2026-05-13T11:01:00.000Z',
+    });
+  });
+
+  it('reports readiness separately from pending manual-score work', () => {
+    const pendingFrqSession = createSessionResult({
+      id: 'session-pending-frq',
+      questionSetVersion: testQuestionSet.version,
+      questions: [testFrqQuestion],
+      responses: {
+        [testFrqQuestion.id]: {
+          startedAt: '2026-05-13T10:00:00.000Z',
+          submittedAt: '2026-05-13T10:04:00.000Z',
+          partResponses: {
+            a: 'A response waiting for self-score.',
+          },
+          earnedPointsByCriterion: {},
+        },
+      },
+      markedQuestionIds: [],
+      startedAt: '2026-05-13T10:00:00.000Z',
+      submittedAt: '2026-05-13T10:04:00.000Z',
+      filters: {
+        type: 'frq',
+        unit: 'all',
+        difficulty: 'all',
+        calculator: 'all',
+      },
+    });
+
+    const analytics = createDashboardAnalytics({
+      sessions: [pendingFrqSession],
+      attempts: [],
+      questions: [testFrqQuestion],
+    });
+
+    expect(analytics.retrySets).toEqual([]);
+    expect(analytics.progressReadiness).toMatchObject({
+      totalQuestionCount: 1,
+      practicedQuestionCount: 1,
+      practicedQuestionIds: [testFrqQuestion.id],
+      scoredRecordCount: 0,
+      pendingManualScoreCount: 1,
+      retrySetCount: 0,
+      retryQuestionCount: 0,
+      readyForClassProgress: false,
+      lastActivityAt: '2026-05-13T10:04:00.000Z',
+    });
   });
 
   it('uses standalone attempts without double-counting attempts already linked to sessions', () => {

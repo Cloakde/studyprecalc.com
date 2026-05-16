@@ -230,8 +230,10 @@ npm run smoke:supabase
 Expected result: `[PASS] cloud image write path`. The script uploads a tiny generated PNG, creates
 metadata and question-media rows, publishes a temporary question, creates fresh signed URLs for admin
 and student sessions, archives the temporary question, verifies student image access is denied after
-archive, and cleans up the rows and Storage object. Use the current six-digit TOTP value for
-`SMOKE_ADMIN_MFA_CODE`; omit it only when intentionally testing an admin account without MFA.
+archive, writes/updates/deletes temporary student-owned `public.attempts` and
+`public.session_results` rows, verifies cleanup, and cleans up the Storage object. Use the current
+six-digit TOTP value for `SMOKE_ADMIN_MFA_CODE`; omit it only when intentionally testing an admin
+account without MFA.
 
 When a smoke failure is caused by missing production setup, the command also prints
 `Next owner action(s):` with the likely dashboard-side fix, such as rerunning
@@ -670,6 +672,9 @@ student published-image screenshot/checkpoint, student archived-question checkpo
   and that `public.attempts` RLS policies exist.
 - `permission denied for table attempts` or `permission denied for table session_results`: rerun
   the latest `supabase/schema.sql`, or run this repair query in the Supabase SQL Editor:
+- If read-only progress checks pass but student progress writes fail, rerun
+  `SMOKE_WRITE=1` with real `SMOKE_STUDENT_EMAIL` and `SMOKE_STUDENT_PASSWORD`; the smoke writes
+  generated temporary rows only and deletes them before exit.
 
 ```sql
 grant usage on schema public to anon, authenticated;

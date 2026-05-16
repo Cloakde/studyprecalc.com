@@ -23,6 +23,15 @@ import { QuestionMeta } from './QuestionMeta';
 type SessionPracticeProps = {
   questions: Question[];
   questionSetVersion: string;
+  setupPreset?: {
+    eyebrow?: string;
+    title?: string;
+    introTitle?: string;
+    description?: string;
+    lockQuestionSet?: boolean;
+    defaultRequestedCount?: number;
+    defaultTimeLimitMinutes?: number;
+  };
   onSaveMcqAttempt?: (
     question: McqQuestion,
     selectedChoiceId: McqChoice['id'],
@@ -216,6 +225,7 @@ export { sessionPracticeViewModel };
 export function SessionPractice({
   questions,
   questionSetVersion,
+  setupPreset,
   onSaveMcqAttempt,
   onSaveFrqAttempt,
   onSaveSessionResult,
@@ -227,8 +237,12 @@ export function SessionPractice({
   const [unitFilter, setUnitFilter] = useState('all');
   const [difficultyFilter, setDifficultyFilter] = useState<'all' | Question['difficulty']>('all');
   const [calculatorFilter, setCalculatorFilter] = useState<'all' | Question['calculator']>('all');
-  const [requestedCount, setRequestedCount] = useState(5);
-  const [timeLimitMinutes, setTimeLimitMinutes] = useState(0);
+  const [requestedCount, setRequestedCount] = useState(
+    () => setupPreset?.defaultRequestedCount ?? 5,
+  );
+  const [timeLimitMinutes, setTimeLimitMinutes] = useState(
+    () => setupPreset?.defaultTimeLimitMinutes ?? 0,
+  );
   const [sessionQuestions, setSessionQuestions] = useState<Question[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [responses, setResponses] = useState<Record<string, SessionResponse>>({});
@@ -239,8 +253,12 @@ export function SessionPractice({
   const [clockNow, setClockNow] = useState(() => Date.now());
   const [summaryReviewFilter, setSummaryReviewFilter] = useState<SessionReviewFilter>('all');
   const submitSessionRef = useRef<() => void>(() => undefined);
+  const isQuestionSetLocked = setupPreset?.lockQuestionSet === true;
 
   const questionTypeCounts = useMemo(() => countQuestionTypes(questions), [questions]);
+  const setupEyebrow = setupPreset?.eyebrow ?? 'AP-Style Practice';
+  const setupTitle = setupPreset?.title ?? 'Session Mode';
+  const setupIntroTitle = setupPreset?.introTitle ?? 'Build a Practice Set';
 
   const filterOptions = useMemo(
     () => ({
@@ -252,6 +270,10 @@ export function SessionPractice({
   );
 
   const matchingQuestions = useMemo(() => {
+    if (isQuestionSetLocked) {
+      return questions;
+    }
+
     return questions.filter((question) => {
       const matchesType = typeFilter === 'mixed' || question.type === typeFilter;
       const matchesUnit = unitFilter === 'all' || question.unit === unitFilter;
@@ -262,16 +284,36 @@ export function SessionPractice({
 
       return matchesType && matchesUnit && matchesDifficulty && matchesCalculator;
     });
-  }, [calculatorFilter, difficultyFilter, questions, typeFilter, unitFilter]);
+  }, [calculatorFilter, difficultyFilter, isQuestionSetLocked, questions, typeFilter, unitFilter]);
   const matchingTypeCounts = useMemo(
     () => countQuestionTypes(matchingQuestions),
     [matchingQuestions],
+  );
+  const countSelectOptions = useMemo(
+    () =>
+      [...new Set([...countOptions, requestedCount])]
+        .filter((count) => count > 0 && count <= Math.max(1, questions.length, requestedCount))
+        .sort((first, second) => first - second),
+    [questions.length, requestedCount],
+  );
+  const timerSelectOptions = useMemo(
+    () =>
+      [...timerOptions, { label: `${timeLimitMinutes} min`, value: timeLimitMinutes }]
+        .filter((option) => option.value >= 0)
+        .filter(
+          (option, index, options) =>
+            options.findIndex((candidate) => candidate.value === option.value) === index,
+        )
+        .sort((first, second) => first.value - second.value),
+    [timeLimitMinutes],
   );
 
   const plannedQuestionCount =
     matchingQuestions.length === 0
       ? 0
-      : Math.min(Math.max(1, requestedCount), matchingQuestions.length);
+      : isQuestionSetLocked
+        ? matchingQuestions.length
+        : Math.min(Math.max(1, requestedCount), matchingQuestions.length);
 
   const currentQuestion = sessionQuestions[currentIndex];
   const elapsedSeconds = sessionStartedAt
@@ -360,7 +402,9 @@ export function SessionPractice({
   }, [elapsedSeconds, phase, sessionStartedAt, timeLimitSeconds]);
 
   function startSession(
-    questionsForSession = shuffleQuestions(matchingQuestions).slice(0, plannedQuestionCount),
+    questionsForSession = isQuestionSetLocked
+      ? matchingQuestions
+      : shuffleQuestions(matchingQuestions).slice(0, plannedQuestionCount),
   ) {
     if (questionsForSession.length === 0) {
       return;
@@ -518,7 +562,7 @@ export function SessionPractice({
           ...(timeLimitSeconds > 0 ? { timeLimitSeconds } : {}),
           filters: {
             type: typeFilter,
-            unit: unitFilter,
+            unit: isQuestionSetLocked ? setupTitle : unitFilter,
             difficulty: difficultyFilter,
             calculator: calculatorFilter,
           },
@@ -534,6 +578,8 @@ export function SessionPractice({
       sessionQuestions,
       sessionRunId,
       sessionStartedAt,
+      isQuestionSetLocked,
+      setupTitle,
       timeLimitSeconds,
       typeFilter,
       unitFilter,
@@ -767,8 +813,8 @@ export function SessionPractice({
     if (questions.length === 0) {
       return (
         <main className="empty-shell" aria-labelledby="session-empty-heading">
-          <p className="eyebrow">AP-Style Practice</p>
-          <h1 id="session-empty-heading">Session Mode</h1>
+          <p className="eyebrow">{setupEyebrow}</p>
+          <h1 id="session-empty-heading">{setupTitle}</h1>
           <p>No published questions are available for sessions.</p>
           <p>Questions need to be published before students can build timed MCQ or FRQ sets.</p>
         </main>
@@ -778,16 +824,19 @@ export function SessionPractice({
     const setupStatusText =
       matchingQuestions.length === 0
         ? 'No questions match the current filters.'
-        : `${formatQuestionCount(plannedQuestionCount)} will be selected from ${formatQuestionCount(
-            matchingQuestions.length,
-          )}.`;
+        : isQuestionSetLocked
+          ? `${formatQuestionCount(plannedQuestionCount)} are included in this set.`
+          : `${formatQuestionCount(plannedQuestionCount)} will be selected from ${formatQuestionCount(
+              matchingQuestions.length,
+            )}.`;
 
     return (
       <main className="session-shell">
         <header className="session-header">
           <div>
-            <p className="eyebrow">AP-Style Practice</p>
-            <h1>Session Mode</h1>
+            <p className="eyebrow">{setupEyebrow}</p>
+            <h1>{setupTitle}</h1>
+            {setupPreset?.description ? <p>{setupPreset.description}</p> : null}
           </div>
           <div className="summary-strip" aria-label="Question bank summary">
             <span>{questions.length} questions</span>
@@ -802,7 +851,7 @@ export function SessionPractice({
           <div className="session-setup__intro">
             <ListChecks aria-hidden="true" />
             <div>
-              <h2>Build a Practice Set</h2>
+              <h2>{setupIntroTitle}</h2>
               <p>{setupStatusText}</p>
             </div>
           </div>
@@ -813,84 +862,88 @@ export function SessionPractice({
             <span>{formatQuestionCount(plannedQuestionCount)} planned</span>
           </div>
 
-          <div className="form-grid form-grid--four">
-            <label>
-              Question Type
-              <select
-                onChange={(event) => setTypeFilter(event.target.value as SessionTypeFilter)}
-                value={typeFilter}
-              >
-                <option value="mixed">Mixed</option>
-                <option value="mcq">MCQ only</option>
-                <option value="frq">FRQ only</option>
-              </select>
-            </label>
-            <label>
-              Unit
-              <select onChange={(event) => setUnitFilter(event.target.value)} value={unitFilter}>
-                <option value="all">All units</option>
-                {filterOptions.units.map((unit) => (
-                  <option key={unit} value={unit}>
-                    {unit}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Difficulty
-              <select
-                onChange={(event) =>
-                  setDifficultyFilter(event.target.value as typeof difficultyFilter)
-                }
-                value={difficultyFilter}
-              >
-                <option value="all">All</option>
-                {filterOptions.difficulties.map((difficulty) => (
-                  <option key={difficulty} value={difficulty}>
-                    {difficulty}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Calculator
-              <select
-                onChange={(event) =>
-                  setCalculatorFilter(event.target.value as typeof calculatorFilter)
-                }
-                value={calculatorFilter}
-              >
-                <option value="all">All</option>
-                {filterOptions.calculators.map((calculator) => (
-                  <option key={calculator} value={calculator}>
-                    {calculator === 'graphing' ? 'Graphing' : 'None'}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
+          {!isQuestionSetLocked ? (
+            <div className="form-grid form-grid--four">
+              <label>
+                Question Type
+                <select
+                  onChange={(event) => setTypeFilter(event.target.value as SessionTypeFilter)}
+                  value={typeFilter}
+                >
+                  <option value="mixed">Mixed</option>
+                  <option value="mcq">MCQ only</option>
+                  <option value="frq">FRQ only</option>
+                </select>
+              </label>
+              <label>
+                Unit
+                <select onChange={(event) => setUnitFilter(event.target.value)} value={unitFilter}>
+                  <option value="all">All units</option>
+                  {filterOptions.units.map((unit) => (
+                    <option key={unit} value={unit}>
+                      {unit}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Difficulty
+                <select
+                  onChange={(event) =>
+                    setDifficultyFilter(event.target.value as typeof difficultyFilter)
+                  }
+                  value={difficultyFilter}
+                >
+                  <option value="all">All</option>
+                  {filterOptions.difficulties.map((difficulty) => (
+                    <option key={difficulty} value={difficulty}>
+                      {difficulty}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Calculator
+                <select
+                  onChange={(event) =>
+                    setCalculatorFilter(event.target.value as typeof calculatorFilter)
+                  }
+                  value={calculatorFilter}
+                >
+                  <option value="all">All</option>
+                  {filterOptions.calculators.map((calculator) => (
+                    <option key={calculator} value={calculator}>
+                      {calculator === 'graphing' ? 'Graphing' : 'None'}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          ) : null}
 
           <div className="form-grid form-grid--two">
-            <label>
-              Questions
-              <select
-                onChange={(event) => setRequestedCount(Number(event.target.value))}
-                value={requestedCount}
-              >
-                {countOptions.map((count) => (
-                  <option key={count} value={count}>
-                    {count}
-                  </option>
-                ))}
-              </select>
-            </label>
+            {!isQuestionSetLocked ? (
+              <label>
+                Questions
+                <select
+                  onChange={(event) => setRequestedCount(Number(event.target.value))}
+                  value={requestedCount}
+                >
+                  {countSelectOptions.map((count) => (
+                    <option key={count} value={count}>
+                      {count}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
             <label>
               Timer
               <select
                 onChange={(event) => setTimeLimitMinutes(Number(event.target.value))}
                 value={timeLimitMinutes}
               >
-                {timerOptions.map((option) => (
+                {timerSelectOptions.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>

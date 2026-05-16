@@ -29,6 +29,7 @@ import { AdminClassManager } from './components/AdminClassManager';
 import { AdminMfaGate, type AdminMfaRequirement } from './components/AdminMfaGate';
 import { AttemptReview } from './components/AttemptReview';
 import { ContentManager, type ContentManagerImageUploadContext } from './components/ContentManager';
+import { ExamPractice } from './components/ExamPractice';
 import { Home } from './components/Home';
 import { QuestionPractice } from './components/QuestionPractice';
 import { SessionPractice } from './components/SessionPractice';
@@ -38,6 +39,7 @@ type AppMode =
   | 'dashboard'
   | 'practice'
   | 'session'
+  | 'exams'
   | 'review'
   | 'manage'
   | 'classes'
@@ -537,6 +539,14 @@ export function App() {
         </button>
         <button
           className="mode-tabs__button"
+          data-active={mode === 'exams'}
+          onClick={() => setMode('exams')}
+          type="button"
+        >
+          Exams
+        </button>
+        <button
+          className="mode-tabs__button"
           data-active={mode === 'review'}
           onClick={() => setMode('review')}
           type="button"
@@ -644,6 +654,38 @@ export function App() {
           questionSetVersion={questionSetVersion}
         />
       </div>
+      {mode === 'exams' ? (
+        <ExamPractice
+          onSaveFrqAttempt={(
+            question,
+            partResponses,
+            earnedPointsByCriterion,
+            startedAt,
+            attemptId,
+            submittedAt,
+          ) =>
+            activeAttemptStore.saveFrqAttempt({
+              id: attemptId,
+              startedAt,
+              submittedAt,
+              question,
+              partResponses,
+              earnedPointsByCriterion,
+            })
+          }
+          onSaveMcqAttempt={(question, selectedChoiceId, startedAt, submittedAt) =>
+            activeAttemptStore.saveMcqAttempt({
+              startedAt,
+              submittedAt,
+              question,
+              selectedChoiceId,
+            })
+          }
+          onSaveSessionResult={activeSessionStore.saveSessionResult}
+          questions={questionBank}
+          questionSetVersion={questionSetVersion}
+        />
+      ) : null}
       {mode === 'review' ? (
         <AttemptReview
           attempts={activeAttemptStore.attempts}

@@ -81,7 +81,19 @@ Use image assets for prompt visuals and solution visuals such as graphs, residua
 - `asset.type`: Use `image`, `graph`, or `table`.
 - `asset.path`: Public/static path, remote HTTP(S) image URL, or uploaded `local-image:<id>` reference.
 - `asset.alt`: Required accessible description of the visual.
-- `asset.caption`: Optional short label shown under the visual.
+- `asset.caption`: Short label shown under the visual. Treat captions as required for graphs and
+  tables even though the JSON field is optional.
+
+Prompt and explanation images are reviewed separately in readiness reports. Before publishing:
+
+- Prompt images should include all information needed to attempt the question without seeing the
+  answer.
+- Explanation images should clarify solution reasoning, not introduce a new unscored requirement.
+- Graph/table alt text should name the mathematical feature students need, such as intercepts,
+  asymptotes, finite differences, or interval behavior. Avoid generic alt text such as `graph`,
+  `image`, or the file name.
+- Do not leave placeholder media hosts such as `example.com` or `OWNER_TODO` paths in image,
+  thumbnail, transcript, or video URLs.
 
 For cloud-published content, uploaded images are stored in the private Supabase `question-images`
 bucket and linked through stable app media references. Do not paste short-lived signed URLs into
@@ -104,7 +116,8 @@ unless the images use public URLs or are reuploaded in the cloud manager.
 
 Use video references for checked-in content.
 
-- `video.url`: Public or local video URL.
+- `video.url`: Approved external HTTP(S) video URL for publishable content, or a `local-video:<id>`
+  reference for local draft review only.
 - `video.transcriptPath`: Required whenever `video.url` exists.
 - `video.thumbnailPath`: Optional thumbnail asset.
 - `video.durationSeconds`: Optional positive integer duration.
@@ -114,6 +127,11 @@ Transcript files should be plain text or markdown and should include the spoken 
 Video files are not stored in Supabase app storage for now. YouTube, Vimeo, or another approved
 embed/link source is the expected production approach. Local draft video uploads may exist only in
 the browser profile that created them and should not be treated as production-ready content.
+
+For launch readiness, external videos should also include a thumbnail and duration. Missing
+thumbnail or duration metadata is a warning, while a missing transcript or placeholder media URL is
+a blocker. Browser-local videos are blocked by the first-pack check unless you explicitly run a
+local dry run with `--allow-local-media`.
 
 ## Validation Issues
 

@@ -14,8 +14,10 @@ import { createSessionResult } from '../../src/domain/sessions';
 import {
   canUseAdminSurfaces,
   createFailingQuestionContentStore,
+  createIntegrationImageMcqQuestion,
   createIntegrationMcqQuestion,
   createMemoryStorage,
+  getImageExpectationSummary,
   loadPersistedDashboardState,
   loadVisibleQuestionIdsForRole,
   signupLocalAccountThroughInvite,
@@ -225,6 +227,160 @@ describe('integration harness role and content visibility', () => {
   });
 });
 
+describe('integration harness repeatable admin workflow QA', () => {
+  it('persists class invite creation and draft-publish-archive image expectations across reloads', async () => {
+    const storage = createMemoryStorage();
+    const accountStorageKey = 'integration.repeatable.accounts';
+    const classStorageKey = 'integration.repeatable.classes';
+    const contentStorageKey = 'integration.repeatable.content';
+    const inviteStorageKey = 'integration.repeatable.invites';
+    const smokeQuestion = createIntegrationImageMcqQuestion('repeatable-admin-image');
+
+    createLocalClass(
+      {
+        name: 'M24 Repeatable Smoke Class',
+        createdBy: 'admin-m24',
+      },
+      {
+        storage,
+        storageKey: classStorageKey,
+        now: () => new Date('2026-05-15T11:00:00.000Z'),
+        createId: () => 'class-m24-repeatable',
+      },
+    );
+    createLocalInvite(
+      {
+        code: 'M24!QA8@WF9#',
+        email: 'm24.student@example.com',
+        classId: 'class-m24-repeatable',
+        createdByAccountId: 'admin-m24',
+        expiresAt: '2026-05-16T11:00:00.000Z',
+      },
+      {
+        storage,
+        storageKey: inviteStorageKey,
+        now: () => new Date('2026-05-15T11:05:00.000Z'),
+        createId: () => 'invite-m24-repeatable',
+      },
+    );
+
+    const contentStore = createLocalQuestionContentStore({
+      storage,
+      storageKey: contentStorageKey,
+      now: () => new Date('2026-05-15T11:10:00.000Z'),
+    });
+
+    const draft = await contentStore.saveQuestion({
+      question: smokeQuestion,
+      status: 'draft',
+      updatedBy: 'admin-m24',
+      now: '2026-05-15T11:10:00.000Z',
+    });
+    const published = await contentStore.setPublicationStatus(smokeQuestion.id, 'published', {
+      updatedBy: 'admin-m24',
+      now: '2026-05-15T11:20:00.000Z',
+    });
+    const archived = await contentStore.setPublicationStatus(smokeQuestion.id, 'archived', {
+      updatedBy: 'admin-m24',
+      now: '2026-05-15T11:30:00.000Z',
+    });
+
+    const signup = await signupLocalAccountThroughInvite(
+      {
+        displayName: 'M24 Student',
+        email: 'm24.student@example.com',
+        password: 'secret1',
+        inviteCode: 'M24!QA8@WF9#',
+      },
+      {
+        storage,
+        accountStorageKey,
+        classStorageKey,
+        inviteStorageKey,
+        accountId: 'account-m24-repeatable',
+        enrollmentId: 'enrollment-m24-repeatable',
+      },
+    );
+    const reloadedContentStore = createLocalQuestionContentStore({
+      storage,
+      storageKey: contentStorageKey,
+    });
+    const reloadedRecord = await reloadedContentStore.getQuestion(smokeQuestion.id);
+
+    expect(loadClassPayload(storage, classStorageKey)).toMatchObject({
+      classes: [
+        {
+          id: 'class-m24-repeatable',
+          name: 'M24 Repeatable Smoke Class',
+          createdBy: 'admin-m24',
+        },
+      ],
+      enrollments: [
+        {
+          id: 'enrollment-m24-repeatable',
+          classId: 'class-m24-repeatable',
+          accountId: 'account-m24-repeatable',
+        },
+      ],
+    });
+    expect(loadInvitePayload(storage, inviteStorageKey).invites[0]).toMatchObject({
+      id: 'invite-m24-repeatable',
+      code: 'M24!QA8@WF9#',
+      classId: 'class-m24-repeatable',
+      consumedByAccountId: 'account-m24-repeatable',
+    });
+    expect(signup.enrollment).toMatchObject({
+      classId: 'class-m24-repeatable',
+      accountId: 'account-m24-repeatable',
+      role: 'student',
+    });
+    expect(draft.publication).toMatchObject({
+      status: 'draft',
+      updatedAt: '2026-05-15T11:10:00.000Z',
+    });
+    expect(published.publication).toMatchObject({
+      status: 'published',
+      publishedAt: '2026-05-15T11:20:00.000Z',
+    });
+    expect(archived.publication).toMatchObject({
+      status: 'archived',
+      publishedAt: '2026-05-15T11:20:00.000Z',
+      archivedAt: '2026-05-15T11:30:00.000Z',
+    });
+    expect(reloadedRecord).toMatchObject({
+      id: smokeQuestion.id,
+      publication: {
+        status: 'archived',
+        publishedAt: '2026-05-15T11:20:00.000Z',
+        archivedAt: '2026-05-15T11:30:00.000Z',
+      },
+    });
+    expect(getImageExpectationSummary(reloadedRecord?.question ?? smokeQuestion)).toEqual({
+      questionImagePaths: ['supabase-image:smoke/repeatable-admin-image-prompt-image.png'],
+      explanationImagePaths: ['supabase-image:smoke/repeatable-admin-image-explanation.webp'],
+      altText: [
+        'Original integration smoke image repeatable-admin-image-prompt-image',
+        'Original integration smoke image repeatable-admin-image-explanation-image',
+      ],
+      allImagesAreCloudBacked: true,
+    });
+    await expect(loadVisibleQuestionIdsForRole(reloadedContentStore, 'student')).resolves.toEqual(
+      [],
+    );
+    await expect(loadVisibleQuestionIdsForRole(reloadedContentStore, 'admin')).resolves.toEqual([]);
+    await expect(
+      reloadedContentStore.loadRecords({ includeArchived: true }),
+    ).resolves.toMatchObject([
+      {
+        id: smokeQuestion.id,
+        publication: {
+          status: 'archived',
+        },
+      },
+    ]);
+  });
+});
+
 describe('integration harness local fallback and empty banks', () => {
   it('starts with an empty local question bank and falls back when the primary store fails', async () => {
     const storage = createMemoryStorage();
@@ -270,7 +426,7 @@ describe('integration harness live smoke expectations', () => {
     const contentStorageKey = 'integration.live.content';
     const inviteStorageKey = 'integration.live.invites';
     const sessionStorageKey = 'integration.live.sessions';
-    const publishedQuestion = createIntegrationMcqQuestion('live-published');
+    const publishedQuestion = createIntegrationImageMcqQuestion('live-published');
     const draftQuestion = createIntegrationMcqQuestion('live-draft');
     const archivedQuestion = createIntegrationMcqQuestion('live-archived');
     const contentStore = createLocalQuestionContentStore({
@@ -412,6 +568,11 @@ describe('integration harness live smoke expectations', () => {
       draftQuestion.id,
       publishedQuestion.id,
     ]);
+    expect(getImageExpectationSummary(publishedQuestion)).toMatchObject({
+      questionImagePaths: ['supabase-image:smoke/live-published-prompt-image.png'],
+      explanationImagePaths: ['supabase-image:smoke/live-published-explanation.webp'],
+      allImagesAreCloudBacked: true,
+    });
 
     const reloadedDashboard = loadPersistedDashboardState({
       storage,

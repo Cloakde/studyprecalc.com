@@ -35,6 +35,17 @@ Free-response questions should add:
 - `sampleResponses` - optional example responses.
 - `expectedWork` - key math steps or reasoning patterns.
 
+## Exam Mode Readiness
+
+Exam modes use owner-authored `Question` objects rather than bundled proprietary content.
+
+- Unit practice exams are available for Units 1-4.
+- AP prep exams intentionally use Units 1-3 only; Unit 4 remains available for course practice but is excluded from AP prep readiness and selection.
+- Student-facing exam readiness counts published questions by default.
+- Admin tooling may opt into draft questions for preview/readiness planning.
+- Each exam blueprint declares question-type counts and timed/untimed duration metadata.
+- Score summaries should keep pending FRQ manual/self-scoring separate from scored misses.
+
 ## Future Video Support
 
 Questions can later include:

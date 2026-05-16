@@ -37,6 +37,8 @@ report but do not fail the command unless `--fail-on-warnings` is passed.
   transcript metadata.
 - Existing content readiness blockers are clear: prompts, explanations, MCQ feedback, FRQ expected
   work/rubrics, image alt text, and publish blockers.
+- Media readiness is reported by placement: prompt images, explanation images, external video
+  metadata, placeholder media URLs, and browser-local media references.
 - Browser-local image or video references are blocked by default because they are not portable for
   students. Use `--allow-local-media` only for a local dry run before cloud upload.
 - With `--require-published`, every active question must be marked `publicationStatus:
@@ -53,7 +55,8 @@ report but do not fail the command unless `--fail-on-warnings` is passed.
    npm run check:first-pack -- path/to/owner-first-pack.json
    ```
 
-4. Fix every `[FAIL]` item and review `[WARN]` items for weak metadata or weak alt text.
+4. Fix every `[FAIL]` item and review `[WARN]` items for weak metadata, weak alt text, missing
+   graph/table captions, or incomplete external video metadata.
 5. Import or confirm the pack in Manage Content, publish the intended student-visible questions, and
    export the pack again.
 6. Run:
@@ -64,6 +67,19 @@ report but do not fail the command unless `--fail-on-warnings` is passed.
 
 7. After this local check passes and production Supabase is configured, run the live admin/student
    smoke checklist from `docs/operations/production-activation.md`.
+
+## Media Launch Rules
+
+- Prompt and explanation images must have specific alt text. Graphs and tables should also have a
+  caption so students can distinguish the visual in review.
+- Published cloud questions must not contain `local-image:` or `local-video:` references. Reupload
+  images through the cloud content manager and replace local videos with approved external links.
+- Do not publish placeholder media URLs, including `example.com`, `example.org`, `.example`, or
+  paths containing `OWNER_TODO` or `placeholder`.
+- External video explanations need a transcript before release. Add a thumbnail and
+  `durationSeconds` before launch review so students can identify and plan the video.
+- Keep proof that each owner-authored image, video, thumbnail, and transcript is original,
+  owner-controlled, licensed, or otherwise cleared for use.
 
 ## Useful Options
 

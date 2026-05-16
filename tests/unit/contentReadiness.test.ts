@@ -153,6 +153,14 @@ describe('content readiness report', () => {
           url: 'local-video:vid123',
           transcriptPath: '/transcripts/local-video.txt',
         },
+        assets: [
+          {
+            id: 'local-explanation-image',
+            type: 'image',
+            path: 'local-image:solution123',
+            alt: 'Annotated solution graph showing the intercepts',
+          },
+        ],
       },
     });
 
@@ -160,13 +168,139 @@ describe('content readiness report', () => {
       expect.objectContaining({ code: 'local-media-publish-blocker' }),
     );
 
-    expect(
-      getContentReadinessIssues(localMediaQuestion, { disallowLocalMedia: true }),
-    ).toContainEqual(
+    const cloudIssues = getContentReadinessIssues(localMediaQuestion, {
+      disallowLocalMedia: true,
+    }).filter((issue) => issue.code === 'local-media-publish-blocker');
+
+    expect(cloudIssues).toEqual([
       expect.objectContaining({
-        code: 'local-media-publish-blocker',
+        category: 'media',
+        fieldPath: 'assets[0].path',
         severity: 'blocker',
       }),
+      expect.objectContaining({
+        category: 'media',
+        fieldPath: 'explanation.assets[0].path',
+        severity: 'blocker',
+      }),
+      expect.objectContaining({
+        category: 'media',
+        fieldPath: 'explanation.video.url',
+        severity: 'blocker',
+      }),
+    ]);
+  });
+
+  it('flags placeholder image URLs and missing graph captions for prompt and explanation assets', () => {
+    const mediaQuestion = makeReadyFrq({
+      id: 'media-frq',
+      assets: [
+        {
+          id: 'prompt-graph',
+          type: 'graph',
+          path: 'https://example.com/owner-todo/prompt-graph.png',
+          alt: 'Graph of a polynomial with two visible turning points',
+        },
+      ],
+      explanation: {
+        ...testFrqQuestion.explanation,
+        assets: [
+          {
+            id: 'solution-table',
+            type: 'table',
+            path: '/images/solution-table.png',
+            alt: 'Table comparing finite differences for the model',
+          },
+        ],
+      },
+    });
+
+    expect(getContentReadinessIssues(mediaQuestion)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: 'placeholder-media-url',
+          category: 'media',
+          fieldPath: 'assets[0].path',
+          severity: 'blocker',
+        }),
+        expect.objectContaining({
+          code: 'missing-image-caption',
+          category: 'media',
+          fieldPath: 'assets[0].caption',
+          severity: 'warning',
+        }),
+        expect.objectContaining({
+          code: 'missing-image-caption',
+          category: 'media',
+          fieldPath: 'explanation.assets[0].caption',
+          severity: 'warning',
+        }),
+      ]),
+    );
+  });
+
+  it('warns when external video explanations are missing thumbnail and duration metadata', () => {
+    const videoQuestion = makeReadyMcq({
+      id: 'external-video-mcq',
+      explanation: {
+        ...testMcqQuestion.explanation,
+        video: {
+          url: 'https://videos.example.net/precalc/average-rate-of-change',
+          transcriptPath: '/transcripts/average-rate-of-change.md',
+        },
+      },
+    });
+
+    expect(getContentReadinessIssues(videoQuestion)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: 'missing-video-thumbnail',
+          category: 'media',
+          fieldPath: 'explanation.video.thumbnailPath',
+          severity: 'warning',
+        }),
+        expect.objectContaining({
+          code: 'missing-video-duration',
+          category: 'media',
+          fieldPath: 'explanation.video.durationSeconds',
+          severity: 'warning',
+        }),
+      ]),
+    );
+  });
+
+  it('blocks placeholder external video, thumbnail, and transcript URLs', () => {
+    const videoQuestion = makeReadyMcq({
+      id: 'placeholder-video-mcq',
+      explanation: {
+        ...testMcqQuestion.explanation,
+        video: {
+          url: 'https://example.com/OWNER_TODO/video',
+          thumbnailPath: 'https://example.com/thumbnail.png',
+          transcriptPath: 'https://example.com/transcript.md',
+          durationSeconds: 120,
+        },
+      },
+    });
+
+    expect(getContentReadinessIssues(videoQuestion)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: 'placeholder-media-url',
+          fieldPath: 'explanation.video.url',
+          severity: 'blocker',
+        }),
+        expect.objectContaining({
+          code: 'placeholder-media-url',
+          fieldPath: 'explanation.video.thumbnailPath',
+          severity: 'blocker',
+        }),
+        expect.objectContaining({
+          code: 'placeholder-media-url',
+          fieldPath: 'explanation.video.transcriptPath',
+          severity: 'blocker',
+        }),
+      ]),
     );
   });
 

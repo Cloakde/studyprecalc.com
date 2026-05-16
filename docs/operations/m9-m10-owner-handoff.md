@@ -1,7 +1,7 @@
-# M17/M18 Owner Evidence Handoff
+# M17/M18/M24 Owner Evidence Handoff
 
-Use this as the owner-facing evidence packet for M17 production activation support and M18 live
-admin/student smoke support. The detailed runbooks remain:
+Use this as the owner-facing evidence packet for M17 production activation support, M18 live
+admin/student smoke support, and M24 repeatable admin workflow QA. The detailed runbooks remain:
 
 - [Production activation](production-activation.md)
 - [Deployment](deployment.md)
@@ -14,6 +14,9 @@ admin/student smoke support. The detailed runbooks remain:
 - M18 proves the live admin/student workflow is ready: invite signup, email-code verification when
   enabled, admin `aal2`, class invite, draft, publish, archive, student visibility, dashboard
   persistence, and image upload/render/deny-after-archive.
+- M24 makes that workflow repeatable: each live run should capture class creation, class-bound
+  invite state, draft reload, publish visibility, archive hiding, cloud-backed image expectation,
+  and student progress persistence with enough evidence to rerun or audit later.
 - Codex can verify repository checks, local smoke commands, and public HTTP/DNS after deployment.
 - The owner must complete Supabase, Vercel, registrar, inbox, and production account actions that
   require dashboard access or real credentials.
@@ -45,6 +48,9 @@ Keep this evidence outside the repository:
 - `npm run smoke:supabase` output. If write smoke is run, include the `[PASS] cloud image write path`
   output.
 - M18 admin/student smoke evidence from the smoke steps below.
+- M24 repeatable admin workflow evidence: smoke class ID, class-bound invite status before and after
+  signup, draft/published/archived question ID, image reference prefix or storage-path note, student
+  attempt/session timestamp, and dashboard state after refresh plus sign-out/sign-in.
 - Rights confirmation for every smoke question, image, rubric, and explanation.
 
 ## Command Order
@@ -122,35 +128,53 @@ inbox email-code check, or live browser admin/student screenshots.
 7. Run `npm run smoke:supabase` against the production Supabase project. Add admin/student smoke
    credentials and `SMOKE_WRITE=1` only when the owner intentionally wants the write path tested.
 
-## M18 Admin/Student Smoke
+## M18/M24 Admin/Student Smoke
 
 Use only original throwaway content. Do not use AP, College Board, or third-party questions,
 rubrics, diagrams, or images unless the owner has confirmed usage rights.
 
-Text lifecycle smoke:
+Class and invite smoke:
 
 1. Sign in on the deployed app as a real Supabase admin and complete the MFA gate.
-2. Open `Manage Content` and create a text-only MCQ with a unique ID such as
+2. Open `Classes` and create a run-specific smoke class, or record the existing class ID if
+   intentionally reusing one.
+3. Create a fresh invite bound to that class and a throwaway student email.
+4. Before signup, capture the invite status, bound email, class ID, created timestamp, and only a
+   redacted code suffix.
+5. Complete invite signup with the throwaway student, then confirm the student appears in the class
+   roster.
+6. Confirm a revoked, expired, or already consumed invite cannot enroll a second student when safe
+   to test.
+
+Text lifecycle smoke:
+
+1. Open `Manage Content` as the MFA-verified admin and create a text-only MCQ with a unique ID such as
    `smoke-publish-YYYYMMDD`.
-3. Save as draft, refresh the library, and confirm the admin can still see the draft.
-4. Confirm a student session cannot see the draft.
-5. Publish the question, refresh the library, and verify the Supabase row has `status = 'published'`
+2. Save as draft, refresh the library, and confirm the admin can still see the draft.
+3. Confirm a student session cannot see the draft.
+4. Publish the question, refresh the library, and verify the Supabase row has `status = 'published'`
    and `is_published = true`.
-6. In a private window or different browser profile, sign in as a real student, confirm the question
+5. In a private window or different browser profile, sign in as a real student, confirm the question
    appears in `Practice`, submit one attempt, and confirm the Dashboard updates.
-7. Verify the student attempt row in Supabase.
+6. Refresh the student page, then sign out and sign back in; confirm the same Dashboard progress
+   remains associated with the student account.
+7. Verify the student attempt or session row in Supabase.
 8. Archive the smoke question, refresh the student session, and confirm the question is no longer
    visible.
+9. Refresh the admin library and confirm archived content is not shown in the default active admin
+   view unless an archived filter is intentionally selected.
 
 Image smoke:
 
 1. Use one original PNG, JPEG, WebP, or GIF under 1 MB.
-2. As the MFA-verified admin, upload the image to a draft question.
-3. Save draft, refresh, and confirm the admin can still see the image.
+2. As the MFA-verified admin, upload the image to a draft question and add meaningful alt text.
+3. Save draft, refresh, and confirm the admin can still see the image and alt text.
 4. Publish the question and confirm a real student can see the image in `Practice`.
 5. Verify linked `media_records` and `question_media` rows for the smoke question.
-6. Archive the question and confirm the student can no longer see the question or linked image.
-7. Optionally run the automated write smoke with `SMOKE_WRITE=1` and real admin/student smoke
+6. Confirm the stored question uses a `supabase-image:<storage_path>` reference, not a
+   `local-image:<id>` reference.
+7. Archive the question and confirm the student can no longer see the question or linked image.
+8. Optionally run the automated write smoke with `SMOKE_WRITE=1` and real admin/student smoke
    credentials.
 
 ## Owner-Only Blockers

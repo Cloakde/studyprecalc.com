@@ -39,6 +39,55 @@ type ValidateInviteRow = {
   reason: string | null;
 };
 
+type StudentProgressSmokeRows = {
+  attempt: {
+    id: string;
+    user_id: string;
+    question_id: string;
+    question_type: 'mcq';
+    started_at: string;
+    submitted_at: string;
+    updated_at: string;
+    response: {
+      selectedChoiceId: string;
+      isCorrect: boolean;
+    };
+    score: number;
+    max_score: number;
+    is_correct: boolean;
+    time_spent_seconds: number;
+  };
+  session: {
+    id: string;
+    user_id: string;
+    question_set_version: string;
+    started_at: string;
+    submitted_at: string;
+    updated_at: string;
+    duration_seconds: number;
+    time_limit_seconds: null;
+    filters: {
+      mode: string;
+      source: string;
+    };
+    planned_question_count: number;
+    answered_question_count: number;
+    score: number;
+    max_score: number;
+    percent: number;
+    pending_manual_score_count: number;
+    missed_question_ids: string[];
+    marked_question_ids: string[];
+    question_results: Array<{
+      attemptId: string;
+      questionId: string;
+      score: number;
+      maxScore: number;
+      isCorrect: boolean;
+    }>;
+  };
+};
+
 const currentFile = fileURLToPath(import.meta.url);
 const defaultInvalidInviteCode = 'ZZ9!ZZ9!ZZ9!';
 const questionImagesBucket = 'question-images';
@@ -218,6 +267,16 @@ export function formatSmokeNextActions(results: SmokeResult[]): string {
     );
   }
 
+  if (
+    results.some(
+      (result) => result.status === 'skip' && result.name === 'student progress write path',
+    )
+  ) {
+    addAction(
+      'Rerun with SMOKE_WRITE=1 plus SMOKE_STUDENT_EMAIL and SMOKE_STUDENT_PASSWORD to verify progress INSERT/UPDATE/DELETE RLS.',
+    );
+  }
+
   if (actions.length === 0) {
     return '';
   }
@@ -235,6 +294,67 @@ function createSmokePngBlob(): Blob {
 
 function createSmokeId(): string {
   return `smoke-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+export function createStudentProgressSmokeRows(
+  userId: string,
+  smokeId: string,
+  submittedAt: string,
+): StudentProgressSmokeRows {
+  const attemptId = `${smokeId}-attempt`;
+  const sessionId = `${smokeId}-session`;
+  const questionId = `${smokeId}-generated-question`;
+
+  return {
+    attempt: {
+      id: attemptId,
+      user_id: userId,
+      question_id: questionId,
+      question_type: 'mcq',
+      started_at: submittedAt,
+      submitted_at: submittedAt,
+      updated_at: submittedAt,
+      response: {
+        selectedChoiceId: 'A',
+        isCorrect: true,
+      },
+      score: 1,
+      max_score: 1,
+      is_correct: true,
+      time_spent_seconds: 1,
+    },
+    session: {
+      id: sessionId,
+      user_id: userId,
+      question_set_version: 'smoke',
+      started_at: submittedAt,
+      submitted_at: submittedAt,
+      updated_at: submittedAt,
+      duration_seconds: 1,
+      time_limit_seconds: null,
+      filters: {
+        mode: 'smoke',
+        source: 'supabase-progress-rls',
+      },
+      planned_question_count: 1,
+      answered_question_count: 1,
+      score: 1,
+      max_score: 1,
+      percent: 100,
+      pending_manual_score_count: 0,
+      missed_question_ids: [],
+      marked_question_ids: [],
+      question_results: [
+        {
+          attemptId,
+          questionId,
+          score: 1,
+          maxScore: 1,
+          isCorrect: true,
+        },
+      ],
+    },
+  };
 }
 
 export function createAdminMfaCodeRequiredResult(
@@ -506,10 +626,22 @@ async function signInSmokeStudent(
   };
 }
 
-async function checkQuestionImagesBucket(client: SupabaseClient): Promise<SmokeResult> {
+async function checkQuestionImagesBucket(
+  client: SupabaseClient,
+  config: SmokeConfig,
+): Promise<SmokeResult> {
   const { data, error } = await client.storage.getBucket(questionImagesBucket);
 
   if (error) {
+    if (!config.writeEnabled && error.message.toLowerCase().includes('bucket not found')) {
+      return {
+        name: 'question-images bucket',
+        status: 'skip',
+        message:
+          'Private bucket metadata was not readable with the anon key. Use dashboard evidence or rerun with SMOKE_WRITE=1 and admin credentials for storage write verification.',
+      };
+    }
+
     return {
       name: 'question-images bucket',
       status: 'fail',
@@ -628,6 +760,217 @@ async function checkStudentProgressTables(
       message: 'Student can query owned attempts and session_results through RLS.',
     };
   } finally {
+    await ignoreCleanupError(studentClient.auth.signOut());
+  }
+}
+
+async function checkStudentProgressWritePath(
+  config: SmokeConfig,
+  studentClient: SupabaseClient,
+): Promise<SmokeResult> {
+  if (!config.writeEnabled) {
+    return {
+      name: 'student progress write path',
+      status: 'skip',
+      message:
+        'No progress writes are performed. Set SMOKE_WRITE=1 with student credentials to verify INSERT/UPDATE/DELETE RLS.',
+    };
+  }
+
+  const signInResult = await signInSmokeStudent(config, studentClient);
+
+  if ('result' in signInResult) {
+    return {
+      ...signInResult.result,
+      name: 'student progress write path',
+      message:
+        signInResult.result.status === 'skip'
+          ? 'SMOKE_WRITE=1 progress verification requires SMOKE_STUDENT_EMAIL and SMOKE_STUDENT_PASSWORD.'
+          : signInResult.result.message,
+    };
+  }
+
+  const smokeId = createSmokeId();
+  const submittedAt = new Date().toISOString();
+  const rows = createStudentProgressSmokeRows(signInResult.userId, smokeId, submittedAt);
+
+  try {
+    const attemptInsert = await studentClient.from('attempts').insert(rows.attempt);
+
+    if (attemptInsert.error) {
+      throw new Error(`attempts insert failed: ${attemptInsert.error.message}`);
+    }
+
+    const sessionInsert = await studentClient.from('session_results').insert(rows.session);
+
+    if (sessionInsert.error) {
+      throw new Error(`session_results insert failed: ${sessionInsert.error.message}`);
+    }
+
+    const updatedAt = new Date().toISOString();
+    const attemptUpdate = await studentClient
+      .from('attempts')
+      .update({
+        updated_at: updatedAt,
+        response: {
+          selectedChoiceId: 'B',
+          isCorrect: false,
+        },
+        score: 0,
+        is_correct: false,
+        time_spent_seconds: 2,
+      })
+      .eq('id', rows.attempt.id)
+      .eq('user_id', signInResult.userId)
+      .select('id,score,is_correct,response,time_spent_seconds')
+      .single();
+
+    if (attemptUpdate.error || !attemptUpdate.data) {
+      throw new Error(
+        `attempts update failed: ${attemptUpdate.error?.message ?? 'no row returned'}`,
+      );
+    }
+
+    const updatedAttempt = attemptUpdate.data as {
+      score: number;
+      is_correct: boolean | null;
+      response?: { selectedChoiceId?: string };
+      time_spent_seconds: number | null;
+    };
+
+    if (
+      Number(updatedAttempt.score) !== 0 ||
+      updatedAttempt.is_correct !== false ||
+      updatedAttempt.response?.selectedChoiceId !== 'B' ||
+      updatedAttempt.time_spent_seconds !== 2
+    ) {
+      throw new Error('attempts update did not return the expected temporary row values.');
+    }
+
+    const sessionUpdate = await studentClient
+      .from('session_results')
+      .update({
+        updated_at: updatedAt,
+        duration_seconds: 2,
+        answered_question_count: 1,
+        score: 0,
+        max_score: 1,
+        percent: 0,
+        missed_question_ids: [rows.attempt.question_id],
+        question_results: [
+          {
+            attemptId: rows.attempt.id,
+            questionId: rows.attempt.question_id,
+            score: 0,
+            maxScore: 1,
+            isCorrect: false,
+          },
+        ],
+      })
+      .eq('id', rows.session.id)
+      .eq('user_id', signInResult.userId)
+      .select('id,score,percent,missed_question_ids,question_results')
+      .single();
+
+    if (sessionUpdate.error || !sessionUpdate.data) {
+      throw new Error(
+        `session_results update failed: ${sessionUpdate.error?.message ?? 'no row returned'}`,
+      );
+    }
+
+    const updatedSession = sessionUpdate.data as {
+      score: number;
+      percent: number;
+      missed_question_ids: string[];
+      question_results: Array<{ isCorrect?: boolean }>;
+    };
+
+    if (
+      Number(updatedSession.score) !== 0 ||
+      updatedSession.percent !== 0 ||
+      updatedSession.missed_question_ids[0] !== rows.attempt.question_id ||
+      updatedSession.question_results[0]?.isCorrect !== false
+    ) {
+      throw new Error('session_results update did not return the expected temporary row values.');
+    }
+
+    const attemptDelete = await studentClient
+      .from('attempts')
+      .delete()
+      .eq('id', rows.attempt.id)
+      .eq('user_id', signInResult.userId);
+
+    if (attemptDelete.error) {
+      throw new Error(`attempts delete failed: ${attemptDelete.error.message}`);
+    }
+
+    const sessionDelete = await studentClient
+      .from('session_results')
+      .delete()
+      .eq('id', rows.session.id)
+      .eq('user_id', signInResult.userId);
+
+    if (sessionDelete.error) {
+      throw new Error(`session_results delete failed: ${sessionDelete.error.message}`);
+    }
+
+    const attemptCleanupCheck = await studentClient
+      .from('attempts')
+      .select('id')
+      .eq('id', rows.attempt.id)
+      .eq('user_id', signInResult.userId);
+
+    if (attemptCleanupCheck.error) {
+      throw new Error(`attempts cleanup verification failed: ${attemptCleanupCheck.error.message}`);
+    }
+
+    const sessionCleanupCheck = await studentClient
+      .from('session_results')
+      .select('id')
+      .eq('id', rows.session.id)
+      .eq('user_id', signInResult.userId);
+
+    if (sessionCleanupCheck.error) {
+      throw new Error(
+        `session_results cleanup verification failed: ${sessionCleanupCheck.error.message}`,
+      );
+    }
+
+    if (
+      (attemptCleanupCheck.data ?? []).length > 0 ||
+      (sessionCleanupCheck.data ?? []).length > 0
+    ) {
+      throw new Error('temporary progress rows were still visible after cleanup.');
+    }
+
+    return {
+      name: 'student progress write path',
+      status: 'pass',
+      message:
+        'Student inserted, updated, selected, deleted, and cleanup-verified temporary attempts and session_results rows.',
+    };
+  } catch (error) {
+    return {
+      name: 'student progress write path',
+      status: 'fail',
+      message:
+        error instanceof Error ? error.message : 'Unknown student progress write smoke failure.',
+    };
+  } finally {
+    await ignoreCleanupError(
+      studentClient
+        .from('attempts')
+        .delete()
+        .eq('id', rows.attempt.id)
+        .eq('user_id', signInResult.userId),
+    );
+    await ignoreCleanupError(
+      studentClient
+        .from('session_results')
+        .delete()
+        .eq('id', rows.session.id)
+        .eq('user_id', signInResult.userId),
+    );
     await ignoreCleanupError(studentClient.auth.signOut());
   }
 }
@@ -986,7 +1329,7 @@ export async function runSupabaseSmoke(config: SmokeConfig): Promise<SmokeResult
     await checkCloudImageWritePath(config, adminClient, studentClient),
     await checkInviteRpc(anonClient, config.invalidInviteCode),
     await checkAnonUnpublishedAccess(anonClient),
-    await checkQuestionImagesBucket(anonClient),
+    await checkQuestionImagesBucket(anonClient, config),
     await checkMediaTableSchema(
       anonClient,
       'media_records',
@@ -998,6 +1341,7 @@ export async function runSupabaseSmoke(config: SmokeConfig): Promise<SmokeResult
       'id,question_id,media_id,placement,asset_id,sort_order',
     ),
     await checkStudentProgressTables(config, studentClient),
+    await checkStudentProgressWritePath(config, studentClient),
     await checkAdminLogin(config, adminClient),
   ];
 }

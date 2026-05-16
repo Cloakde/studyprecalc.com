@@ -19,7 +19,7 @@ import type { Attempt } from '../../src/domain/attempts';
 import { createDashboardAnalytics, type DashboardAnalytics } from '../../src/domain/sessions';
 import type { SessionResult } from '../../src/domain/sessions';
 import type { InviteConsumeResult, InviteValidationResult } from '../../src/domain/invites';
-import type { McqQuestion, Question } from '../../src/domain/questions/types';
+import type { McqQuestion, Question, QuestionAsset } from '../../src/domain/questions/types';
 import { testMcqQuestion } from './testQuestions';
 
 export type IntegrationMemoryStorage = AccountStorage &
@@ -44,6 +44,55 @@ export function createIntegrationMcqQuestion(id: string, prompt?: string): McqQu
     id,
     prompt: prompt ?? `Integration harness question ${id}.`,
     tags: [...testMcqQuestion.tags, id],
+  };
+}
+
+export function createIntegrationImageAsset(
+  id: string,
+  path = `supabase-image:smoke/${id}.png`,
+): QuestionAsset {
+  return {
+    id,
+    type: 'image',
+    path,
+    alt: `Original integration smoke image ${id}`,
+    caption: `Smoke image ${id}`,
+  };
+}
+
+export function createIntegrationImageMcqQuestion(id: string): McqQuestion {
+  const questionAsset = createIntegrationImageAsset(`${id}-prompt-image`);
+  const explanationAsset = createIntegrationImageAsset(
+    `${id}-explanation-image`,
+    `supabase-image:smoke/${id}-explanation.webp`,
+  );
+
+  return {
+    ...createIntegrationMcqQuestion(id, `Use the original smoke image for question ${id}.`),
+    assets: [questionAsset],
+    explanation: {
+      ...testMcqQuestion.explanation,
+      assets: [explanationAsset],
+    },
+  };
+}
+
+export function getImageExpectationSummary(question: Question): {
+  questionImagePaths: string[];
+  explanationImagePaths: string[];
+  altText: string[];
+  allImagesAreCloudBacked: boolean;
+} {
+  const questionImages = question.assets?.filter((asset) => asset.type === 'image') ?? [];
+  const explanationImages =
+    question.explanation.assets?.filter((asset) => asset.type === 'image') ?? [];
+  const allImages = [...questionImages, ...explanationImages];
+
+  return {
+    questionImagePaths: questionImages.map((asset) => asset.path),
+    explanationImagePaths: explanationImages.map((asset) => asset.path),
+    altText: allImages.map((asset) => asset.alt),
+    allImagesAreCloudBacked: allImages.every((asset) => asset.path.startsWith('supabase-image:')),
   };
 }
 

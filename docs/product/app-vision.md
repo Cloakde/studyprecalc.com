@@ -11,6 +11,7 @@ PrecalcApp is a web practice environment for AP Precalculus students.
 - Show answer explanations after submission or during review.
 - Show step-by-step solution paths.
 - Track attempts, correctness, timing, and review status.
+- Surface dashboard-ready progress metadata for retries, recent activity, and class progress summaries.
 - Support future video explanations attached to individual questions.
 
 ## Initial User Types

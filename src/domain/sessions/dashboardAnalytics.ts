@@ -57,10 +57,35 @@ export type DashboardRecommendation = {
   reason: string;
 };
 
+export type DashboardRetrySet = {
+  unit: string;
+  topic: string;
+  skill: string;
+  percent: number;
+  missedCount: number;
+  questionIds: string[];
+  availableQuestionIds: string[];
+  lastMissedAt?: string;
+};
+
+export type DashboardProgressReadiness = {
+  totalQuestionCount: number;
+  practicedQuestionCount: number;
+  practicedQuestionIds: string[];
+  scoredRecordCount: number;
+  pendingManualScoreCount: number;
+  retrySetCount: number;
+  retryQuestionCount: number;
+  readyForClassProgress: boolean;
+  lastActivityAt?: string;
+};
+
 export type DashboardAnalytics = {
   unitTrends: DashboardTrend[];
   skillTrends: DashboardTrend[];
   weakTopics: DashboardTrend[];
+  retrySets: DashboardRetrySet[];
+  progressReadiness: DashboardProgressReadiness;
   recommendedNext?: DashboardRecommendation;
 };
 
@@ -81,6 +106,20 @@ function getTimestampMs(timestamp: string | undefined): number {
 
   const parsed = Date.parse(timestamp);
   return Number.isNaN(parsed) ? 0 : parsed;
+}
+
+function hasManualScorePending(record: PerformanceRecord): boolean {
+  return 'needsManualScore' in record && record.needsManualScore;
+}
+
+function getLatestTimestamp(timestamps: Array<string | undefined>): string | undefined {
+  return timestamps
+    .filter((timestamp): timestamp is string => timestamp !== undefined)
+    .sort((first, second) => getTimestampMs(second) - getTimestampMs(first))[0];
+}
+
+function getUniqueSorted(values: string[]): string[] {
+  return [...new Set(values)].sort((first, second) => first.localeCompare(second));
 }
 
 function createSessionPerformanceRecords(sessions: SessionResult[]): PerformanceRecord[] {
@@ -163,9 +202,7 @@ function createTrend(
     maxScore,
     percent: getPercent(score, maxScore),
     missedCount: records.filter((record) => record.missed).length,
-    pendingManualScoreCount: records.filter(
-      (record) => 'needsManualScore' in record && record.needsManualScore,
-    ).length,
+    pendingManualScoreCount: records.filter(hasManualScorePending).length,
     ...compareTrend(records),
     ...(lastPracticedAt ? { lastPracticedAt } : {}),
   };
@@ -238,6 +275,72 @@ function buildRecommendation(
   return undefined;
 }
 
+function buildRetrySets(records: PerformanceRecord[], questions: Question[]): DashboardRetrySet[] {
+  const questionsByTopicSkill = new Map<string, Question[]>();
+
+  questions.forEach((question) => {
+    const key = `${question.unit}\n${question.topic}\n${question.skill}`;
+    questionsByTopicSkill.set(key, [...(questionsByTopicSkill.get(key) ?? []), question]);
+  });
+
+  return [
+    ...groupRecords(
+      records.filter((record) => record.missed),
+      (record) => `${record.unit}\n${record.topic}\n${record.skill}`,
+    ).entries(),
+  ]
+    .map(([, missedRecords]) => {
+      const firstRecord = missedRecords[0];
+      const score = missedRecords.reduce((total, record) => total + record.score, 0);
+      const maxScore = missedRecords.reduce((total, record) => total + record.maxScore, 0);
+      const key = `${firstRecord.unit}\n${firstRecord.topic}\n${firstRecord.skill}`;
+      const availableQuestions = questionsByTopicSkill.get(key) ?? [];
+      const lastMissedAt = getLatestTimestamp(missedRecords.map((record) => record.submittedAt));
+
+      return {
+        unit: firstRecord.unit,
+        topic: firstRecord.topic,
+        skill: firstRecord.skill,
+        percent: getPercent(score, maxScore),
+        missedCount: missedRecords.length,
+        questionIds: getUniqueSorted(missedRecords.map((record) => record.questionId)),
+        availableQuestionIds: availableQuestions.map((question) => question.id).sort(),
+        ...(lastMissedAt ? { lastMissedAt } : {}),
+      };
+    })
+    .sort((first, second) => {
+      if (first.missedCount !== second.missedCount) {
+        return second.missedCount - first.missedCount;
+      }
+
+      return getTimestampMs(second.lastMissedAt) - getTimestampMs(first.lastMissedAt);
+    });
+}
+
+function buildProgressReadiness(
+  records: PerformanceRecord[],
+  questions: Question[],
+  retrySets: DashboardRetrySet[],
+): DashboardProgressReadiness {
+  const practicedQuestionIds = getUniqueSorted(records.map((record) => record.questionId));
+  const retryQuestionIds = getUniqueSorted(retrySets.flatMap((retrySet) => retrySet.questionIds));
+  const lastActivityAt = getLatestTimestamp(records.map((record) => record.submittedAt));
+  const scoredRecordCount = records.filter((record) => !hasManualScorePending(record)).length;
+  const pendingManualScoreCount = records.filter(hasManualScorePending).length;
+
+  return {
+    totalQuestionCount: questions.length,
+    practicedQuestionCount: practicedQuestionIds.length,
+    practicedQuestionIds,
+    scoredRecordCount,
+    pendingManualScoreCount,
+    retrySetCount: retrySets.length,
+    retryQuestionCount: retryQuestionIds.length,
+    readyForClassProgress: scoredRecordCount > 0,
+    ...(lastActivityAt ? { lastActivityAt } : {}),
+  };
+}
+
 export function createDashboardAnalytics({
   sessions,
   attempts,
@@ -297,11 +400,14 @@ export function createDashboardAnalytics({
       return matchingQuestion !== undefined;
     })
     .sort(sortWeakest);
+  const retrySets = buildRetrySets(records, questions);
 
   return {
     unitTrends,
     skillTrends,
     weakTopics,
+    retrySets,
+    progressReadiness: buildProgressReadiness(records, questions, retrySets),
     recommendedNext: buildRecommendation(weakTopics, questions),
   };
 }

@@ -84,6 +84,81 @@ describe('production readiness helpers', () => {
     );
   });
 
+  it('rejects localhost Supabase URLs for production readiness', () => {
+    const result = parseProductionReadinessEnv({
+      VITE_SUPABASE_URL: 'http://localhost:54321',
+      VITE_SUPABASE_ANON_KEY: 'sb_publishable_abc123',
+    });
+
+    expect(result.config).toBeUndefined();
+    expect(result.results).toContainEqual(
+      expect.objectContaining({
+        name: 'env VITE_SUPABASE_URL',
+        status: 'fail',
+        message: 'Value points at localhost, not the production Supabase project.',
+      }),
+    );
+  });
+
+  it('requires final launch evidence confirmations', () => {
+    const missing = parseProductionReadinessEnv({
+      VITE_SUPABASE_URL: 'https://project.supabase.co',
+      VITE_SUPABASE_ANON_KEY: 'sb_publishable_abc123',
+    });
+
+    expect(missing.results).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: 'evidence Supabase activation',
+          status: 'fail',
+        }),
+        expect.objectContaining({
+          name: 'evidence question-images bucket',
+          status: 'fail',
+        }),
+        expect.objectContaining({
+          name: 'evidence backup/export plan',
+          status: 'fail',
+        }),
+        expect.objectContaining({
+          name: 'evidence production blockers',
+          status: 'fail',
+        }),
+      ]),
+    );
+
+    const confirmed = parseProductionReadinessEnv({
+      VITE_SUPABASE_URL: 'https://project.supabase.co',
+      VITE_SUPABASE_ANON_KEY: 'sb_publishable_abc123',
+      READINESS_SUPABASE_EVIDENCE: 'confirmed',
+      READINESS_BUCKET_EVIDENCE: 'yes',
+      READINESS_BACKUP_EXPORT_PLAN: 'true',
+      READINESS_PRODUCTION_BLOCKERS: 'none',
+    });
+
+    expect(confirmed.results).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: 'evidence Supabase activation',
+          status: 'pass',
+        }),
+        expect.objectContaining({
+          name: 'evidence question-images bucket',
+          status: 'pass',
+        }),
+        expect.objectContaining({
+          name: 'evidence backup/export plan',
+          status: 'pass',
+        }),
+        expect.objectContaining({
+          name: 'evidence production blockers',
+          status: 'pass',
+        }),
+      ]),
+    );
+    expect(getProductionReadinessExitCode(confirmed.results)).toBe(0);
+  });
+
   it('skips the optional www check unless READINESS_WWW_DOMAIN is set', () => {
     const result = parseProductionReadinessEnv({
       VITE_SUPABASE_URL: 'https://project.supabase.co',

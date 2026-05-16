@@ -1,5 +1,6 @@
 import {
   createAdminMfaCodeRequiredResult,
+  createStudentProgressSmokeRows,
   formatSmokeNextActions,
   formatSmokeResults,
   getSmokeExitCode,
@@ -172,6 +173,49 @@ describe('Supabase smoke helpers', () => {
     });
   });
 
+  it('builds generated student progress smoke rows without real question content', () => {
+    const rows = createStudentProgressSmokeRows(
+      '00000000-0000-0000-0000-000000000001',
+      'smoke-progress-123',
+      '2026-05-15T12:00:00.000Z',
+    );
+
+    expect(rows.attempt).toMatchObject({
+      id: 'smoke-progress-123-attempt',
+      user_id: '00000000-0000-0000-0000-000000000001',
+      question_id: 'smoke-progress-123-generated-question',
+      question_type: 'mcq',
+      score: 1,
+      max_score: 1,
+      is_correct: true,
+    });
+    expect(rows.attempt.response).toEqual({
+      selectedChoiceId: 'A',
+      isCorrect: true,
+    });
+    expect(rows.session).toMatchObject({
+      id: 'smoke-progress-123-session',
+      user_id: '00000000-0000-0000-0000-000000000001',
+      question_set_version: 'smoke',
+      planned_question_count: 1,
+      answered_question_count: 1,
+      score: 1,
+      max_score: 1,
+      percent: 100,
+    });
+    expect(rows.session.question_results).toEqual([
+      {
+        attemptId: 'smoke-progress-123-attempt',
+        questionId: 'smoke-progress-123-generated-question',
+        score: 1,
+        maxScore: 1,
+        isCorrect: true,
+      },
+    ]);
+    expect(JSON.stringify(rows)).not.toContain('College Board');
+    expect(JSON.stringify(rows)).not.toContain('AP ');
+  });
+
   it('prints owner next actions for missing production activation pieces', () => {
     const results: SmokeResult[] = [
       {
@@ -198,6 +242,24 @@ describe('Supabase smoke helpers', () => {
         '- Run the full supabase/schema.sql in the production Supabase SQL Editor.',
         '- Confirm the private question-images bucket exists with a 1 MB limit and PNG/JPEG/WebP/GIF MIME allowlist.',
         '- After admin and student smoke accounts exist, rerun with SMOKE_WRITE=1 and smoke credentials to verify cloud image publishing.',
+      ].join('\n'),
+    );
+  });
+
+  it('prints the student progress write rerun action when progress DML is skipped', () => {
+    expect(
+      formatSmokeNextActions([
+        {
+          name: 'student progress write path',
+          status: 'skip',
+          message:
+            'No progress writes are performed. Set SMOKE_WRITE=1 with student credentials to verify INSERT/UPDATE/DELETE RLS.',
+        },
+      ]),
+    ).toBe(
+      [
+        'Next owner action(s):',
+        '- Rerun with SMOKE_WRITE=1 plus SMOKE_STUDENT_EMAIL and SMOKE_STUDENT_PASSWORD to verify progress INSERT/UPDATE/DELETE RLS.',
       ].join('\n'),
     );
   });

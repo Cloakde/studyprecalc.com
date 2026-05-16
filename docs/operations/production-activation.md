@@ -26,6 +26,19 @@ Vercel, registrar, inbox, and live browser checks remain owner-owned dashboard w
    npm run check:production-readiness
    ```
 
+   This should fail during launch prep until owner-side evidence is captured. After completing the
+   Supabase, bucket, backup/export, and blocker checks below, rerun it with:
+
+   ```sh
+   READINESS_SUPABASE_EVIDENCE=confirmed \
+   READINESS_BUCKET_EVIDENCE=confirmed \
+   READINESS_BACKUP_EXPORT_PLAN=confirmed \
+   READINESS_PRODUCTION_BLOCKERS=none \
+   npm run check:production-readiness
+   ```
+
+   Add `READINESS_WWW_DOMAIN=www.studyprecalc.com` only if `www` is intended to be live for launch.
+
 3. Run `supabase/schema.sql` in the production Supabase SQL Editor, then run the SQL verification
    queries in [Supabase setup](supabase-setup.md#verify-sql-setup).
 4. Configure Supabase Auth redirects, email-code template, and admin TOTP MFA.
@@ -59,6 +72,10 @@ Vercel, registrar, inbox, and live browser checks remain owner-owned dashboard w
     SMOKE_STUDENT_PASSWORD=replace-with-student-password \
     npm run smoke:supabase
     ```
+
+    This generated-data smoke uploads and cleans up a temporary cloud image question, then uses the
+    student account to insert, update, select, delete, and cleanup-check temporary rows in
+    `public.attempts` and `public.session_results`.
 
 11. Optionally print the live smoke checklist helper if it is available:
 
@@ -116,6 +133,8 @@ Evidence to keep:
 - Confirmation that `.env` points at the production Supabase project when running cloud smoke checks.
 - Confirmation that `.env`, passwords, invite codes, TOTP seeds/codes, and service-role keys are not
   committed or pasted into docs.
+- `npm run check:production-readiness` output. Missing Supabase evidence, missing bucket evidence,
+  missing backup/export evidence, or non-`none` production blockers are launch blockers, not warnings.
 
 ## 2. Run Supabase SQL
 
@@ -136,6 +155,7 @@ Evidence to keep:
 - Supabase SQL Editor success message for `supabase/schema.sql`.
 - Query results showing all required tables, the private `question-images` bucket, and expected RLS
   policies.
+- Output from `npm run smoke:supabase` after the SQL is applied, including progress table access.
 
 ## 3. Bootstrap Admin Invite
 
@@ -257,6 +277,8 @@ Evidence to keep:
 - Vercel Domains screen showing configured domains.
 - DNS/HTTP check output showing `studyprecalc.com` and `www.studyprecalc.com` resolve and return
   HTTP 200 after redirects.
+- If `www.studyprecalc.com` is deferred, a note that `READINESS_WWW_DOMAIN` was intentionally left
+  unset and `www` is not part of launch acceptance.
 
 ## 8. Run App Smoke Tests
 
@@ -272,7 +294,8 @@ Owner or Codex after deployment:
    `SMOKE_ADMIN_PASSWORD`, `SMOKE_ADMIN_MFA_CODE`, `SMOKE_STUDENT_EMAIL`, and
    `SMOKE_STUDENT_PASSWORD`, then rerun `npm run smoke:supabase`. The script uploads a generated
    image, publishes a temporary question, checks admin/student signed URL behavior, archives it, and
-   cleans up.
+   cleans up. With student credentials present, the same run also writes, updates, deletes, and
+   cleanup-verifies generated temporary rows in `public.attempts` and `public.session_results`.
 4. Open `https://studyprecalc.com`.
 5. Confirm the auth screen says `Cloud account`.
 6. Sign in as the owner admin.
@@ -311,6 +334,7 @@ Evidence to keep:
   `[PASS] admin login` plus MFA output when `SMOKE_ADMIN_MFA_CODE` is supplied, or a documented skip
   if admin smoke credentials were intentionally omitted.
 - If write smoke is run, `npm run smoke:supabase` output showing `[PASS] cloud image write path`.
+  When student credentials are included, also keep the `[PASS] student progress write path` line.
 - SQL output from invite enforcement and content publishing checks.
 - Screenshot/checkpoint showing the admin published an original smoke question.
 - Screenshot/checkpoint from a separate student session showing the published question and cloud
@@ -321,6 +345,20 @@ Evidence to keep:
 - A note that all smoke questions, images, rubrics, and explanations are original throwaway content
   or have explicit owner-confirmed rights.
 - A note that secrets were redacted before screenshots or logs were stored outside Git.
+
+## 8.5. Confirm Backup And Export Plan
+
+Before opening the site to students, record the minimal recovery path:
+
+1. Export the owner-authored question/content source of truth or record the Supabase table export
+   that would restore it.
+2. Record Storage evidence for the private `question-images` bucket and any smoke image paths used
+   in launch testing.
+3. Record the Vercel deployment URL or ID that should be promoted during rollback.
+4. Record the latest Supabase SQL application timestamp or dashboard checkpoint.
+
+After this evidence exists, set `READINESS_BACKUP_EXPORT_PLAN=confirmed` when rerunning
+`npm run check:production-readiness`.
 
 ## 9. Roll Back If Needed
 

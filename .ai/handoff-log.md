@@ -627,3 +627,54 @@ Use this file as an append-only record whenever an agent finishes, pauses, or ha
 - Summary: Added explicit `anon`/`authenticated` Data API grants so RLS-backed tables are reachable through Supabase PostgREST. The immediate production repair is to grant `authenticated` `SELECT`, `INSERT`, `UPDATE`, and `DELETE` on `public.attempts` and `public.session_results`; the schema now also covers content, class, invite, and media tables explicitly so this class of permission error does not recur.
 - Verification: Ran `npm test -- supabaseSmoke`, `npx tsc --noEmit --pretty false`, `npm run lint`, `npm test` (200 tests), `npm run build`, `npm run validate:content`, and `git diff --check`. All passed; build still reports the existing large-chunk warning. Prettier was run for touched docs/TS files; `.sql` has no configured Prettier parser.
 - Next owner action: Run the latest `supabase/schema.sql` in the Supabase SQL Editor, or run the smaller repair SQL listed in `docs/operations/supabase-setup.md`, then refresh the app and retry saving progress.
+
+### 2026-05-15 - Worker M27 - Dashboard Analytics Expansion
+
+- Status: Complete.
+- Files changed: Updated `src/domain/sessions/dashboardAnalytics.ts`, `tests/unit/sessionResult.test.ts`, `docs/product/app-vision.md`, and coordination files.
+- Summary: Added retry-set metadata and progress-readiness counts to dashboard analytics so future student/class dashboards can distinguish scored progress, pending FRQ self-score work, recent retry needs, and practiced question coverage without UI changes.
+- Verification: Ran `npm test -- sessionResult`, scoped ESLint, scoped Prettier check, and scoped TypeScript for the touched analytics/test files. All passed. Repo-wide `npx tsc --noEmit --pretty false` is currently blocked by active Worker M26 work in `src/domain/questions/contentReadiness.ts(670,9)`.
+
+### 2026-05-15 - Worker M23 - Supabase Activation Hardening
+
+- Status: Complete.
+- Files changed: Updated `scripts/smoke-supabase.ts`, `tests/unit/supabaseSmoke.test.ts`, `docs/operations/supabase-setup.md`, `docs/operations/production-activation.md`, and coordination files.
+- Summary: Added an opt-in student progress write smoke. With `SMOKE_WRITE=1` and real student credentials, `npm run smoke:supabase` now inserts, updates, selects, deletes, and cleanup-verifies generated temporary rows in `public.attempts` and `public.session_results`, in addition to the existing read checks and cloud image path.
+- Verification: Ran `npm test -- supabaseSmoke`, scoped ESLint, scoped Prettier check, and `npx tsc --noEmit --pretty false`. All passed.
+- Next owner action: After applying the latest Supabase SQL and creating real smoke accounts, rerun `SMOKE_WRITE=1` with admin MFA and student credentials and keep the `[PASS] student progress write path` output with activation evidence.
+
+### 2026-05-15 - Worker M25-Domain - Exam Mode Domain Foundation
+
+- Status: Complete.
+- Files changed: Added `src/domain/exams/*`, added `tests/unit/examDomain.test.ts`, and updated `docs/product/question-model.md`.
+- Summary: Defined exam unit metadata, Unit 1-4 practice exam blueprints, the Units 1-3 AP prep blueprint, published-question readiness/count helpers, deterministic selection hooks, timed/untimed duration metadata, and score summary helpers.
+- Verification: Ran `npm test -- examDomain`, scoped ESLint, scoped Prettier check, scoped TypeScript, repo-wide `npx tsc --noEmit --pretty false`, and `npm test` (215 tests). All passed.
+
+### 2026-05-15 - Worker M28 - Launch Prep Hardening
+
+- Status: Complete.
+- Files changed: Updated `scripts/check-production-readiness.ts`, `tests/unit/productionReadiness.test.ts`, `docs/operations/deployment.md`, `docs/operations/production-activation.md`, and coordination files.
+- Summary: Added final launch readiness gates for owner-confirmed Supabase activation evidence, private `question-images` bucket evidence, backup/export planning, current production blockers, localhost Supabase URL rejection, and explicit `www` optionality.
+- Verification: Ran `npm test -- productionReadiness`, scoped Prettier check, scoped ESLint, normal `npm run check:production-readiness` expected-failure blocker output, and a success-path `npm run check:production-readiness` with `READINESS_SUPABASE_EVIDENCE`, `READINESS_BUCKET_EVIDENCE`, `READINESS_BACKUP_EXPORT_PLAN`, and `READINESS_PRODUCTION_BLOCKERS` set.
+- Next owner action: Capture the Supabase SQL/RPC/progress smoke, Auth/MFA, bucket, student visibility, backup/export, and rollback evidence; then rerun `npm run check:production-readiness` with the documented `READINESS_*` confirmations and include `READINESS_WWW_DOMAIN` only if `www` is part of launch acceptance.
+
+### 2026-05-15 - Worker M24 - Repeatable Admin Workflow QA
+
+- Status: Complete.
+- Files changed: Updated `tests/fixtures/integrationHarness.ts`, `tests/unit/integrationHarness.test.ts`, `scripts/live-smoke-checklist.ts`, `docs/operations/m9-m10-owner-handoff.md`, and coordination files.
+- Summary: Added image-bearing integration harness helpers and repeatable local coverage for admin-created class invites, invite consumption/enrollment, draft/publish/archive lifecycle timestamps and visibility, cloud-backed image expectations, and student progress persistence. Strengthened the live smoke checklist and owner handoff so manual runs capture the same class, invite, content, image, and dashboard evidence without using copyrighted or shipped question content.
+- Verification: Ran `npm test -- integrationHarness liveSmokeChecklist`, scoped ESLint, and scoped Prettier check. All passed.
+
+### 2026-05-15 - Worker M26 - Content Library Media Readiness Polish
+
+- Status: Complete.
+- Files changed: Updated `src/domain/questions/contentReadiness.ts`, `tests/unit/contentReadiness.test.ts`, `docs/product/content-authoring-guide.md`, `docs/operations/first-pack-launch-checklist.md`, and coordination files.
+- Summary: Added media-category readiness reporting for prompt/explanation image placement, local media publish blockers, placeholder media URLs, graph/table caption warnings, and external video thumbnail/duration guidance. Left Content Manager and exam UI files untouched.
+- Verification: Ran `npm test -- contentReadiness firstPackReadiness`, `npx tsc --noEmit --pretty false`, scoped ESLint for the touched readiness/test files, and scoped Prettier checks. All passed.
+
+### 2026-05-16 - Codex - M23-M28 Integration
+
+- Status: Complete.
+- Files changed: Integrated the M23-M28 worker outputs, added `src/app/components/ExamPractice.tsx`, updated `src/app/App.tsx`, `src/app/components/SessionPractice.tsx`, `src/app/styles/app.css`, hardened `scripts/smoke-supabase.ts`, and updated coordination files.
+- Summary: Completed the repo-side milestone wave in order: Supabase activation smoke support, repeatable admin workflow QA, Unit 1-4 practice exams, Units 1-3 AP prep exams, content readiness polish, dashboard analytics foundations, and launch readiness hardening. The new Exams tab uses the existing session runner with locked question sets and timed/untimed exam presets.
+- Verification: Ran `npm run lint`, `npm test` (215 tests), `npm run build`, `npm run validate:content`, `git diff --check`, `npm run smoke:supabase`, success-path `npm run check:production-readiness` with documented `READINESS_*` confirmations, `npm run smoke:live-checklist -- --base-url https://studyprecalc.com --run-label "M23-M28 post-integration" --no-cleanup`, targeted `npm test -- supabaseSmoke examDomain sessionPractice`, and an HTTP smoke for `http://127.0.0.1:5173/`. Repo checks passed; build still reports the existing large-chunk warning. Live write smoke remains owner-only until real admin/student smoke credentials are provided.

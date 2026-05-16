@@ -43,6 +43,7 @@ export type ProductionReadinessClients = {
 const currentFile = fileURLToPath(import.meta.url);
 const defaultApexDomain = 'studyprecalc.com';
 const httpTimeoutMs = 10_000;
+const confirmationValues = new Set(['confirmed', 'yes', 'true', '1']);
 
 function readEnvValue(env: ProductionReadinessEnv, name: string): string {
   return env[name]?.trim() ?? '';
@@ -88,6 +89,37 @@ function getSupabaseAnonKeyShape(value: string): ProductionReadinessConfig['supa
   );
 }
 
+function hasConfirmed(value: string): boolean {
+  return confirmationValues.has(value.toLowerCase());
+}
+
+function addManualEvidenceCheck(
+  results: ProductionReadinessResult[],
+  options: {
+    name: string;
+    value: string;
+    passMessage: string;
+    failMessage: string;
+    ownerAction: string;
+  },
+) {
+  if (hasConfirmed(options.value)) {
+    results.push({
+      name: options.name,
+      status: 'pass',
+      message: options.passMessage,
+    });
+    return;
+  }
+
+  results.push({
+    name: options.name,
+    status: 'fail',
+    message: options.failMessage,
+    ownerAction: options.ownerAction,
+  });
+}
+
 export function parseProductionReadinessEnv(
   env: ProductionReadinessEnv,
 ): ProductionReadinessParseResult {
@@ -96,6 +128,10 @@ export function parseProductionReadinessEnv(
   const supabaseAnonKey = readEnvValue(env, 'VITE_SUPABASE_ANON_KEY');
   const apexDomain = readEnvValue(env, 'READINESS_APEX_DOMAIN') || defaultApexDomain;
   const wwwDomain = readEnvValue(env, 'READINESS_WWW_DOMAIN');
+  const supabaseEvidence = readEnvValue(env, 'READINESS_SUPABASE_EVIDENCE');
+  const bucketEvidence = readEnvValue(env, 'READINESS_BUCKET_EVIDENCE');
+  const backupPlan = readEnvValue(env, 'READINESS_BACKUP_EXPORT_PLAN');
+  const productionBlockers = readEnvValue(env, 'READINESS_PRODUCTION_BLOCKERS');
   let supabaseAnonKeyShape: ProductionReadinessConfig['supabaseAnonKeyShape'] | undefined;
 
   if (!supabaseUrl) {
@@ -111,6 +147,13 @@ export function parseProductionReadinessEnv(
       status: 'fail',
       message: 'Value must be a valid http(s) URL.',
       ownerAction: 'Update VITE_SUPABASE_URL to the production Supabase project URL.',
+    });
+  } else if (new URL(supabaseUrl).hostname === 'localhost') {
+    results.push({
+      name: 'env VITE_SUPABASE_URL',
+      status: 'fail',
+      message: 'Value points at localhost, not the production Supabase project.',
+      ownerAction: 'Set VITE_SUPABASE_URL to the production Supabase project URL.',
     });
   } else {
     results.push({
@@ -181,6 +224,51 @@ export function parseProductionReadinessEnv(
       name: 'env READINESS_WWW_DOMAIN',
       status: 'pass',
       message: `Using optional www domain ${wwwDomain}.`,
+    });
+  }
+
+  addManualEvidenceCheck(results, {
+    name: 'evidence Supabase activation',
+    value: supabaseEvidence,
+    passMessage: 'Owner confirmed schema, Auth redirects, MFA, and smoke evidence are captured.',
+    failMessage: 'Owner has not confirmed production Supabase activation evidence.',
+    ownerAction:
+      'Set READINESS_SUPABASE_EVIDENCE=confirmed only after schema/RPC/progress smoke, Auth redirects, email-code template, and admin MFA evidence are captured.',
+  });
+
+  addManualEvidenceCheck(results, {
+    name: 'evidence question-images bucket',
+    value: bucketEvidence,
+    passMessage: 'Owner confirmed private bucket settings and image smoke evidence are captured.',
+    failMessage: 'Owner has not confirmed Storage bucket readiness evidence.',
+    ownerAction:
+      'Set READINESS_BUCKET_EVIDENCE=confirmed only after the private question-images bucket, 1 MB image limit, allowed MIME types, signed URL, and student visibility evidence are captured.',
+  });
+
+  addManualEvidenceCheck(results, {
+    name: 'evidence backup/export plan',
+    value: backupPlan,
+    passMessage: 'Owner confirmed a pre-launch backup/export plan is recorded.',
+    failMessage: 'No confirmed backup/export plan is recorded for launch.',
+    ownerAction:
+      'Set READINESS_BACKUP_EXPORT_PLAN=confirmed only after exporting owner-authored content/media evidence and identifying the Supabase/Vercel rollback point.',
+  });
+
+  if (productionBlockers.toLowerCase() === 'none') {
+    results.push({
+      name: 'evidence production blockers',
+      status: 'pass',
+      message: 'Owner marked current production blockers as resolved.',
+    });
+  } else {
+    results.push({
+      name: 'evidence production blockers',
+      status: 'fail',
+      message: productionBlockers
+        ? `Open production blocker note: ${productionBlockers}`
+        : 'Current production blockers have not been marked resolved.',
+      ownerAction:
+        'Set READINESS_PRODUCTION_BLOCKERS=none only after Supabase SQL/RPC, question-images bucket, admin/student smoke accounts, and intended domain coverage are all resolved.',
     });
   }
 
