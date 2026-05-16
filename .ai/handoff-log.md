@@ -605,3 +605,10 @@ Use this file as an append-only record whenever an agent finishes, pauses, or ha
 - Files changed: Updated invite-code domain validation/generation, local and Supabase invite stores, sign-up invite input copy/length, Supabase schema/docs/bootstrap SQL, smoke defaults, and invite/integration tests.
 - Summary: Invite codes are now exactly 12 characters and generated with at least one letter, one number, and one safe symbol from `! @ # $ % * ?`. Production bootstrap docs now generate a one-time admin invite instead of using a predictable hand-written code.
 - Verification: Ran `npm test -- inviteDomain localInviteStore supabaseInviteMapping integrationHarness`, `npm test` (197 tests), `npm run lint`, `npm run build`, `npm run validate:content`, and `git diff --check`. All passed; `git diff --check` reported the existing CRLF warning for `supabase/schema.sql` only.
+
+### 2026-05-15 - Codex - AUTH-011 Confirm Password
+
+- Status: Complete.
+- Files changed: Updated `AccountAuth` signup UI, added `accountAuthValidation`, added focused account-auth validation tests, and updated coordination files.
+- Summary: Invite-unlocked signup now requires a Confirm Password field and blocks account creation with `Passwords do not match.` before calling the auth backend.
+- Verification: Ran `npm test -- accountAuth supabaseAccountStore localAccountStore`, `npm run lint`, `npm test` (199 tests), `npm run build`, `npm run validate:content`, and `git diff --check`. All passed; build still reports the existing large-chunk warning.

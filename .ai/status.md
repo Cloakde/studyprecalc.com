@@ -4,14 +4,14 @@ Last updated: 2026-05-15
 
 ## Current Phase
 
-Invite code format update is complete. Production activation still remains blocked on owner-side
+Confirm-password signup update is complete. Production activation still remains blocked on owner-side
 Supabase SQL/bucket/account setup and optional `www` DNS configuration.
 
 ## Active Ownership
 
-| Agent | Task                                                                    | File Scope                                                                                                     | Status |
-| ----- | ----------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- | ------ |
-| Codex | Enforce 12-character mixed invite codes and add bootstrap code guidance | `src/domain/invites/*`, `src/data/*Invite*`, `supabase/*`, `docs/operations/*`, `tests/unit/*invite*`, `.ai/*` | Done   |
+| Agent | Task                                 | File Scope                                                                                                        | Status |
+| ----- | ------------------------------------ | ----------------------------------------------------------------------------------------------------------------- | ------ |
+| Codex | Add confirm-password check to signup | `src/app/components/AccountAuth.tsx`, `src/app/components/accountAuthValidation.ts`, `tests/unit/*auth*`, `.ai/*` | Done   |
 
 ## Notes
 
@@ -142,3 +142,4 @@ Prettier/ESLint for the touched tests, and `npx tsc --noEmit --pretty false`. Al
 2026-05-15: Codex completed HOME-002 and ran `npm run lint`, `npm test` (196 tests), `npm run validate:content`, `npm run build`, `git diff --check`, an HTTP smoke for `http://127.0.0.1:5173/`, and a Chrome DevTools Protocol mobile viewport check at 390px. All passed; build still reports the existing large-chunk warning.
 2026-05-15: Codex completed the exam-mode roadmap update and ran targeted Prettier plus `git diff --check` for the touched docs/coordination files.
 2026-05-15: Codex completed AUTH-010 and ran `npm test -- inviteDomain localInviteStore supabaseInviteMapping integrationHarness`, `npm test` (197 tests), `npm run lint`, `npm run build`, `npm run validate:content`, and `git diff --check`. All passed; `git diff --check` reported the existing CRLF warning for `supabase/schema.sql` only.
+2026-05-15: Codex completed AUTH-011 and ran `npm test -- accountAuth supabaseAccountStore localAccountStore`, `npm run lint`, `npm test` (199 tests), `npm run build`, `npm run validate:content`, and `git diff --check`. All passed; build still reports the existing large-chunk warning.

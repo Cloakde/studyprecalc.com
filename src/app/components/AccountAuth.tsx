@@ -4,6 +4,7 @@ import { type FormEvent, useState } from 'react';
 import type { LoginInput, SignupInput } from '../../data/localAccountStore';
 import type { EmailVerificationInput } from '../../data/supabase/accountStore';
 import { inviteCodeLength } from '../../domain/invites';
+import { getPasswordConfirmationError } from './accountAuthValidation';
 
 export type SignupInviteValidationInput = {
   code: string;
@@ -66,6 +67,7 @@ export function AccountAuth({
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [emailVerificationCode, setEmailVerificationCode] = useState('');
   const [pendingVerificationEmail, setPendingVerificationEmail] = useState('');
   const [inviteCode, setInviteCode] = useState('');
@@ -90,6 +92,13 @@ export function AccountAuth({
           return;
         }
 
+        const passwordConfirmationError = getPasswordConfirmationError(password, confirmPassword);
+
+        if (passwordConfirmationError) {
+          setError(passwordConfirmationError);
+          return;
+        }
+
         setIsSubmitting(true);
         const result = await onSignup({
           displayName,
@@ -111,6 +120,7 @@ export function AccountAuth({
       }
 
       setPassword('');
+      setConfirmPassword('');
     } catch (authError) {
       setError(authError instanceof Error ? authError.message : 'Unable to sign in.');
     } finally {
@@ -137,6 +147,7 @@ export function AccountAuth({
       setEmailVerificationCode('');
       setPendingVerificationEmail('');
       setPassword('');
+      setConfirmPassword('');
       setNotice('Email verified. You are signed in.');
     } catch (authError) {
       setError(authError instanceof Error ? authError.message : 'Unable to verify email code.');
@@ -236,6 +247,7 @@ export function AccountAuth({
               setError('');
               setNotice('');
               setPendingVerificationEmail('');
+              setConfirmPassword('');
             }}
             type="button"
           >
@@ -370,6 +382,19 @@ export function AccountAuth({
                 value={password}
               />
             </label>
+            {mode === 'signup' ? (
+              <label>
+                Confirm Password
+                <input
+                  autoComplete="new-password"
+                  minLength={6}
+                  onChange={(event) => setConfirmPassword(event.target.value)}
+                  required
+                  type="password"
+                  value={confirmPassword}
+                />
+              </label>
+            ) : null}
             <button className="primary-button" disabled={isSubmitting} type="submit">
               {mode === 'signup' ? <UserPlus aria-hidden="true" /> : <LogIn aria-hidden="true" />}
               {isSubmitting ? 'Working...' : mode === 'signup' ? 'Create Account' : 'Log In'}
