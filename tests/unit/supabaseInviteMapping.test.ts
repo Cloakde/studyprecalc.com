@@ -11,7 +11,7 @@ function createInviteRecord(overrides: Partial<InviteCodeRecord> = {}): InviteCo
   return {
     ...createInvite({
       id: 'invite-1',
-      code: 'cloud-2026',
+      code: 'CL7!UD8@CD9#',
       role: 'student',
       createdAt: '2026-05-13T10:00:00.000Z',
       expiresAt: '2026-05-14T10:00:00.000Z',
@@ -32,7 +32,7 @@ describe('supabase invite row mapping', () => {
     const row = inviteToSupabaseRow(invite);
 
     expect(row).toMatchObject({
-      code: 'CLOUD-2026',
+      code: 'CL7!UD8@CD9#',
       role: 'student',
       email: 'student@example.com',
       class_id: 'class-1',
@@ -73,7 +73,7 @@ describe('supabase invite row mapping', () => {
 
     expect(row).not.toHaveProperty('id');
     expect(row).toMatchObject({
-      code: 'CLOUD-2026',
+      code: 'CL7!UD8@CD9#',
       role: 'student',
       email: 'student@example.com',
       class_id: 'class-1',
@@ -114,7 +114,7 @@ describe('supabase public invite validation', () => {
     await expect(
       checkSupabaseInviteCode(
         {
-          code: ' cloud-2026 ',
+          code: ' cl7!ud8@cd9# ',
           email: ' Student@Example.com ',
         },
         client,
@@ -124,7 +124,7 @@ describe('supabase public invite validation', () => {
       {
         functionName: 'validate_invite',
         parameters: {
-          p_code: 'CLOUD-2026',
+          p_code: 'CL7!UD8@CD9#',
           p_email: 'student@example.com',
         },
       },

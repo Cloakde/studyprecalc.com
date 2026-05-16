@@ -25,7 +25,7 @@ describe('local invite store helpers', () => {
 
     const created = createLocalInvite(
       {
-        code: 'local-2026',
+        code: 'LC7!AL8@CD9#',
         email: 'Student@Example.com',
         expiresAt: '2026-05-14T10:00:00.000Z',
         createdByAccountId: 'admin-1',
@@ -40,7 +40,7 @@ describe('local invite store helpers', () => {
 
     expect(created.invite).toMatchObject({
       id: 'invite-1',
-      code: 'LOCAL-2026',
+      code: 'LC7!AL8@CD9#',
       email: 'student@example.com',
       role: 'student',
     });
@@ -49,7 +49,7 @@ describe('local invite store helpers', () => {
     expect(
       validateLocalInviteCode(
         {
-          code: 'local-2026',
+          code: 'lc7!al8@cd9#',
           email: 'student@example.com',
         },
         {
@@ -64,7 +64,7 @@ describe('local invite store helpers', () => {
 
     const consumed = consumeLocalInviteCode(
       {
-        code: 'LOCAL-2026',
+        code: 'LC7!AL8@CD9#',
         email: 'student@example.com',
         accountId: 'account-1',
       },
@@ -81,7 +81,7 @@ describe('local invite store helpers', () => {
       consumedByAccountId: 'account-1',
     });
     expect(
-      validateLocalInviteCode('LOCAL-2026', {
+      validateLocalInviteCode('LC7!AL8@CD9#', {
         storage,
         storageKey,
         now: () => new Date('2026-05-13T12:31:00.000Z'),
@@ -98,7 +98,7 @@ describe('local invite store helpers', () => {
 
     createLocalInvite(
       {
-        code: 'expired-2026',
+        code: 'EX7!PI8@RD9#',
         createdAt: '2026-05-13T08:00:00.000Z',
         expiresAt: '2026-05-13T09:00:00.000Z',
       },
@@ -110,7 +110,7 @@ describe('local invite store helpers', () => {
     );
 
     expect(
-      validateLocalInviteCode('missing-2026', {
+      validateLocalInviteCode('ZZ9!ZZ9!ZZ9!', {
         storage,
         storageKey,
         now: () => new Date('2026-05-13T10:00:00.000Z'),
@@ -121,7 +121,7 @@ describe('local invite store helpers', () => {
     });
 
     expect(
-      validateLocalInviteCode('expired-2026', {
+      validateLocalInviteCode('EX7!PI8@RD9#', {
         storage,
         storageKey,
         now: () => new Date('2026-05-13T10:00:00.000Z'),
@@ -142,7 +142,7 @@ describe('local invite store helpers', () => {
         invites: [
           {
             id: 'invite-1',
-            code: 'VALID-2026',
+            code: 'VA7!LI8@D9#?',
             role: 'admin',
             createdAt: '2026-05-13T10:00:00.000Z',
           },
@@ -171,7 +171,7 @@ describe('local invite store helpers', () => {
 
     expect(payload.invites).toHaveLength(1);
     expect(payload.invites[0]).toMatchObject({
-      code: 'VALID-2026',
+      code: 'VA7!LI8@D9#?',
       role: 'admin',
     });
 

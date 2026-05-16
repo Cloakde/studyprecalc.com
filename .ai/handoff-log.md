@@ -598,3 +598,10 @@ Use this file as an append-only record whenever an agent finishes, pauses, or ha
 - Files changed: Updated `docs/planning/milestones.md`, `docs/product/app-vision.md`, `.ai/task-board.md`, `.ai/status.md`, and this handoff log.
 - Summary: Added M25 Exam Modes with unit practice exams for Units 1-4 and AP prep exams that intentionally include Units 1-3 only. Added EXAM-001 and EXAM-002 backlog items.
 - Verification: Ran targeted Prettier and `git diff --check` for the touched docs/coordination files.
+
+### 2026-05-15 - Codex - AUTH-010 Invite Code Format
+
+- Status: Complete.
+- Files changed: Updated invite-code domain validation/generation, local and Supabase invite stores, sign-up invite input copy/length, Supabase schema/docs/bootstrap SQL, smoke defaults, and invite/integration tests.
+- Summary: Invite codes are now exactly 12 characters and generated with at least one letter, one number, and one safe symbol from `! @ # $ % * ?`. Production bootstrap docs now generate a one-time admin invite instead of using a predictable hand-written code.
+- Verification: Ran `npm test -- inviteDomain localInviteStore supabaseInviteMapping integrationHarness`, `npm test` (197 tests), `npm run lint`, `npm run build`, `npm run validate:content`, and `git diff --check`. All passed; `git diff --check` reported the existing CRLF warning for `supabase/schema.sql` only.

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   consumeInviteCode,
   createInvite,
+  createRandomInviteCode,
   isInviteRecord,
   normalizeInviteRecord,
   validateInviteCode,
@@ -70,23 +71,6 @@ function createBrowserId(prefix: string): string {
   }
 
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-}
-
-function createBrowserInviteCode(): string {
-  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  const values = new Uint8Array(8);
-
-  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
-    crypto.getRandomValues(values);
-  } else {
-    for (let index = 0; index < values.length; index += 1) {
-      values[index] = Math.floor(Math.random() * alphabet.length);
-    }
-  }
-
-  const characters = Array.from(values, (value) => alphabet[value % alphabet.length]);
-
-  return `${characters.slice(0, 4).join('')}-${characters.slice(4).join('')}`;
 }
 
 function timestampMs(timestamp: string): number {
@@ -186,7 +170,7 @@ export function createLocalInvite(
   const storageKey = options.storageKey ?? localInviteStorageKey;
   const now = options.now ?? (() => new Date());
   const createId = options.createId ?? (() => createBrowserId('invite'));
-  const createCode = options.createCode ?? createBrowserInviteCode;
+  const createCode = options.createCode ?? createRandomInviteCode;
   const payload = loadInvitePayload(storage, storageKey);
   const invite = createInvite({
     id: input.id ?? createId(),
@@ -299,7 +283,7 @@ export function useLocalInviteStore(options: UseLocalInviteStoreOptions = {}) {
     [options.createId],
   );
   const createCode = useMemo(
-    () => options.createCode ?? createBrowserInviteCode,
+    () => options.createCode ?? createRandomInviteCode,
     [options.createCode],
   );
   const [payload, setPayload] = useState<InvitePayload>(() =>

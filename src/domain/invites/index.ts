@@ -1,7 +1,9 @@
 export {
   consumeInviteCode,
+  createRandomInviteCode,
   createInvite,
   getInviteStatus,
+  inviteCodeLength,
   isInviteCodeFormatValid,
   isInviteConsumed,
   isInviteExpired,

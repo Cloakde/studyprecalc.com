@@ -79,10 +79,32 @@ create table if not exists public.invites (
   consumed_by uuid references public.profiles(id) on delete set null,
   revoked_at timestamptz,
   check (code = public.normalize_invite_code(code)),
-  check (code ~ '^[A-Z0-9-]{4,64}$'),
+  constraint invites_code_format_check check (code ~ '^[A-Z0-9!@#$%*?]{12}$'),
   check (email is null or email = lower(trim(email))),
   check ((consumed_at is null and consumed_by is null) or (consumed_at is not null and consumed_by is not null))
 );
+
+do $$
+declare
+  existing_constraint_name text;
+begin
+  alter table public.invites drop constraint if exists invites_code_format_check;
+
+  for existing_constraint_name in
+    select conname
+    from pg_constraint
+    where conrelid = 'public.invites'::regclass
+      and contype = 'c'
+      and pg_get_constraintdef(oid) like '%code ~%'
+  loop
+    execute format('alter table public.invites drop constraint %I', existing_constraint_name);
+  end loop;
+
+  alter table public.invites
+    add constraint invites_code_format_check
+    check (code ~ '^[A-Z0-9!@#$%*?]{12}$') not valid;
+end;
+$$;
 
 create table if not exists public.media_records (
   id uuid primary key default gen_random_uuid(),

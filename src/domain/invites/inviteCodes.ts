@@ -10,7 +10,13 @@ import type {
   ValidateInviteCodeInput,
 } from './types';
 
-const inviteCodePattern = /^[A-Z0-9](?:[A-Z0-9-]{2,62}[A-Z0-9])$/;
+export const inviteCodeLength = 12;
+
+const inviteLetterAlphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+const inviteNumberAlphabet = '23456789';
+const inviteSymbolAlphabet = '!@#$%*?';
+const inviteCodeAlphabet = `${inviteLetterAlphabet}${inviteNumberAlphabet}${inviteSymbolAlphabet}`;
+const inviteCodePattern = /^[A-Z0-9!@#$%*?]{12}$/;
 
 function toIsoTimestamp(timestamp: InviteTimestamp): string {
   return timestamp instanceof Date ? timestamp.toISOString() : timestamp;
@@ -33,6 +39,42 @@ export function isInviteCodeFormatValid(code: string): boolean {
   return inviteCodePattern.test(normalizeInviteCode(code));
 }
 
+function fillRandomValues(values: Uint8Array): Uint8Array {
+  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+    crypto.getRandomValues(values);
+    return values;
+  }
+
+  for (let index = 0; index < values.length; index += 1) {
+    values[index] = Math.floor(Math.random() * 256);
+  }
+
+  return values;
+}
+
+function pickFromAlphabet(alphabet: string, value: number): string {
+  return alphabet[value % alphabet.length];
+}
+
+export function createRandomInviteCode(): string {
+  const values = fillRandomValues(new Uint8Array(inviteCodeLength * 2));
+  const characters = [
+    pickFromAlphabet(inviteLetterAlphabet, values[0]),
+    pickFromAlphabet(inviteNumberAlphabet, values[1]),
+    pickFromAlphabet(inviteSymbolAlphabet, values[2]),
+    ...Array.from(values.slice(3, inviteCodeLength), (value) =>
+      pickFromAlphabet(inviteCodeAlphabet, value),
+    ),
+  ];
+
+  for (let index = characters.length - 1; index > 0; index -= 1) {
+    const swapIndex = values[inviteCodeLength + index] % (index + 1);
+    [characters[index], characters[swapIndex]] = [characters[swapIndex], characters[index]];
+  }
+
+  return characters.join('');
+}
+
 export function isInviteRole(value: unknown): value is InviteRole {
   return value === 'student' || value === 'admin';
 }
@@ -48,7 +90,9 @@ export function createInvite(input: CreateInviteInput): InviteCodeRecord {
   }
 
   if (!isInviteCodeFormatValid(code)) {
-    throw new Error('Invite code must be 4 to 64 uppercase letters, numbers, or hyphens.');
+    throw new Error(
+      'Invite code must be exactly 12 uppercase letters, numbers, or these symbols: ! @ # $ % * ?.',
+    );
   }
 
   if (!isInviteRole(role)) {

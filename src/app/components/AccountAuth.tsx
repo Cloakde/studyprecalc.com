@@ -3,6 +3,7 @@ import { type FormEvent, useState } from 'react';
 
 import type { LoginInput, SignupInput } from '../../data/localAccountStore';
 import type { EmailVerificationInput } from '../../data/supabase/accountStore';
+import { inviteCodeLength } from '../../domain/invites';
 
 export type SignupInviteValidationInput = {
   code: string;
@@ -313,7 +314,9 @@ export function AccountAuth({
               Invite Code
               <input
                 autoComplete="one-time-code"
+                maxLength={inviteCodeLength}
                 onChange={(event) => setInviteCode(event.target.value)}
+                placeholder="12-character code"
                 required
                 type="text"
                 value={inviteCode}

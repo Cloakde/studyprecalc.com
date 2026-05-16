@@ -1,6 +1,7 @@
 import {
   consumeInviteCode,
   createInvite,
+  createRandomInviteCode,
   getInviteStatus,
   markInviteRevoked,
   validateInviteCode,
@@ -13,7 +14,7 @@ function createBaseInvite(overrides: Partial<InviteCodeRecord> = {}): InviteCode
   return {
     ...createInvite({
       id: 'invite-1',
-      code: 'beta-2026',
+      code: 'AB7!CD8@EF9#',
       role: 'student',
       createdAt: '2026-05-13T10:00:00.000Z',
       expiresAt: '2026-05-14T10:00:00.000Z',
@@ -26,7 +27,7 @@ describe('invite domain helpers', () => {
   it('validates an active invite code', () => {
     const invite = createBaseInvite();
     const result = validateInviteCode({
-      code: ' beta-2026 ',
+      code: ' ab7!cd8@ef9# ',
       invites: [invite],
       now,
     });
@@ -39,9 +40,18 @@ describe('invite domain helpers', () => {
 
     expect(result.invite).toMatchObject({
       id: 'invite-1',
-      code: 'BETA-2026',
+      code: 'AB7!CD8@EF9#',
       role: 'student',
     });
+  });
+
+  it('generates 12-character codes with letters, numbers, and safe symbols', () => {
+    const code = createRandomInviteCode();
+
+    expect(code).toMatch(/^[A-Z0-9!@#$%*?]{12}$/);
+    expect(code).toMatch(/[A-Z]/);
+    expect(code).toMatch(/[0-9]/);
+    expect(code).toMatch(/[!@#$%*?]/);
   });
 
   it('rejects invalid invite codes', () => {
@@ -58,7 +68,7 @@ describe('invite domain helpers', () => {
 
     expect(
       validateInviteCode({
-        code: 'missing-2026',
+        code: 'ZZ9!ZZ9!ZZ9!',
         invites: [createBaseInvite()],
         now,
       }),
@@ -75,7 +85,7 @@ describe('invite domain helpers', () => {
 
     expect(
       validateInviteCode({
-        code: 'BETA-2026',
+        code: 'AB7!CD8@EF9#',
         invites: [invite],
         now,
       }),
@@ -93,7 +103,7 @@ describe('invite domain helpers', () => {
 
     expect(
       validateInviteCode({
-        code: 'BETA-2026',
+        code: 'AB7!CD8@EF9#',
         invites: [invite],
         now,
       }),
@@ -112,7 +122,7 @@ describe('invite domain helpers', () => {
     expect(getInviteStatus(invite, now)).toBe('revoked');
     expect(
       validateInviteCode({
-        code: 'BETA-2026',
+        code: 'AB7!CD8@EF9#',
         invites: [invite],
         now,
       }),
@@ -128,7 +138,7 @@ describe('invite domain helpers', () => {
   it('consumes a valid invite code once', () => {
     const invite = createBaseInvite();
     const firstConsumption = consumeInviteCode({
-      code: 'BETA-2026',
+      code: 'AB7!CD8@EF9#',
       invites: [invite],
       now,
       accountId: 'account-1',
@@ -147,7 +157,7 @@ describe('invite domain helpers', () => {
 
     expect(
       validateInviteCode({
-        code: 'BETA-2026',
+        code: 'AB7!CD8@EF9#',
         invites: firstConsumption.invites,
         now,
       }),

@@ -236,14 +236,30 @@ browser smoke passed.
 
 The production UI requires an invite code before signup, so bootstrap the owner with a one-time
 admin invite from the SQL Editor. Enable Supabase email confirmation before using an admin invite,
-and do not use predictable invite codes such as `OWNER-2026`.
+and do not use predictable hand-written invite codes.
 
-Replace the email first, then run this SQL. It generates a high-entropy one-time code, expires it
-quickly, and returns the exact code to use:
+Replace the email first, then run this SQL. It generates a 12-character one-time code with at least
+one letter, one number, and one safe symbol, expires it quickly, and returns the exact code to use:
 
 ```sql
-with generated_invite as (
-  select public.normalize_invite_code(encode(gen_random_bytes(16), 'hex')) as code
+with required_chars as (
+  select substr('ABCDEFGHJKLMNPQRSTUVWXYZ', 1 + (get_byte(gen_random_bytes(1), 0) % 24), 1) as ch
+  union all
+  select substr('23456789', 1 + (get_byte(gen_random_bytes(1), 0) % 8), 1)
+  union all
+  select substr('!@#$%*?', 1 + (get_byte(gen_random_bytes(1), 0) % 7), 1)
+),
+filler_chars as (
+  select substr('ABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%*?', 1 + (get_byte(gen_random_bytes(1), 0) % 39), 1) as ch
+  from generate_series(1, 9)
+),
+generated_invite as (
+  select string_agg(ch, '' order by gen_random_uuid()) as code
+  from (
+    select ch from required_chars
+    union all
+    select ch from filler_chars
+  ) characters
 )
 insert into public.invites (code, role, email, expires_at)
 select
@@ -359,7 +375,7 @@ SQL fallback for creating a student invite:
 ```sql
 insert into public.invites (code, role, email, class_id, expires_at)
 values (
-  public.normalize_invite_code('STUD-2026'),
+  public.normalize_invite_code('ST7!UD8@CD9#'),
   'student',
   lower(trim('student@example.com')),
   null,
@@ -374,7 +390,7 @@ Verify invite consumption:
 ```sql
 select code, role, email, class_id, consumed_at, consumed_by, revoked_at
 from public.invites
-where code = public.normalize_invite_code('STUD-2026');
+where code = public.normalize_invite_code('ST7!UD8@CD9#');
 ```
 
 ```sql
@@ -395,7 +411,7 @@ Known-bad invite check:
 
 ```sql
 select *
-from public.validate_invite('SMOKE-INVALID-INVITE', 'student@example.com');
+from public.validate_invite('ZZ9!ZZ9!ZZ9!', 'student@example.com');
 ```
 
 Expected result: `is_valid = false` and `reason = 'not-found'`.
@@ -404,13 +420,32 @@ Email mismatch check:
 
 ```sql
 with smoke_invite as (
+  with required_chars as (
+    select substr('ABCDEFGHJKLMNPQRSTUVWXYZ', 1 + (get_byte(gen_random_bytes(1), 0) % 24), 1) as ch
+    union all
+    select substr('23456789', 1 + (get_byte(gen_random_bytes(1), 0) % 8), 1)
+    union all
+    select substr('!@#$%*?', 1 + (get_byte(gen_random_bytes(1), 0) % 7), 1)
+  ),
+  filler_chars as (
+    select substr('ABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%*?', 1 + (get_byte(gen_random_bytes(1), 0) % 39), 1) as ch
+    from generate_series(1, 9)
+  ),
+  generated_invite as (
+    select string_agg(ch, '' order by gen_random_uuid()) as code
+    from (
+      select ch from required_chars
+      union all
+      select ch from filler_chars
+    ) characters
+  )
   insert into public.invites (code, role, email, expires_at)
-  values (
-    public.normalize_invite_code('SMOKE-MISMATCH-' || substr(encode(gen_random_bytes(4), 'hex'), 1, 8)),
+  select
+    generated_invite.code,
     'student',
     lower(trim('student@example.com')),
     now() + interval '30 minutes'
-  )
+  from generated_invite
   returning code
 )
 select validate_invite.*

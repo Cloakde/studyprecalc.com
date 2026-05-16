@@ -19,13 +19,33 @@ Public signup is invite-only at the database level. Bootstrap the owner by creat
 invite in the SQL Editor:
 
 ```sql
+with required_chars as (
+  select substr('ABCDEFGHJKLMNPQRSTUVWXYZ', 1 + (get_byte(gen_random_bytes(1), 0) % 24), 1) as ch
+  union all
+  select substr('23456789', 1 + (get_byte(gen_random_bytes(1), 0) % 8), 1)
+  union all
+  select substr('!@#$%*?', 1 + (get_byte(gen_random_bytes(1), 0) % 7), 1)
+),
+filler_chars as (
+  select substr('ABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%*?', 1 + (get_byte(gen_random_bytes(1), 0) % 39), 1) as ch
+  from generate_series(1, 9)
+),
+generated_invite as (
+  select string_agg(ch, '' order by gen_random_uuid()) as code
+  from (
+    select ch from required_chars
+    union all
+    select ch from filler_chars
+  ) characters
+)
 insert into public.invites (code, role, email, expires_at)
-values (
-  public.normalize_invite_code('OWNER-2026'),
+select
+  generated_invite.code,
   'admin',
   lower(trim('your-email@example.com')),
   now() + interval '7 days'
-);
+from generated_invite
+returning code, role, email, expires_at;
 ```
 
 Then sign up through the app with that invite code and matching email. If the owner profile already

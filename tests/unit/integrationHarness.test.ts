@@ -43,7 +43,7 @@ describe('integration harness invite signup flow', () => {
     );
     createLocalInvite(
       {
-        code: 'period-1',
+        code: 'PD7!RD8@P9#?',
         email: 'Student@One.Example',
         classId: 'class-1',
         createdByAccountId: 'admin-1',
@@ -62,7 +62,7 @@ describe('integration harness invite signup flow', () => {
         displayName: 'Student One',
         email: ' student@one.example ',
         password: 'secret1',
-        inviteCode: ' period-1 ',
+        inviteCode: ' pd7!rd8@p9#? ',
       },
       {
         storage,
@@ -82,7 +82,7 @@ describe('integration harness invite signup flow', () => {
     expect(result.consumedInvite).toMatchObject({
       status: 'consumed',
       invite: {
-        code: 'PERIOD-1',
+        code: 'PD7!RD8@P9#?',
         consumedByAccountId: 'account-1',
       },
     });
@@ -104,7 +104,7 @@ describe('integration harness invite signup flow', () => {
 
     createLocalInvite(
       {
-        code: 'email-bound',
+        code: 'EM7!IL8@BD9#',
         email: 'invited@example.com',
         expiresAt: '2026-05-15T08:00:00.000Z',
       },
@@ -122,7 +122,7 @@ describe('integration harness invite signup flow', () => {
           displayName: 'Wrong Student',
           email: 'wrong@example.com',
           password: 'secret1',
-          inviteCode: 'email-bound',
+          inviteCode: 'EM7!IL8@BD9#',
         },
         {
           storage,
@@ -293,7 +293,7 @@ describe('integration harness live smoke expectations', () => {
     );
     createLocalInvite(
       {
-        code: 'live-smoke',
+        code: 'LV7!SM8@K9#?',
         email: 'smoke.student@example.com',
         classId: 'class-live',
         createdByAccountId: 'admin-live',
@@ -312,7 +312,7 @@ describe('integration harness live smoke expectations', () => {
         displayName: 'Smoke Student',
         email: 'smoke.student@example.com',
         password: 'secret1',
-        inviteCode: 'live-smoke',
+        inviteCode: 'LV7!SM8@K9#?',
       },
       {
         storage,
@@ -395,7 +395,7 @@ describe('integration harness live smoke expectations', () => {
       consumedInvite: {
         status: 'consumed',
         invite: {
-          code: 'LIVE-SMOKE',
+          code: 'LV7!SM8@K9#?',
           consumedByAccountId: 'student-live',
         },
       },

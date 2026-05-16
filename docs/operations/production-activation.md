@@ -143,8 +143,8 @@ Owner, in Supabase SQL Editor:
 
 1. Create the one-time owner admin invite using the SQL in
    [Bootstrap The First Admin](supabase-setup.md#bootstrap-the-first-admin).
-2. Replace the placeholder email before running it. Let SQL generate the high-entropy invite code.
-   Do not use predictable codes such as `OWNER-2026`.
+2. Replace the placeholder email before running it. Let SQL generate the high-entropy 12-character
+   invite code. Do not use predictable hand-written codes.
 3. Open the deployed app or local app configured with Supabase env vars.
 4. Sign up with the matching owner email and invite code.
 5. Enter the six-digit email verification code if Supabase email confirmation is enabled.

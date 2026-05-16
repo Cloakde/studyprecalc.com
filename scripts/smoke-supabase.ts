@@ -40,7 +40,7 @@ type ValidateInviteRow = {
 };
 
 const currentFile = fileURLToPath(import.meta.url);
-const defaultInvalidInviteCode = 'SMOKE-KNOWN-INVALID-CODE-2026';
+const defaultInvalidInviteCode = 'ZZ9!ZZ9!ZZ9!';
 const questionImagesBucket = 'question-images';
 const questionImagesMaxBytes = 1024 * 1024;
 const questionImagesAllowedMimeTypes = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];

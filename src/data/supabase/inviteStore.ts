@@ -4,6 +4,7 @@ import type { CreateLocalInviteInput } from '../localInviteStore';
 import {
   consumeInviteCode as consumeInviteCodeInDomain,
   createInvite,
+  createRandomInviteCode,
   isInviteCodeFormatValid,
   markInviteConsumed,
   markInviteRevoked,
@@ -99,23 +100,6 @@ function createBrowserId(prefix: string): string {
   }
 
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-}
-
-function createBrowserInviteCode(): string {
-  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  const values = new Uint8Array(8);
-
-  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
-    crypto.getRandomValues(values);
-  } else {
-    for (let index = 0; index < values.length; index += 1) {
-      values[index] = Math.floor(Math.random() * alphabet.length);
-    }
-  }
-
-  const characters = Array.from(values, (value) => alphabet[value % alphabet.length]);
-
-  return `${characters.slice(0, 4).join('')}-${characters.slice(4).join('')}`;
 }
 
 function normalizeLookup(input: SupabaseInviteCodeLookup): { code: string; email?: string } {
@@ -237,7 +221,7 @@ function createInviteFromInput(
 ): InviteCodeRecord {
   const now = options.now ?? (() => new Date());
   const createId = options.createId ?? (() => createBrowserId('invite'));
-  const createCode = options.createCode ?? createBrowserInviteCode;
+  const createCode = options.createCode ?? createRandomInviteCode;
 
   return createInvite({
     id: input.id ?? createId(),
