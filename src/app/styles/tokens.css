@@ -177,4 +177,28 @@
 
   --sp-text-pill-size: 0.74rem;
   --sp-text-pill-weight: 900;
+
+  /* ---------- Notebook Design Refresh ---------- */
+  --sp-notebook-paper: #f6f0df;
+  --sp-notebook-paper-soft: #fffaf0;
+  --sp-notebook-paper-warm: #fffdf6;
+  --sp-notebook-edge: #e7dcc1;
+  --sp-notebook-rule: rgba(29, 53, 87, 0.16);
+  --sp-notebook-rule-strong: rgba(29, 53, 87, 0.28);
+  --sp-notebook-margin: rgba(184, 40, 74, 0.32);
+  --sp-notebook-ink: #1d3557;
+  --sp-notebook-ink-soft: #35506f;
+  --sp-notebook-pencil: #6b6759;
+  --sp-notebook-red: #b8284a;
+  --sp-notebook-red-dark: #8d1734;
+  --sp-notebook-ochre: #c46a26;
+  --sp-notebook-gold: #e0ad48;
+  --sp-notebook-forest: #3a6053;
+  --sp-notebook-blue: #2f5c86;
+  --sp-notebook-tape: rgba(237, 211, 152, 0.72);
+  --sp-notebook-shadow: 0 18px 32px rgba(43, 34, 20, 0.12);
+  --sp-notebook-shadow-soft: 0 10px 20px rgba(43, 34, 20, 0.08);
+  --sp-notebook-font-serif: Georgia, 'Times New Roman', serif;
+  --sp-notebook-font-hand: 'Segoe Print', 'Bradley Hand ITC', cursive;
+  --sp-notebook-font-typewriter: 'Courier New', Courier, monospace;
 }

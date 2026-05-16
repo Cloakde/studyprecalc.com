@@ -4,13 +4,14 @@ Last updated: 2026-05-16
 
 ## Current Phase
 
-M23-M28 repo-side execution is complete. Owner-side Supabase smoke accounts and optional `www`
-DNS configuration still require owner dashboard access.
+DESIGN-002 notebook design refresh is complete. Owner-side Supabase smoke accounts and optional
+`www` DNS configuration still require owner dashboard access.
 
 ## Active Ownership
 
 | Agent             | Task                                         | File Scope                                                                                                                                                                     | Status |
 | ----------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------ |
+| Codex             | DESIGN-002 notebook design refresh           | `src/app/styles/tokens.css`, `src/app/styles/app.css`, `src/app/styles/home.css`, `.ai/*`                                                                                      | Done   |
 | Codex             | M23-M28 milestone integration                | `scripts/*`, `src/domain/*`, `src/app/components/*`, `src/app/App.tsx`, `src/app/styles/app.css`, `tests/*`, `docs/*`, `.ai/*`                                                 | Done   |
 | Worker M24        | Repeatable admin workflow QA coverage        | `tests/fixtures/integrationHarness.ts`, `tests/unit/integrationHarness.test.ts`, `scripts/live-smoke-checklist.ts`, `docs/operations/m9-m10-owner-handoff.md`                  | Done   |
 | Worker M23        | Supabase activation hardening                | `scripts/smoke-supabase.ts`, `tests/unit/supabaseSmoke.test.ts`, `docs/operations/supabase-setup.md`, `docs/operations/production-activation.md`                               | Done   |
@@ -107,6 +108,9 @@ DNS configuration still require owner dashboard access.
 - `npm run smoke:supabase` now treats private bucket metadata as an anon-key limitation when
   write smoke is not enabled; real storage writes still require `SMOKE_WRITE=1` with admin and
   student smoke credentials.
+- DESIGN-002 translated `Study Precalc Design System (3).zip` into the existing UI as a notebook
+  visual layer for the homepage, auth, student dashboard, practice, session, review, and exams
+  without importing mock question content.
 
 ## Last Verification
 
@@ -174,3 +178,4 @@ warning. Browser/CDP automation was unavailable because no local debugging targe
 2026-05-15: Worker M28 hardened production readiness launch gates for Supabase activation evidence, `question-images` bucket evidence, backup/export planning, current production blockers, localhost Supabase URLs, and optional `www` handling. Ran `npm test -- productionReadiness`, scoped Prettier, scoped ESLint, normal `npm run check:production-readiness` expected-failure blocker output, and confirmed readiness success with explicit `READINESS_*` confirmations.
 2026-05-15: Worker M26 completed content library media readiness polish for prompt/explanation images, local media blockers, placeholder media URLs, and external video metadata guidance. Ran `npm test -- contentReadiness firstPackReadiness`, `npx tsc --noEmit --pretty false`, scoped ESLint for `src/domain/questions/contentReadiness.ts` and `tests/unit/contentReadiness.test.ts`, and scoped Prettier checks for touched files. All passed.
 2026-05-16: Codex integrated M23-M28 and ran `npm run lint`, `npm test` (215 tests), `npm run build`, `npm run validate:content`, `git diff --check`, `npm run smoke:supabase`, success-path `npm run check:production-readiness` with documented `READINESS_*` confirmations, `npm run smoke:live-checklist -- --base-url https://studyprecalc.com --run-label "M23-M28 post-integration" --no-cleanup`, targeted `npm test -- supabaseSmoke examDomain sessionPractice`, and an HTTP smoke for `http://127.0.0.1:5173/`. Repo checks passed; build still reports the existing large-chunk warning. Live write smoke remains owner-only until real admin/student smoke credentials are provided.
+2026-05-16: Codex completed DESIGN-002 and ran `npm run lint`, `npm test` (215 tests), `npm run build`, `npm run validate:content`, `git diff --check`, an HTTP smoke for `http://127.0.0.1:5173/`, and a Chrome DevTools Protocol mobile check confirming `scrollWidth` equals the 390px viewport. All passed; build still reports the existing large-chunk warning.
