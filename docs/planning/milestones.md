@@ -187,6 +187,117 @@ Goal: a public, usable v1 of the web app.
 
 Exit criteria: a stranger can open the site and complete a practice session with no bugs or accessibility blockers.
 
+## Current Forward Milestones
+
+These milestones continue the active web-first roadmap after the repo-side M21/M22 work. The
+numbers stay aligned with the current task-board history.
+
+### M23 - Production Activation
+
+Goal: make `studyprecalc.com` usable with the real Supabase backend.
+
+- [ ] **M23.1** Owner applies `supabase/schema.sql` in Supabase.
+- [ ] **M23.2** Owner confirms the private `question-images` bucket and Storage policies.
+- [ ] **M23.3** Owner configures invite-only email verification with visible signup codes.
+- [ ] **M23.4** Owner creates the first production admin and one student smoke account.
+- [ ] **M23.5** Run live Supabase smoke checks and capture launch evidence.
+
+Exit criteria: one real admin/student cloud smoke cycle passes end to end.
+
+### M24 - Live Admin/Student Smoke
+
+Goal: prove the live class, invite, publish, archive, media, and dashboard workflows.
+
+- [ ] **M24.1** Admin signs in with MFA and creates a class.
+- [ ] **M24.2** Admin creates a student invite; student signs up with email code.
+- [ ] **M24.3** Student enrolls through the invite and sees the correct class context.
+- [ ] **M24.4** Admin publishes original smoke content with at least one image.
+- [ ] **M24.5** Student sees published content only; archived content disappears.
+- [ ] **M24.6** Student completes practice; dashboard progress persists.
+
+Exit criteria: the hosted app passes a manual live smoke checklist with production accounts.
+
+### M25 - Exam Modes
+
+Goal: add structured exams on top of the question/session engine without adding copyrighted
+question content.
+
+- [ ] **M25.1** Define an exam blueprint model for fixed question pools, timing, section labels,
+      calculator policy, scoring, and review settings.
+- [ ] **M25.2** Add **unit practice exams** for each course unit: Unit 1, Unit 2, Unit 3, and Unit 4.
+- [ ] **M25.3** Add **AP prep exams** that intentionally pull from Units 1-3 only.
+- [ ] **M25.4** Add admin controls to assemble exam blueprints from owner-authored/published
+      questions without coding.
+- [ ] **M25.5** Add student exam-taking UI with no answer reveal until submit.
+- [ ] **M25.6** Save exam attempts separately from ordinary practice sessions.
+- [ ] **M25.7** Add exam review screens with section score, time, missed topics, and FRQ rubric
+      self-score summaries.
+
+Exit criteria: a student can take a Unit 1 practice exam and an AP prep exam using authored
+questions, then review performance without seeing answer explanations early.
+
+### M26 - Assignments
+
+Goal: let admins assign question sets, unit exams, or AP prep exams to classes.
+
+- [ ] **M26.1** Assignment model: title, description, class, due date, content type, and completion
+      rules.
+- [ ] **M26.2** Admin can assign a practice set, unit practice exam, or AP prep exam.
+- [ ] **M26.3** Student dashboard shows assigned work and due dates.
+- [ ] **M26.4** Assignment completion persists and appears in class progress.
+- [ ] **M26.5** Admin can filter assignment progress by class, student, unit, and status.
+
+Exit criteria: a teacher can assign a Unit 2 practice exam to a class and see who completed it.
+
+### M27 - Media Library
+
+Goal: make images reusable and manageable across authored questions and exams.
+
+- [ ] **M27.1** Reusable image library with search, tags, unit labels, and alt text.
+- [ ] **M27.2** Safe replace/delete flows that detect published question usage.
+- [ ] **M27.3** Import/export bundles that preserve image references.
+- [ ] **M27.4** Readiness checks for missing alt text and orphaned media.
+
+Exit criteria: content authors can manage graphs and plots without re-uploading or breaking
+published questions.
+
+### M28 - Reporting
+
+Goal: give admins useful class-level and student-level insight.
+
+- [ ] **M28.1** Class progress table.
+- [ ] **M28.2** Per-student weak units and weak skills.
+- [ ] **M28.3** Per-question accuracy and time-on-task.
+- [ ] **M28.4** Exam-specific reporting for unit practice exams and AP prep exams.
+- [ ] **M28.5** CSV export for progress and grades.
+
+Exit criteria: a teacher can identify weak topics and export a class progress snapshot.
+
+### M29 - AI FRQ Grading Backend
+
+Goal: connect the existing disabled AI foundation to a server-side grading proxy.
+
+- [ ] **M29.1** Server-side Gemini proxy with secrets stored outside browser code.
+- [ ] **M29.2** Daily limits, likely starting at 4 FRQ grading requests per student per day.
+- [ ] **M29.3** Store compact feedback summaries and usage records.
+- [ ] **M29.4** Admin settings for enablement and limits.
+- [ ] **M29.5** Teacher review/override path.
+
+Exit criteria: AI feedback can be enabled safely for a small class without exposing provider keys.
+
+### M30 - Launch Hardening
+
+Goal: reduce operational and accessibility risk before inviting students broadly.
+
+- [ ] **M30.1** RLS/security review.
+- [ ] **M30.2** Backup/export plan.
+- [ ] **M30.3** Accessibility pass across homepage, auth, practice, exams, admin, and dashboard.
+- [ ] **M30.4** Mobile QA pass.
+- [ ] **M30.5** Privacy/terms pages.
+- [ ] **M30.6** First-pack launch checklist against owner-authored questions and exams.
+
+Exit criteria: the app is ready for a small classroom beta.
+
 ### M11 — Desktop Port
 
 Goal: deferred indefinitely. Reconsider only if there is a strong future need for offline distribution outside the browser.

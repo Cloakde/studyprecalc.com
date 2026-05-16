@@ -591,3 +591,10 @@ Use this file as an append-only record whenever an agent finishes, pauses, or ha
 - Files changed: Updated `src/app/components/Home.tsx`, `src/app/styles/home.css`, and coordination files.
 - Summary: Applied the owner-provided Study Precalc Design System homepage refresh with a plotted math hero background, AP-style hero question preview, refreshed unit mini-plots, "Why us" nav copy, and mobile wrapping/overflow hardening.
 - Verification: Ran `npm run lint`, `npm test` (196 tests), `npm run validate:content`, `npm run build`, `git diff --check`, an HTTP smoke for `http://127.0.0.1:5173/`, and a Chrome DevTools Protocol mobile viewport check at 390px with document/body scroll width equal to viewport width. All passed; Vite still prints the existing large-chunk warning.
+
+### 2026-05-15 - Codex - Exam-Mode Roadmap Update
+
+- Status: Complete.
+- Files changed: Updated `docs/planning/milestones.md`, `docs/product/app-vision.md`, `.ai/task-board.md`, `.ai/status.md`, and this handoff log.
+- Summary: Added M25 Exam Modes with unit practice exams for Units 1-4 and AP prep exams that intentionally include Units 1-3 only. Added EXAM-001 and EXAM-002 backlog items.
+- Verification: Ran targeted Prettier and `git diff --check` for the touched docs/coordination files.

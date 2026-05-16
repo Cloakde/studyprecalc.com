@@ -4,9 +4,8 @@ Last updated: 2026-05-15
 
 ## Current Phase
 
-Homepage design-system update plus a HOME-002 a11y/polish pass are complete (committed + pushed to
-`origin/main`). Production activation still remains blocked on owner-side Supabase SQL/bucket/account
-setup and optional `www` DNS configuration.
+Exam-mode roadmap update is complete. Production activation still remains blocked on owner-side
+Supabase SQL/bucket/account setup and optional `www` DNS configuration.
 
 ## Active Ownership
 
@@ -86,6 +85,8 @@ setup and optional `www` DNS configuration.
 - HOME-002 applied the owner-provided homepage design-system refresh: plotted math hero
   background, AP-style hero question preview, refreshed unit mini-plots, and responsive homepage
   overflow fixes.
+- EXAM-001/EXAM-002 are now tracked as future roadmap items: unit practice exams for Units 1-4
+  and AP prep exams restricted to Units 1-3.
 
 ## Last Verification
 
@@ -139,3 +140,4 @@ Prettier/ESLint for the touched tests, and `npx tsc --noEmit --pretty false`. Al
 2026-05-15: Codex integrated M19/M20 and ran `npm run lint`, `npm test` (182 tests), `npm run validate:content`, `git diff --check`, `npm run build`, and an HTTP smoke for `http://127.0.0.1:5173/`. All passed. Vite still reports the existing large-chunk warning during build.
 2026-05-15: Codex integrated M21/M22 and ran `npm run lint`, `npm test` (196 tests), `npm run validate:content`, `npm run check:first-pack -- --help`, `npm run check:first-pack`, `git diff --check`, `npm run build`, an expected-failure template placeholder check, and an HTTP smoke for `http://127.0.0.1:5173/`. Repo checks passed. `npm run check:first-pack` correctly fails on the intentionally empty starter bank until owner-authored questions are added; the template check correctly fails while `OWNER_TODO` placeholders remain.
 2026-05-15: Codex completed HOME-002 and ran `npm run lint`, `npm test` (196 tests), `npm run validate:content`, `npm run build`, `git diff --check`, an HTTP smoke for `http://127.0.0.1:5173/`, and a Chrome DevTools Protocol mobile viewport check at 390px. All passed; build still reports the existing large-chunk warning.
+2026-05-15: Codex completed the exam-mode roadmap update and ran targeted Prettier plus `git diff --check` for the touched docs/coordination files.
