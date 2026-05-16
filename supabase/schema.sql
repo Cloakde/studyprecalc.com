@@ -524,6 +524,19 @@ alter table public.invites enable row level security;
 alter table public.media_records enable row level security;
 alter table public.question_media enable row level security;
 
+grant usage on schema public to anon, authenticated;
+
+grant select on public.profiles to authenticated;
+grant select on public.questions, public.media_records, public.question_media to anon, authenticated;
+grant insert, update, delete on public.questions, public.media_records, public.question_media
+  to authenticated;
+grant select, insert, update, delete
+  on public.classes, public.class_enrollments, public.invites
+  to authenticated;
+grant select, insert, update, delete
+  on public.attempts, public.session_results
+  to authenticated;
+
 drop policy if exists "Profiles can read themselves" on public.profiles;
 create policy "Profiles can read themselves"
 on public.profiles for select

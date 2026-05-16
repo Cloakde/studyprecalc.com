@@ -202,6 +202,23 @@ describe('Supabase smoke helpers', () => {
     );
   });
 
+  it('points table permission errors back to the schema grants', () => {
+    expect(
+      formatSmokeNextActions([
+        {
+          name: 'student progress tables',
+          status: 'fail',
+          message: 'attempts: permission denied for table attempts',
+        },
+      ]),
+    ).toBe(
+      [
+        'Next owner action(s):',
+        '- Run the full supabase/schema.sql in the production Supabase SQL Editor.',
+      ].join('\n'),
+    );
+  });
+
   it('does not print next actions when no action is needed', () => {
     expect(
       formatSmokeNextActions([

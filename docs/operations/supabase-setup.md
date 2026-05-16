@@ -57,6 +57,8 @@ The script is intended to be rerunnable. It creates or updates:
   and `updated_at` timestamps.
 - Row Level Security policies for student-owned progress, admin-managed content, classes, invites,
   media metadata, and admin `aal2` enforcement.
+- Data API grants for `anon`/`authenticated` roles. RLS still decides which rows each user can
+  actually read or write.
 - A private Storage bucket named `question-images` with a 1 MB file limit and these MIME types:
   `image/png`, `image/jpeg`, `image/webp`, and `image/gif`.
 
@@ -86,6 +88,18 @@ order by table_name;
 ```
 
 Expected result: all nine table names.
+
+```sql
+select grantee, table_name, privilege_type
+from information_schema.role_table_grants
+where table_schema = 'public'
+  and table_name in ('attempts', 'session_results')
+  and grantee = 'authenticated'
+order by table_name, privilege_type;
+```
+
+Expected result: both `attempts` and `session_results` show `SELECT`, `INSERT`, `UPDATE`, and
+`DELETE`.
 
 ```sql
 select id, name, public, file_size_limit, allowed_mime_types
@@ -654,6 +668,26 @@ student published-image screenshot/checkpoint, student archived-question checkpo
   bucket exists from `supabase/schema.sql`, and the file is PNG, JPEG, WebP, or GIF rather than SVG.
 - Attempts do not persist: verify the user is signed in through Supabase, not the local dev admin,
   and that `public.attempts` RLS policies exist.
+- `permission denied for table attempts` or `permission denied for table session_results`: rerun
+  the latest `supabase/schema.sql`, or run this repair query in the Supabase SQL Editor:
+
+```sql
+grant usage on schema public to anon, authenticated;
+
+grant select on public.profiles to authenticated;
+grant select on public.questions, public.media_records, public.question_media to anon, authenticated;
+grant insert, update, delete on public.questions, public.media_records, public.question_media
+  to authenticated;
+grant select, insert, update, delete
+  on public.classes, public.class_enrollments, public.invites
+  to authenticated;
+grant select, insert, update, delete
+  on public.attempts, public.session_results
+  to authenticated;
+
+revoke update on public.profiles from authenticated;
+grant update (display_name) on public.profiles to authenticated;
+```
 
 ## References
 

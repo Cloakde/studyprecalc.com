@@ -174,6 +174,7 @@ export function formatSmokeNextActions(results: SmokeResult[]): string {
         /question_media/i,
         /schema cache/i,
         /could not find/i,
+        /permission denied for table/i,
         /relation .* does not exist/i,
       ]),
     )
@@ -586,6 +587,51 @@ async function checkMediaTableSchema(
   };
 }
 
+async function checkStudentProgressTables(
+  config: SmokeConfig,
+  studentClient: SupabaseClient,
+): Promise<SmokeResult> {
+  const signInResult = await signInSmokeStudent(config, studentClient);
+
+  if ('result' in signInResult) {
+    return {
+      ...signInResult.result,
+      name: 'student progress tables',
+      message:
+        signInResult.result.status === 'skip'
+          ? 'SMOKE_STUDENT_EMAIL and SMOKE_STUDENT_PASSWORD were not provided.'
+          : signInResult.result.message,
+    };
+  }
+
+  try {
+    const progressTables = ['attempts', 'session_results'] as const;
+
+    for (const tableName of progressTables) {
+      const { error } = await studentClient
+        .from(tableName)
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', signInResult.userId);
+
+      if (error) {
+        return {
+          name: 'student progress tables',
+          status: 'fail',
+          message: `${tableName}: ${error.message}`,
+        };
+      }
+    }
+
+    return {
+      name: 'student progress tables',
+      status: 'pass',
+      message: 'Student can query owned attempts and session_results through RLS.',
+    };
+  } finally {
+    await ignoreCleanupError(studentClient.auth.signOut());
+  }
+}
+
 async function checkAdminLogin(
   config: SmokeConfig,
   adminClient: SupabaseClient,
@@ -951,6 +997,7 @@ export async function runSupabaseSmoke(config: SmokeConfig): Promise<SmokeResult
       'question_media',
       'id,question_id,media_id,placement,asset_id,sort_order',
     ),
+    await checkStudentProgressTables(config, studentClient),
     await checkAdminLogin(config, adminClient),
   ];
 }

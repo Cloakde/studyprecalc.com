@@ -619,3 +619,11 @@ Use this file as an append-only record whenever an agent finishes, pauses, or ha
 - Files changed: Updated `src/app/components/StudentDashboard.tsx`, `src/app/components/AttemptReview.tsx`, `src/app/styles/app.css`, and coordination files.
 - Summary: Fetched and read the Claude Design bundle/readme/chats, then implemented the relevant current direction: a coordinate-plane student dashboard with visual stat cards, unit mini-plots, recommended-session preview, weak-topic rows, and compact session history; plus a denser attempt review screen with summary cards, type/unit/search filters, score states, prompt context, and response previews. Homepage scope was intentionally left unchanged because the design notes already marked it as mostly good after HOME-002.
 - Verification: Ran `npm run lint`, `npx tsc --noEmit --pretty false`, `npm test` (199 tests), `npm run build`, `npm run validate:content`, `git diff --check`, and an HTTP smoke for `http://127.0.0.1:5173/`. All passed; build still reports the existing large-chunk warning. Browser/CDP automation was unavailable because no local debugging target responded.
+
+### 2026-05-15 - Codex - PROD-010 Supabase Progress Grants
+
+- Status: Complete.
+- Files changed: Updated `supabase/schema.sql`, `scripts/smoke-supabase.ts`, `tests/unit/supabaseSmoke.test.ts`, `docs/operations/supabase-setup.md`, and coordination files.
+- Summary: Added explicit `anon`/`authenticated` Data API grants so RLS-backed tables are reachable through Supabase PostgREST. The immediate production repair is to grant `authenticated` `SELECT`, `INSERT`, `UPDATE`, and `DELETE` on `public.attempts` and `public.session_results`; the schema now also covers content, class, invite, and media tables explicitly so this class of permission error does not recur.
+- Verification: Ran `npm test -- supabaseSmoke`, `npx tsc --noEmit --pretty false`, `npm run lint`, `npm test` (200 tests), `npm run build`, `npm run validate:content`, and `git diff --check`. All passed; build still reports the existing large-chunk warning. Prettier was run for touched docs/TS files; `.sql` has no configured Prettier parser.
+- Next owner action: Run the latest `supabase/schema.sql` in the Supabase SQL Editor, or run the smaller repair SQL listed in `docs/operations/supabase-setup.md`, then refresh the app and retry saving progress.

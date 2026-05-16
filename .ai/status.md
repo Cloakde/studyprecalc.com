@@ -4,14 +4,14 @@ Last updated: 2026-05-15
 
 ## Current Phase
 
-Dashboard/review design implementation is complete. Production activation still remains blocked on
+Supabase progress-table permission fix is complete. Production activation still remains blocked on
 owner-side Supabase SQL/bucket/account setup and optional `www` DNS configuration.
 
 ## Active Ownership
 
-| Agent | Task                                     | File Scope                                                                                                           | Status |
-| ----- | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------- | ------ |
-| Codex | Implement dashboard/review design bundle | `src/app/components/StudentDashboard.tsx`, `src/app/components/AttemptReview.tsx`, `src/app/styles/app.css`, `.ai/*` | Done   |
+| Agent | Task                                           | File Scope                                                             | Status |
+| ----- | ---------------------------------------------- | ---------------------------------------------------------------------- | ------ |
+| Codex | Fix Supabase attempt/session table permissions | `supabase/schema.sql`, `docs/operations/*`, `scripts/*smoke*`, `.ai/*` | Done   |
 
 ## Notes
 
@@ -89,6 +89,9 @@ owner-side Supabase SQL/bucket/account setup and optional `www` DNS configuratio
   and AP prep exams restricted to Units 1-3.
 - DESIGN-001 applies the fetched Claude Design dashboard/review direction to the real student
   dashboard and attempt review surfaces while leaving the already-refreshed homepage unchanged.
+- PROD-010 adds explicit Supabase Data API grants for progress/content/class/media tables. This
+  fixes `permission denied for table attempts` and `permission denied for table session_results`
+  after the latest SQL is applied in Supabase.
 
 ## Last Verification
 
@@ -149,3 +152,4 @@ Prettier/ESLint for the touched tests, and `npx tsc --noEmit --pretty false`. Al
 `npm test` (199 tests), `npm run build`, `npm run validate:content`, `git diff --check`, and an
 HTTP smoke for `http://127.0.0.1:5173/`. All passed; build still reports the existing large-chunk
 warning. Browser/CDP automation was unavailable because no local debugging target responded.
+2026-05-15: Codex completed PROD-010 and ran `npm test -- supabaseSmoke`, `npx tsc --noEmit --pretty false`, `npm run lint`, `npm test` (200 tests), `npm run build`, `npm run validate:content`, and `git diff --check`. All passed; build still reports the existing large-chunk warning. Prettier was run for touched docs/TS files; `.sql` has no configured Prettier parser.

@@ -80,6 +80,7 @@
 | CONTENT-014 | M22 first-pack launch checklist                       | Codex + Worker 12 | Done    | Added local `npm run check:first-pack` tooling/docs/tests and placeholder launch blockers for unfinished templates.                                                                                                                                                                            |
 | HOME-002    | Apply owner-provided homepage UI update               | Codex             | Done    | Applied the Study Precalc Design System zip homepage refresh, added mobile overflow hardening, and verified lint/tests/build/content validation plus HTTP/CDP mobile smoke.                                                                                                                    |
 | DESIGN-001  | Implement dashboard/review design bundle              | Codex             | Done    | Ported the latest Claude Design dashboard and review visual language into the real `StudentDashboard` and `AttemptReview` surfaces without changing homepage scope.                                                                                                                            |
+| PROD-010    | Fix Supabase progress table grants                    | Codex             | Done    | Added explicit Data API grants for progress/content/class/media tables, documented the repair SQL, and expanded Supabase smoke checks to catch student progress table permission errors.                                                                                                       |
 
 ## Later
 
