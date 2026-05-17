@@ -1,35 +1,13 @@
+import { apPrecalculusUnits } from '../curriculum';
 import type { ExamBlueprint, ExamUnitDefinition, ExamUnitId } from './types';
 
-export const examUnits: ExamUnitDefinition[] = [
-  {
-    id: 'unit-1',
-    number: 1,
-    title: 'Polynomial and Rational Functions',
-    assessedOnApExam: true,
-    aliases: ['unit-1', 'unit 1', 'polynomial and rational functions'],
-  },
-  {
-    id: 'unit-2',
-    number: 2,
-    title: 'Exponential and Logarithmic Functions',
-    assessedOnApExam: true,
-    aliases: ['unit-2', 'unit 2', 'exponential and logarithmic functions'],
-  },
-  {
-    id: 'unit-3',
-    number: 3,
-    title: 'Trigonometric and Polar Functions',
-    assessedOnApExam: true,
-    aliases: ['unit-3', 'unit 3', 'trigonometric and polar functions'],
-  },
-  {
-    id: 'unit-4',
-    number: 4,
-    title: 'Functions Involving Parameters, Vectors, and Matrices',
-    assessedOnApExam: false,
-    aliases: ['unit-4', 'unit 4', 'functions involving parameters vectors and matrices'],
-  },
-];
+export const examUnits: ExamUnitDefinition[] = apPrecalculusUnits.map((unit) => ({
+  id: unit.id,
+  number: unit.number,
+  title: unit.title,
+  assessedOnApExam: unit.assessedOnApExam,
+  aliases: [...unit.aliases],
+}));
 
 const unitPracticeRequirementCount = {
   mcq: 12,
@@ -64,21 +42,23 @@ export const unitPracticeExamBlueprints: ExamBlueprint[] = examUnits.map((unit) 
   },
 }));
 
+const apPrepExamUnitIds = examUnits.filter((unit) => unit.assessedOnApExam).map((unit) => unit.id);
+
 export const apPrepExamBlueprint: ExamBlueprint = {
   id: 'ap-prep-units-1-3',
   title: 'AP Prep Exam: Units 1-3',
   mode: 'ap-prep',
-  unitIds: ['unit-1', 'unit-2', 'unit-3'],
+  unitIds: apPrepExamUnitIds,
   requirements: [
     {
       type: 'mcq',
       count: 24,
-      unitIds: ['unit-1', 'unit-2', 'unit-3'],
+      unitIds: apPrepExamUnitIds,
     },
     {
       type: 'frq',
       count: 4,
-      unitIds: ['unit-1', 'unit-2', 'unit-3'],
+      unitIds: apPrepExamUnitIds,
     },
   ],
   timing: {

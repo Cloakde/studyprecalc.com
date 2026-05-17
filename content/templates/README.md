@@ -13,5 +13,10 @@ Use `original-question-pack-template.json` as a draft import shell:
    `npm run validate:content`.
 5. Import it in the app through `Manage Content` > `Import`.
 
+The template's `unit` and `topic` fields use canonical AP Precalculus CED labels from
+`docs/product/content-taxonomy.md`. Keep those labels exact for filtering and exam-readiness
+metadata, but write every prompt, choice, FRQ part, explanation, rubric, graph, image, video, and
+transcript yourself or use rights-cleared materials.
+
 Keep imported packs as `draft` until the owner previews the questions, checks alt text and rubrics,
 and clears readiness blockers.

@@ -685,3 +685,52 @@ Use this file as an append-only record whenever an agent finishes, pauses, or ha
 - Files changed: Updated `src/app/styles/tokens.css`, `src/app/styles/app.css`, `src/app/styles/home.css`, and coordination files.
 - Summary: Read `Study Precalc Design System (3).zip` and translated the notebook visual language into the real app: paper textures, red margin rules, taped/stamped surfaces, serif headings, typewriter controls, bubble-sheet answer states, and notebook-style cards across the homepage, auth, student dashboard, practice, session, review, and exams. No mock question content from the design bundle was imported.
 - Verification: Ran `npm run lint`, `npm test` (215 tests), `npm run build`, `npm run validate:content`, `git diff --check`, an HTTP smoke for `http://127.0.0.1:5173/`, and a Chrome DevTools Protocol mobile check confirming `scrollWidth` equals the 390px viewport. All passed; build still reports the existing large-chunk warning.
+
+### 2026-05-16 - Worker M29-4 - Exam Unit Alignment
+
+- Status: Complete.
+- Files changed: Updated `src/domain/exams/blueprints.ts`, `src/domain/exams/readiness.ts`, `src/domain/exams/types.ts`, `tests/unit/examDomain.test.ts`, and coordination files.
+- Summary: Derived `examUnits` and `ExamUnitId` from the canonical AP Precalculus curriculum module, copied canonical aliases into exam unit definitions, derived AP prep unit IDs from curriculum exam-assessed flags so Unit 4 stays excluded, and switched exam readiness unit matching to the canonical unit lookup.
+- Verification: Ran `npm test -- examDomain`, scoped ESLint, and scoped Prettier check for the exam files. All passed. Attempted repo-wide `npx tsc --noEmit --pretty false`, which is currently blocked by active M29 work outside Worker M29-4 scope in `src/app/components/ContentManager.tsx` and `src/domain/curriculum/apPrecalculusCed.ts`.
+
+### 2026-05-16 - Worker M29-5 - Curriculum Docs/Templates
+
+- Status: Complete.
+- Files changed: Updated `docs/product/content-taxonomy.md`, `docs/product/question-model.md`, `content/templates/README.md`, `content/templates/original-question-pack-template.json`, and coordination files.
+- Summary: Replaced paraphrased product taxonomy topics with canonical AP Precalculus CED unit/topic labels, clarified that CED metadata can be used for alignment while question text, rubrics, images, graphs, videos, and sample responses must be original or rights-cleared, and refreshed the MCQ/FRQ template examples to canonical unit/topic labels without adding real College Board question content.
+- Verification: Ran targeted Prettier write/check and scoped `git diff --check` for the touched docs/template/coordination files.
+
+### 2026-05-16 - Worker M29-2 - Content Validation Alignment
+
+- Status: Complete.
+- Files changed: Updated `scripts/validate-content.ts`, `tests/unit/contentValidation.test.ts`, and coordination files.
+- Summary: Integrated canonical AP Precalculus curriculum helpers into content authoring validation. Authored question metadata now reports `invalid-unit`, `invalid-topic`, and `topic-unit-mismatch` authoring issues while accepting canonical unit titles and matching canonical topic titles. Schemas and UI files were not edited.
+- Verification: Ran `npm test -- contentValidation`, `npm run validate:content`, scoped ESLint, scoped Prettier check, and `npm test -- curriculum contentValidation`; all passed. Attempted `npx tsc --noEmit --pretty false`, which is currently blocked by active M29 work outside Worker M29-2 scope in `src/app/components/ContentManager.tsx` and `src/domain/curriculum/apPrecalculusCed.ts`.
+
+### 2026-05-16 - Worker M29-6 - Curriculum Integration QA
+
+- Status: Complete.
+- Files changed: Coordination files only.
+- Summary: Checked landed M29 taxonomy/docs/templates, curriculum data, exam unit/readiness alignment, content validation, and Content Manager dropdown behavior. Domain tests now pass together, validation accepts the canonical docs/template labels, exam units derive from the canonical curriculum, and the Content Manager dropdown wiring stores formatted canonical unit/topic values after the M29-3 export follow-up landed.
+- Verification: Ran `npm test -- curriculum contentValidation examDomain`, `npm run validate:content`, targeted ESLint for M29 files, `npm run build`, and `npm run lint`. All passed; build still reports the existing large-chunk warning.
+
+### 2026-05-16 - Worker M29-3 - Content Manager Curriculum Dropdowns
+
+- Status: Complete.
+- Files changed: Updated `src/app/components/ContentManager.tsx` and coordination files. No CSS changes were needed.
+- Summary: Replaced the Content Manager free-text Unit and Topic authoring fields with selects driven by canonical AP Precalculus curriculum units/topics. Unit selections store canonical unit titles; topic selections display code plus title while storing the canonical topic title. Unit changes preserve the topic only when it belongs to the selected unit, otherwise the editor chooses the first topic for the new unit or clears if no topics are available.
+- Verification: Ran `npx prettier --check src/app/components/ContentManager.tsx .ai/status.md .ai/handoff-log.md`, `npx eslint src/app/components/ContentManager.tsx`, and `npx tsc --noEmit --pretty false`. All passed after formatting the touched files.
+
+### 2026-05-16 - Worker M29-1 - Canonical Curriculum Domain
+
+- Status: Complete.
+- Files changed: Added `src/domain/curriculum/apPrecalculusCed.ts`, added compatibility exports in `src/domain/curriculum/apPrecalculus.ts` and `src/domain/curriculum/index.ts`, and added `tests/unit/curriculum.test.ts`. Coordination files updated.
+- Summary: Implemented the AP Precalculus Fall 2023 CED curriculum domain map with 4 units, 58 topic labels, canonical unit/topic IDs, AP-assessed flags, lookup helpers, normalization aliases, topic/unit formatters, and unit topic counts. No College Board prompts, rubrics, examples, images, or long content were imported.
+- Verification: Ran `npm test -- curriculum`, `npm test -- firstPackReadiness`, scoped ESLint, scoped Prettier check, `npx tsc --noEmit --pretty false`, and `npm test` (226 tests). All passed.
+
+### 2026-05-16 - Codex - M29 CED Curriculum Integration
+
+- Status: Complete.
+- Files changed: Integrated `src/domain/curriculum/apPrecalculusCed.ts` and `src/domain/curriculum/index.ts`, updated `src/app/components/ContentManager.tsx`, `src/domain/exams/*`, `scripts/validate-content.ts`, curriculum/content/exam tests, product docs, import templates, and coordination files.
+- Summary: Completed the AP Precalculus curriculum milestone with one canonical CED unit/topic source, all 4 units and 58 topics, AP-assessed flags for Units 1-3, Unit 4 course-only support, canonical authoring labels, Content Manager unit/topic dropdowns, authoring validation for invalid/mismatched metadata, and exam blueprints/readiness derived from the same curriculum source. Kept the shipped question bank empty and did not import College Board prompts, rubrics, examples, diagrams, images, or long content.
+- Verification: Ran `npm test -- curriculum contentValidation examDomain` (23 tests), `npm run validate:content`, targeted ESLint for M29 files, `npx tsc --noEmit --pretty false`, `npm test` (227 tests), `npm run lint`, `npm run build`, and an HTTP smoke for `http://127.0.0.1:5173/`. All passed; build still reports the existing large-chunk warning.

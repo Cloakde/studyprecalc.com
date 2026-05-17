@@ -30,6 +30,15 @@ import {
 } from '../../data/localVideoStore';
 import { QuestionSchema, QuestionSetSchema } from '../../data/schemas/questionSchema';
 import {
+  apPrecalculusTopics,
+  apPrecalculusUnits,
+  findApPrecalculusTopic,
+  findApPrecalculusUnit,
+  formatApPrecalculusTopic,
+  formatApPrecalculusUnit,
+  type ApPrecalculusUnitId,
+} from '../../domain/curriculum';
+import {
   buildContentReadinessDashboard,
   buildContentReadinessReport,
   contentReadinessIssueCategories,
@@ -559,18 +568,33 @@ function draftHasLocalMedia(draft: QuestionDraft): boolean {
   );
 }
 
+function getCurriculumTopicsForUnit(unitId: ApPrecalculusUnitId) {
+  return apPrecalculusTopics.filter((topic) => topic.unitId === unitId);
+}
+
+function getCanonicalDraftCurriculum(draft: Pick<QuestionDraft, 'unit' | 'topic'>) {
+  const unit = findApPrecalculusUnit(draft.unit);
+  const topic = unit ? findApPrecalculusTopic(draft.topic, unit.id) : undefined;
+
+  return {
+    unit,
+    topic,
+  };
+}
+
 function questionToDraft(
   question: Question,
   workflowState: DraftWorkflowState = 'published',
 ): QuestionDraft {
   const video = question.explanation.video;
+  const curriculum = getCanonicalDraftCurriculum(question);
 
   return {
     id: question.id,
     workflowState,
     type: question.type,
-    unit: question.unit,
-    topic: question.topic,
+    unit: curriculum.unit ? formatApPrecalculusUnit(curriculum.unit) : question.unit,
+    topic: curriculum.topic ? formatApPrecalculusTopic(curriculum.topic) : question.topic,
     skill: question.skill,
     difficulty: question.difficulty,
     calculator: question.calculator,
@@ -614,6 +638,7 @@ function questionToDraft(
 }
 
 function draftToQuestion(draft: QuestionDraft): Question {
+  const curriculum = getCanonicalDraftCurriculum(draft);
   const explanation = {
     summary: draft.explanationSummary.trim(),
     steps: linesToList(draft.explanationSteps),
@@ -631,8 +656,8 @@ function draftToQuestion(draft: QuestionDraft): Question {
 
   const baseQuestion = {
     id: draft.id.trim(),
-    unit: draft.unit.trim(),
-    topic: draft.topic.trim(),
+    unit: curriculum.unit ? formatApPrecalculusUnit(curriculum.unit) : draft.unit.trim(),
+    topic: curriculum.topic ? formatApPrecalculusTopic(curriculum.topic) : draft.topic.trim(),
     skill: draft.skill.trim(),
     difficulty: draft.difficulty,
     calculator: draft.calculator,
@@ -812,14 +837,15 @@ function draftToVideoExplanation(draft: QuestionDraft): VideoExplanationData | u
 }
 
 function getReadinessChecks(draft: QuestionDraft): ReadinessCheck[] {
+  const curriculum = getCanonicalDraftCurriculum(draft);
   const checks: ReadinessCheck[] = [
     {
       id: 'identity',
       label: 'ID, unit, topic, skill, and tags',
       complete:
         hasText(draft.id) &&
-        hasText(draft.unit) &&
-        hasText(draft.topic) &&
+        Boolean(curriculum.unit) &&
+        Boolean(curriculum.topic) &&
         hasText(draft.skill) &&
         tagsToList(draft.tags).length > 0,
     },
@@ -983,6 +1009,19 @@ export function ContentManager({
     ],
   );
   const previewVideo = useMemo(() => draftToVideoExplanation(draft), [draft]);
+  const selectedCurriculumUnit = useMemo(() => findApPrecalculusUnit(draft.unit), [draft.unit]);
+  const selectedCurriculumUnitId = selectedCurriculumUnit?.id;
+  const curriculumTopicOptions = useMemo(
+    () => (selectedCurriculumUnitId ? getCurriculumTopicsForUnit(selectedCurriculumUnitId) : []),
+    [selectedCurriculumUnitId],
+  );
+  const selectedCurriculumTopic = useMemo(
+    () =>
+      selectedCurriculumUnitId
+        ? findApPrecalculusTopic(draft.topic, selectedCurriculumUnitId)
+        : undefined,
+    [draft.topic, selectedCurriculumUnitId],
+  );
   const displayedQuestions = useMemo(() => {
     const normalizedSearchText = librarySearchText.trim().toLowerCase();
 
@@ -1175,6 +1214,49 @@ export function ContentManager({
       ...current,
       [field]: value,
     }));
+  }
+
+  function updateCurriculumUnit(unitLabel: string) {
+    const nextUnit = findApPrecalculusUnit(unitLabel);
+
+    if (!nextUnit) {
+      setDraft((current) => ({
+        ...current,
+        unit: '',
+        topic: '',
+      }));
+      return;
+    }
+
+    const nextTopics = getCurriculumTopicsForUnit(nextUnit.id);
+
+    setDraft((current) => {
+      const currentTopic = findApPrecalculusTopic(current.topic, nextUnit.id);
+
+      return {
+        ...current,
+        unit: formatApPrecalculusUnit(nextUnit),
+        topic: currentTopic
+          ? formatApPrecalculusTopic(currentTopic)
+          : nextTopics[0]
+            ? formatApPrecalculusTopic(nextTopics[0])
+            : '',
+      };
+    });
+  }
+
+  function updateCurriculumTopic(topicLabel: string) {
+    setDraft((current) => {
+      const currentUnit = findApPrecalculusUnit(current.unit);
+      const nextTopic = currentUnit
+        ? findApPrecalculusTopic(topicLabel, currentUnit.id)
+        : undefined;
+
+      return {
+        ...current,
+        topic: nextTopic ? formatApPrecalculusTopic(nextTopic) : '',
+      };
+    });
   }
 
   function startNewQuestion(
@@ -2284,17 +2366,36 @@ export function ContentManager({
           <div className="form-grid form-grid--two">
             <label>
               Unit
-              <input
-                onChange={(event) => updateDraft('unit', event.target.value)}
-                value={draft.unit}
-              />
+              <select
+                onChange={(event) => updateCurriculumUnit(event.target.value)}
+                value={
+                  selectedCurriculumUnit ? formatApPrecalculusUnit(selectedCurriculumUnit) : ''
+                }
+              >
+                <option value="">Select unit</option>
+                {apPrecalculusUnits.map((unit) => (
+                  <option key={unit.id} value={formatApPrecalculusUnit(unit)}>
+                    {formatApPrecalculusUnit(unit)}
+                  </option>
+                ))}
+              </select>
             </label>
             <label>
               Topic
-              <input
-                onChange={(event) => updateDraft('topic', event.target.value)}
-                value={draft.topic}
-              />
+              <select
+                disabled={curriculumTopicOptions.length === 0}
+                onChange={(event) => updateCurriculumTopic(event.target.value)}
+                value={
+                  selectedCurriculumTopic ? formatApPrecalculusTopic(selectedCurriculumTopic) : ''
+                }
+              >
+                <option value="">Select topic</option>
+                {curriculumTopicOptions.map((topic) => (
+                  <option key={topic.code} value={formatApPrecalculusTopic(topic)}>
+                    {formatApPrecalculusTopic(topic)}
+                  </option>
+                ))}
+              </select>
             </label>
             <label>
               Skill

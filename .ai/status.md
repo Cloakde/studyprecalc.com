@@ -4,13 +4,20 @@ Last updated: 2026-05-16
 
 ## Current Phase
 
-DESIGN-002 notebook design refresh is complete. Owner-side Supabase smoke accounts and optional
-`www` DNS configuration still require owner dashboard access.
+M29 CED curriculum map is complete. Owner-side Supabase smoke accounts and optional `www` DNS
+configuration still require owner dashboard access.
 
 ## Active Ownership
 
 | Agent             | Task                                         | File Scope                                                                                                                                                                     | Status |
 | ----------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------ |
+| Codex             | M29 CED curriculum integration               | `.ai/*`, `src/domain/curriculum/*`, `src/domain/exams/*`, `src/app/components/ContentManager.tsx`, validation/docs integration as needed                                       | Done   |
+| Worker M29-1      | Canonical curriculum domain                  | `src/domain/curriculum/*`, `tests/unit/curriculum.test.ts`                                                                                                                     | Done   |
+| Worker M29-2      | Content validation alignment                 | `scripts/validate-content.ts`, `tests/unit/contentValidation.test.ts`                                                                                                          | Done   |
+| Worker M29-3      | Content Manager unit/topic dropdowns         | `src/app/components/ContentManager.tsx`, narrow `src/app/styles/app.css` if needed                                                                                             | Done   |
+| Worker M29-4      | Exam unit alignment                          | `src/domain/exams/blueprints.ts`, `src/domain/exams/readiness.ts`, `src/domain/exams/types.ts`, `tests/unit/examDomain.test.ts`                                                | Done   |
+| Worker M29-5      | Curriculum docs/templates                    | `docs/product/content-taxonomy.md`, `docs/product/question-model.md`, `content/templates/README.md`, `content/templates/original-question-pack-template.json`                  | Done   |
+| Worker M29-6      | Curriculum integration QA                    | Read-only preferred; `tests/unit/curriculumIntegration.test.ts` if needed                                                                                                      | Done   |
 | Codex             | DESIGN-002 notebook design refresh           | `src/app/styles/tokens.css`, `src/app/styles/app.css`, `src/app/styles/home.css`, `.ai/*`                                                                                      | Done   |
 | Codex             | M23-M28 milestone integration                | `scripts/*`, `src/domain/*`, `src/app/components/*`, `src/app/App.tsx`, `src/app/styles/app.css`, `tests/*`, `docs/*`, `.ai/*`                                                 | Done   |
 | Worker M24        | Repeatable admin workflow QA coverage        | `tests/fixtures/integrationHarness.ts`, `tests/unit/integrationHarness.test.ts`, `scripts/live-smoke-checklist.ts`, `docs/operations/m9-m10-owner-handoff.md`                  | Done   |
@@ -22,6 +29,19 @@ DESIGN-002 notebook design refresh is complete. Owner-side Supabase smoke accoun
 
 ## Notes
 
+- 2026-05-16: Worker M29-2 is starting content validation alignment, scoped to
+  `scripts/validate-content.ts` and `tests/unit/contentValidation.test.ts`, and will import
+  canonical curriculum helpers after Worker M29-1 lands `src/domain/curriculum`.
+- 2026-05-16: Worker M29-2 completed content authoring validation alignment with canonical AP
+  Precalculus curriculum unit/topic metadata and left schemas/UI untouched.
+- 2026-05-16: Worker M29-3 started Content Manager unit/topic dropdown work, scoped to `src/app/components/ContentManager.tsx` and narrow `src/app/styles/app.css` only if needed.
+- 2026-05-16: Worker M29-3 completed Content Manager unit/topic dropdowns using canonical AP Precalculus curriculum units/topics from `src/domain/curriculum`. No CSS changes were needed.
+- 2026-05-16: Worker M29-4 completed exam unit alignment after `src/domain/curriculum` landed. Exam units now derive from canonical curriculum, AP prep derives its Units 1-3 scope from curriculum exam-assessed flags, and exam readiness uses the canonical unit lookup. Focused exam verification passes; repo-wide TypeScript is still blocked by active M29 curriculum/ContentManager export/type issues outside Worker M29-4 scope.
+- 2026-05-16: Worker M29-1 completed the canonical AP Precalculus Fall 2023 CED curriculum domain module with 4 units, 58 topic labels, AP-assessed flags, lookup/normalization helpers, compatibility exports, and focused unit coverage. No College Board prompts, rubrics, examples, images, or long content were imported.
+- 2026-05-16: Codex completed M29 integration. The app now has one canonical AP Precalculus CED
+  curriculum source under `src/domain/curriculum/apPrecalculusCed.ts`; Content Manager saves
+  `Unit N: ...` and `topic-code title` labels; content validation and exam readiness resolve those
+  labels through canonical lookup helpers.
 - The workspace started empty.
 - Worker C completed the standalone `VideoExplanation` component and unit tests, scoped to `src/app/components/VideoExplanation.*` and `tests/unit/*video*`.
 - Worker B/Codex completed no-code content authoring docs and metadata validation, scoped to `docs/product/*author*`, `docs/product/*taxonomy*`, `scripts/validate-content.ts`, and `tests/unit/*content*`.
@@ -179,3 +199,9 @@ warning. Browser/CDP automation was unavailable because no local debugging targe
 2026-05-15: Worker M26 completed content library media readiness polish for prompt/explanation images, local media blockers, placeholder media URLs, and external video metadata guidance. Ran `npm test -- contentReadiness firstPackReadiness`, `npx tsc --noEmit --pretty false`, scoped ESLint for `src/domain/questions/contentReadiness.ts` and `tests/unit/contentReadiness.test.ts`, and scoped Prettier checks for touched files. All passed.
 2026-05-16: Codex integrated M23-M28 and ran `npm run lint`, `npm test` (215 tests), `npm run build`, `npm run validate:content`, `git diff --check`, `npm run smoke:supabase`, success-path `npm run check:production-readiness` with documented `READINESS_*` confirmations, `npm run smoke:live-checklist -- --base-url https://studyprecalc.com --run-label "M23-M28 post-integration" --no-cleanup`, targeted `npm test -- supabaseSmoke examDomain sessionPractice`, and an HTTP smoke for `http://127.0.0.1:5173/`. Repo checks passed; build still reports the existing large-chunk warning. Live write smoke remains owner-only until real admin/student smoke credentials are provided.
 2026-05-16: Codex completed DESIGN-002 and ran `npm run lint`, `npm test` (215 tests), `npm run build`, `npm run validate:content`, `git diff --check`, an HTTP smoke for `http://127.0.0.1:5173/`, and a Chrome DevTools Protocol mobile check confirming `scrollWidth` equals the 390px viewport. All passed; build still reports the existing large-chunk warning.
+2026-05-16: Worker M29-5 updated product docs/templates for the canonical AP Precalculus CED curriculum map and ran `npx prettier --write docs/product/content-taxonomy.md docs/product/question-model.md content/templates/README.md content/templates/original-question-pack-template.json .ai/status.md .ai/handoff-log.md`, `npx prettier --check docs/product/content-taxonomy.md docs/product/question-model.md content/templates/README.md content/templates/original-question-pack-template.json .ai/status.md .ai/handoff-log.md`, and `git diff --check -- docs/product/content-taxonomy.md docs/product/question-model.md content/templates/README.md content/templates/original-question-pack-template.json .ai/status.md .ai/handoff-log.md`.
+2026-05-16: Worker M29-2 completed content validation alignment and ran `npm test -- contentValidation`, `npm run validate:content`, `npx eslint scripts/validate-content.ts tests/unit/contentValidation.test.ts`, `npx prettier --check scripts/validate-content.ts tests/unit/contentValidation.test.ts`, and `npm test -- curriculum contentValidation`. All passed. `npx tsc --noEmit --pretty false` was attempted and is currently blocked by active M29 work outside Worker M29-2 scope in `src/app/components/ContentManager.tsx` and `src/domain/curriculum/apPrecalculusCed.ts`.
+2026-05-16: Worker M29-6 ran M29 integration QA across curriculum/domain, content validation, exam alignment, docs/templates, and Content Manager dropdown wiring. `npm test -- curriculum contentValidation examDomain`, `npm run validate:content`, targeted ESLint, `npm run build`, and `npm run lint` passed after the M29-3 export follow-up landed; build still reports the existing large-chunk warning.
+2026-05-16: Worker M29-3 ran `npx prettier --check src/app/components/ContentManager.tsx .ai/status.md .ai/handoff-log.md`, `npx eslint src/app/components/ContentManager.tsx`, and `npx tsc --noEmit --pretty false`. All passed after formatting the touched files.
+2026-05-16: Worker M29-1 completed the AP Precalculus CED curriculum domain module and ran `npm test -- curriculum`, `npm test -- firstPackReadiness`, `npx eslint src/domain/curriculum/apPrecalculus.ts src/domain/curriculum/apPrecalculusCed.ts src/domain/curriculum/index.ts tests/unit/curriculum.test.ts`, `npx prettier --check src/domain/curriculum/apPrecalculus.ts src/domain/curriculum/apPrecalculusCed.ts src/domain/curriculum/index.ts tests/unit/curriculum.test.ts .ai/status.md .ai/task-board.md .ai/handoff-log.md`, `npx tsc --noEmit --pretty false`, and `npm test` (226 tests). All passed.
+2026-05-16: Codex integrated M29 and ran `npm test -- curriculum contentValidation examDomain` (23 tests), `npm run validate:content`, targeted ESLint for M29 files, `npx tsc --noEmit --pretty false`, `npm test` (227 tests), `npm run lint`, `npm run build`, and an HTTP smoke for `http://127.0.0.1:5173/`. All passed; build still reports the existing large-chunk warning.

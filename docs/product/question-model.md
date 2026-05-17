@@ -8,15 +8,22 @@ Every question should have:
 
 - `id` - stable unique identifier.
 - `type` - `mcq` or `frq`.
-- `unit` - AP Precalculus unit or topic grouping.
-- `skill` - specific skill being practiced.
+- `unit` - canonical AP Precalculus CED unit label from `docs/product/content-taxonomy.md`, such as `Unit 1: Polynomial and Rational Functions`.
+- `topic` - canonical CED topic label from the taxonomy, such as `1.12 Transformations of Functions`.
+- `skill` - original author-defined skill being practiced.
 - `difficulty` - approximate difficulty level.
-- `prompt` - student-facing question prompt.
-- `assets` - optional images, graphs, tables, or media references.
-- `answer` - correct answer data.
-- `explanation` - conceptual explanation.
-- `steps` - ordered solution steps.
+- `prompt` - original student-facing question prompt.
+- `assets` - optional original images, graphs, tables, or media references.
+- `answer` - correct answer data for the original question.
+- `explanation` - original conceptual explanation.
+- `steps` - ordered original solution steps.
 - `tags` - search and filtering tags.
+
+## Content Rights And CED Metadata
+
+The app uses AP Precalculus CED unit and topic labels as metadata only. Question prompts, answer choices, FRQ parts, explanations, scoring criteria, sample responses, images, graphs, tables, and videos must be owner-authored or otherwise rights-cleared. Do not import real College Board released questions, diagrams, rubrics, scoring notes, or sample responses into app content unless the user explicitly confirms usage rights.
+
+The `unit` and `topic` fields should follow the canonical labels in `docs/product/content-taxonomy.md`. Use `skill` and `tags` for local instructional detail rather than changing CED topic names.
 
 ## Multiple Choice
 

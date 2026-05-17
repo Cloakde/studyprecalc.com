@@ -1,6 +1,7 @@
+import type { ApPrecalculusUnitId } from '../curriculum';
 import type { Question, QuestionType } from '../questions/types';
 
-export type ExamUnitId = 'unit-1' | 'unit-2' | 'unit-3' | 'unit-4';
+export type ExamUnitId = ApPrecalculusUnitId;
 
 export type ExamMode = 'unit-practice' | 'ap-prep';
 

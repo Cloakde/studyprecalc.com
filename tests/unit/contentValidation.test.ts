@@ -4,6 +4,8 @@ import { type AuthoringQuestion, validateAuthoringMetadata } from '../../scripts
 const makeQuestion = (overrides: Partial<AuthoringQuestion> = {}): AuthoringQuestion => {
   const baseQuestion: AuthoringQuestion = {
     id: 'test-mcq-999',
+    unit: 'Unit 1: Polynomial and Rational Functions',
+    topic: '1.12 Transformations of Functions',
     tags: ['test-topic', 'test-skill'],
     explanation: {
       commonMistakes: ['Selecting a distractor without checking the prompt.'],
@@ -37,6 +39,10 @@ describe('validateAuthoringMetadata', () => {
     expect(issues).toEqual([]);
   });
 
+  it('accepts canonical unit and matching topic titles', () => {
+    expect(issueCodesFor(makeQuestion())).toEqual([]);
+  });
+
   it('flags duplicate question IDs across question sets', () => {
     const issues = validateAuthoringMetadata([
       {
@@ -62,6 +68,25 @@ describe('validateAuthoringMetadata', () => {
     expect(issueCodesFor(makeQuestion({ tags: ['models', ' Models '] }))).toContain(
       'duplicate-tag',
     );
+  });
+
+  it('flags units outside the canonical AP Precalculus curriculum', () => {
+    expect(issueCodesFor(makeQuestion({ unit: 'Made Up Unit' }))).toContain('invalid-unit');
+  });
+
+  it('flags topics outside the canonical AP Precalculus curriculum', () => {
+    expect(issueCodesFor(makeQuestion({ topic: 'Made Up Topic' }))).toContain('invalid-topic');
+  });
+
+  it('flags canonical topics assigned to the wrong canonical unit', () => {
+    expect(
+      issueCodesFor(
+        makeQuestion({
+          unit: 'Unit 1: Polynomial and Rational Functions',
+          topic: '2.15 Semi-log Plots',
+        }),
+      ),
+    ).toContain('topic-unit-mismatch');
   });
 
   it('flags missing or empty common mistakes', () => {

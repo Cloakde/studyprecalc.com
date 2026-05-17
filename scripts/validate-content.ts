@@ -3,6 +3,12 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { QuestionSetSchema } from '../src/data/schemas/questionSchema';
+import {
+  getApPrecalculusTopic,
+  getApPrecalculusTopicsForUnit,
+  getApPrecalculusUnit,
+  normalizeCurriculumLookup,
+} from '../src/domain/curriculum';
 
 const currentFile = fileURLToPath(import.meta.url);
 const repoRoot = path.resolve(path.dirname(currentFile), '..');
@@ -12,7 +18,10 @@ export type AuthoringIssueCode =
   | 'duplicate-question-id'
   | 'duplicate-tag'
   | 'empty-common-mistakes'
-  | 'missing-video-transcript';
+  | 'invalid-unit'
+  | 'invalid-topic'
+  | 'missing-video-transcript'
+  | 'topic-unit-mismatch';
 
 export type AuthoringIssue = {
   code: AuthoringIssueCode;
@@ -24,6 +33,8 @@ export type AuthoringIssue = {
 
 export type AuthoringQuestion = {
   id: string;
+  unit: string;
+  topic: string;
   tags: string[];
   explanation: {
     commonMistakes?: string[];
@@ -56,6 +67,12 @@ const describeQuestionLocation = (sourcePath: string | undefined, questionIndex:
   return `${source} questions[${questionIndex}]`;
 };
 
+const topicMatchesLabel = (topic: { aliases: readonly string[] }, label: string) => {
+  const normalizedLabel = normalizeCurriculumLookup(label);
+
+  return topic.aliases.some((alias) => normalizeCurriculumLookup(alias) === normalizedLabel);
+};
+
 export const validateAuthoringMetadata = (
   questionSets: AuthoringQuestionSet[],
 ): AuthoringIssue[] => {
@@ -81,6 +98,43 @@ export const validateAuthoringMetadata = (
         seenQuestionIds.set(question.id, {
           sourcePath: questionSet.sourcePath,
           questionIndex,
+        });
+      }
+
+      const curriculumUnit = getApPrecalculusUnit(question.unit);
+
+      if (!curriculumUnit) {
+        issues.push({
+          code: 'invalid-unit',
+          message: `Question "${question.id}" uses unit "${question.unit}", which is not in the AP Precalculus curriculum map.`,
+          file: questionSet.sourcePath,
+          questionId: question.id,
+          fieldPath: formatQuestionPath(questionIndex, 'unit'),
+        });
+      }
+
+      const curriculumTopicForUnit = curriculumUnit
+        ? getApPrecalculusTopicsForUnit(curriculumUnit.id).find((topic) =>
+            topicMatchesLabel(topic, question.topic),
+          )
+        : undefined;
+      const curriculumTopic = curriculumTopicForUnit ?? getApPrecalculusTopic(question.topic);
+
+      if (!curriculumTopic) {
+        issues.push({
+          code: 'invalid-topic',
+          message: `Question "${question.id}" uses topic "${question.topic}", which is not in the AP Precalculus curriculum map.`,
+          file: questionSet.sourcePath,
+          questionId: question.id,
+          fieldPath: formatQuestionPath(questionIndex, 'topic'),
+        });
+      } else if (curriculumUnit && !curriculumTopicForUnit) {
+        issues.push({
+          code: 'topic-unit-mismatch',
+          message: `Question "${question.id}" uses topic "${question.topic}" from ${curriculumTopic.unitTitle}, not ${curriculumUnit.title}.`,
+          file: questionSet.sourcePath,
+          questionId: question.id,
+          fieldPath: formatQuestionPath(questionIndex, 'topic'),
         });
       }
 

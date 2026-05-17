@@ -1,6 +1,6 @@
+import { getApPrecalculusUnit } from '../curriculum';
 import { getPublicationStatus } from '../questions/publication';
 import type { Question } from '../questions/types';
-import { examUnits } from './blueprints';
 import type {
   ExamBlueprint,
   ExamQuestionAvailability,
@@ -11,24 +11,8 @@ import type {
   ExamUnitId,
 } from './types';
 
-const normalizedUnitAliases = new Map<string, ExamUnitId>(
-  examUnits.flatMap((unit) =>
-    [unit.id, unit.title, ...unit.aliases].map((alias) => [normalizeUnitLabel(alias), unit.id]),
-  ),
-);
-
-function normalizeUnitLabel(value: string): string {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/&/g, 'and')
-    .replace(/[^a-z0-9]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
 export function getQuestionExamUnitId(question: Pick<Question, 'unit'>): ExamUnitId | undefined {
-  return normalizedUnitAliases.get(normalizeUnitLabel(question.unit));
+  return getApPrecalculusUnit(question.unit)?.id;
 }
 
 export function isQuestionAvailableForExam(

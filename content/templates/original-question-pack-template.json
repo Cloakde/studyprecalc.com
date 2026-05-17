@@ -4,8 +4,8 @@
     {
       "id": "owner-mcq-template-001",
       "type": "mcq",
-      "unit": "Polynomial and Rational Functions",
-      "topic": "Function transformations",
+      "unit": "Unit 1: Polynomial and Rational Functions",
+      "topic": "1.12 Transformations of Functions",
       "skill": "OWNER_TODO: Replace with the specific original MCQ skill.",
       "difficulty": "intro",
       "calculator": "none",
@@ -74,8 +74,8 @@
     {
       "id": "owner-frq-template-001",
       "type": "frq",
-      "unit": "Exponential and Logarithmic Functions",
-      "topic": "Exponential models",
+      "unit": "Unit 2: Exponential and Logarithmic Functions",
+      "topic": "2.5 Exponential Function Context and Data Modeling",
       "skill": "OWNER_TODO: Replace with the specific original FRQ skill.",
       "difficulty": "medium",
       "calculator": "graphing",

@@ -1,11 +1,14 @@
 import {
   apPrepExamBlueprint,
   createExamScoreSummary,
+  examBlueprints,
+  examUnits,
   getExamReadiness,
   getQuestionExamUnitId,
   selectExamQuestions,
   unitPracticeExamBlueprints,
 } from '../../src/domain/exams';
+import { apPrecalculusUnits } from '../../src/domain/curriculum';
 import type { FrqQuestion, McqQuestion, Question } from '../../src/domain/questions/types';
 import { testFrqQuestion, testMcqQuestion } from '../fixtures/testQuestions';
 
@@ -45,13 +48,30 @@ function makeQuestions(type: 'mcq' | 'frq', unit: string, count: number): Questi
 }
 
 describe('exam domain foundation', () => {
-  it('defines unit practice for Units 1-4 and AP prep for Units 1-3 only', () => {
-    expect(unitPracticeExamBlueprints.map((blueprint) => blueprint.unitIds)).toEqual([
-      ['unit-1'],
-      ['unit-2'],
-      ['unit-3'],
-      ['unit-4'],
+  it('derives exam units from the canonical AP Precalculus curriculum', () => {
+    expect(examUnits).toEqual(
+      apPrecalculusUnits.map((unit) => ({
+        id: unit.id,
+        number: unit.number,
+        title: unit.title,
+        assessedOnApExam: unit.assessedOnApExam,
+        aliases: unit.aliases,
+      })),
+    );
+  });
+
+  it('defines all four unit practice exams and AP prep for Units 1-3 only', () => {
+    expect(unitPracticeExamBlueprints).toHaveLength(4);
+    expect(unitPracticeExamBlueprints.map((blueprint) => blueprint.id)).toEqual([
+      'unit-1-practice-exam',
+      'unit-2-practice-exam',
+      'unit-3-practice-exam',
+      'unit-4-practice-exam',
     ]);
+    expect(unitPracticeExamBlueprints.map((blueprint) => blueprint.unitIds)).toEqual(
+      examUnits.map((unit) => [unit.id]),
+    );
+    expect(examBlueprints).toHaveLength(5);
     expect(apPrepExamBlueprint.unitIds).toEqual(['unit-1', 'unit-2', 'unit-3']);
     expect(apPrepExamBlueprint.requirements.every((requirement) => requirement.unitIds)).toBe(true);
     expect(
@@ -64,9 +84,19 @@ describe('exam domain foundation', () => {
   });
 
   it('maps owner-authored unit labels to canonical exam unit ids', () => {
+    expect(getQuestionExamUnitId({ unit: 'Unit 1: Polynomial and Rational Functions' })).toBe(
+      'unit-1',
+    );
     expect(getQuestionExamUnitId({ unit: 'Polynomial and Rational Functions' })).toBe('unit-1');
+    expect(getQuestionExamUnitId({ unit: 'Polynomial & Rational Functions' })).toBe('unit-1');
     expect(getQuestionExamUnitId({ unit: 'unit 2' })).toBe('unit-2');
+    expect(getQuestionExamUnitId({ unit: 'Exponential & Logarithmic Functions' })).toBe('unit-2');
     expect(getQuestionExamUnitId({ unit: 'Trigonometric & Polar Functions' })).toBe('unit-3');
+    expect(
+      getQuestionExamUnitId({
+        unit: 'Functions Involving Parameters Vectors and Matrices',
+      }),
+    ).toBe('unit-4');
   });
 
   it('reports missing counts from published owner-authored questions', () => {
